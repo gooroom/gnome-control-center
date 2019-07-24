@@ -1,0 +1,1587 @@
+diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
+new file mode 100644
+index 0000000..54aade2
+--- /dev/null
++++ b/panels/font/cc-font-panel.c
+@@ -0,0 +1,342 @@
++/*
++ * Copyright (C) 2010 Intel, Inc
++ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ */
++
++#include "cc-font-panel.h"
++//#include "font-dialog.h"
++#include "cc-font-resources.h"
++
++#include <config.h>
++#include <gtk/gtk.h>
++
++#include <glib/gi18n.h>
++
++#define WID(y) (GtkWidget *) gtk_builder_get_object (panel->builder, y)
++
++enum {
++  COMBO_BOX_MODEL_TEXT,
++  COMBO_BOX_MODEL_VALUE,
++  N_COLUMNS
++};
++
++typedef enum {
++  GSD_HINTING_ACTION_NONE,
++  GSD_HINTING_ACTION_SLIGHT,
++  GSD_HINTING_ACTION_MEDIUM,
++  GSD_HINTING_ACTION_FULL,
++} GsdHintingActionType;
++
++typedef enum {
++  GSD_ANTIALIAS_ACTION_NONE,
++  GSD_ANTIALIAS_ACTION_STANDARD,
++  GSD_ANTIALIAS_ACTION_SUBPIXEL,
++} GsdAntialiasActionType;
++
++struct _CcFontPanel
++{
++  CcPanel parent_instance;
++
++  GtkBuilder        *builder;
++  GSettings         *interface_settings;
++  GSettings         *wm_settings;
++  GSettings         *gsd_settings;
++
++  GtkAdjustment     *focus_adjustment;
++
++  GtkWidget         *interface_text_btn;
++  GtkWidget         *document_text_btn;
++  GtkWidget         *mono_text_btn;
++  GtkWidget         *titlebar_text_btn;
++
++  GtkWidget         *hinting_cb;
++  GtkWidget         *antialias_cb;
++  GtkWidget         *scale_spin;
++  GtkWidget         *scale_adjustment;
++
++  GtkWidget         *font_list;
++  GtkWidget         *render_list;
++
++  GtkListStore      *liststore_hinting;
++  GtkListStore      *liststore_antialias;
++};
++
++CC_PANEL_REGISTER (CcFontPanel, cc_font_panel)
++
++static const char *
++cc_font_panel_get_help_uri (CcPanel *panel)
++{
++  return "help:gnome-help/font";
++}
++
++static void
++init_gsd_combo_box_model (CcFontPanel *panel)
++{
++  struct {
++    char *name;
++    GsdHintingActionType value;
++  } hinting_actions[] = {
++    { N_("none"), GSD_HINTING_ACTION_NONE },
++    { N_("slight"), GSD_HINTING_ACTION_SLIGHT },
++    { N_("medium"), GSD_HINTING_ACTION_MEDIUM },
++    { N_("full"), GSD_HINTING_ACTION_FULL },
++  };
++
++  struct {
++    char *name;
++    GsdAntialiasActionType value;
++  } antialias_actions[] = {
++    { N_("none"), GSD_ANTIALIAS_ACTION_NONE },
++    { N_("grayscale"), GSD_ANTIALIAS_ACTION_STANDARD },
++    { N_("rgba"), GSD_ANTIALIAS_ACTION_SUBPIXEL },
++  };
++
++  guint i;
++  GtkListStore *store;
++  GtkTreeModel *model = NULL;
++
++  panel->liststore_hinting = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
++  model = GTK_TREE_MODEL (panel->liststore_hinting);
++  for (i = 0; i < G_N_ELEMENTS (hinting_actions); i++)
++  {
++    gtk_list_store_insert_with_values (panel->liststore_hinting,
++                                       NULL, -1,
++                                       COMBO_BOX_MODEL_TEXT, _(hinting_actions[i].name),
++                                       COMBO_BOX_MODEL_VALUE, hinting_actions[i].value,
++                                       -1);
++  }
++
++  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->hinting_cb), model);
++
++  panel->liststore_antialias = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
++  model = GTK_TREE_MODEL (panel->liststore_antialias);
++  for (i = 0; i < G_N_ELEMENTS (antialias_actions); i++)
++  {
++    gtk_list_store_insert_with_values (panel->liststore_antialias,
++                                       NULL, -1,
++                                       COMBO_BOX_MODEL_TEXT, _(antialias_actions[i].name),
++                                       COMBO_BOX_MODEL_VALUE, antialias_actions[i].value,
++                                       -1);
++  }
++
++  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->antialias_cb), model);
++}
++
++static void
++set_value_for_combo (GtkComboBox *combo_box, gint value)
++{
++  GtkTreeIter iter;
++  g_autoptr(GtkTreeIter) insert = NULL;
++  GtkTreeIter new;
++  GtkTreeModel *model;
++  gint value_tmp;
++  g_autofree gchar *text = NULL;
++  gboolean ret;
++
++  /* get entry */
++  model = gtk_combo_box_get_model (combo_box);
++  ret = gtk_tree_model_get_iter_first (model, &iter);
++  if (!ret)
++    return;
++
++  /* try to make the UI match the setting */
++  do
++    {
++      gtk_tree_model_get (model, &iter,
++                          COMBO_BOX_MODEL_VALUE, &value_tmp,
++                          -1);
++      if (value_tmp == value)
++      {
++        gtk_combo_box_set_active_iter (combo_box, &iter);
++        return;
++      }
++
++    } while (gtk_tree_model_iter_next (model, &iter));
++}
++
++static void
++call_list_box_separator (GtkListBoxRow *row,
++                         GtkListBoxRow *before,
++                         gpointer user_data)
++{
++  GtkWidget *current;
++  if (before == NULL)
++  {
++    gtk_list_box_row_set_header (row, NULL);
++    return;
++  }
++
++  current = gtk_list_box_row_get_header (row);
++  if (current == NULL)
++  {
++    current = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
++    gtk_widget_show (current);
++    gtk_list_box_row_set_header (row, current);
++  }
++}
++
++static void
++cc_font_panel_dispose (GObject *object)
++{
++  CcFontPanel *panel = CC_FONT_PANEL (object);
++
++  g_clear_object (&panel->builder);
++
++  g_clear_object (&panel->interface_settings);
++  g_clear_object (&panel->wm_settings);
++  g_clear_object (&panel->gsd_settings);
++
++  G_OBJECT_CLASS (cc_font_panel_parent_class)->dispose (object);
++}
++
++static void
++cc_font_panel_finalize (GObject *object)
++{
++  CcFontPanel *panel = CC_FONT_PANEL (object);
++
++  g_clear_object (&panel->liststore_hinting);
++  g_clear_object (&panel->liststore_antialias);
++
++  G_OBJECT_CLASS (cc_font_panel_parent_class)->finalize (object);
++}
++
++static void
++changed_hinting_cb (GtkWidget *widget, CcFontPanel *panel)
++{
++  GtkTreeIter iter;
++  GtkTreeModel *model;
++  gint value;
++  gboolean ret;
++
++  ret = gtk_combo_box_get_active_iter (GTK_COMBO_BOX (widget), &iter);
++  if (!ret)
++    return;
++
++  model = gtk_combo_box_get_model (GTK_COMBO_BOX (widget));
++  gtk_tree_model_get (model, &iter, COMBO_BOX_MODEL_VALUE, &value, -1);
++
++  g_settings_set_enum (panel->gsd_settings, "hinting", value);
++}
++
++static void
++changed_antialias_cb (GtkWidget *widget, CcFontPanel *panel)
++{
++  GtkTreeIter iter;
++  GtkTreeModel *model;
++  gint value;
++  gboolean ret;
++
++  ret = gtk_combo_box_get_active_iter (GTK_COMBO_BOX (widget), &iter);
++  if (!ret)
++    return;
++
++  model = gtk_combo_box_get_model (GTK_COMBO_BOX (widget));
++  gtk_tree_model_get (model, &iter, COMBO_BOX_MODEL_VALUE, &value, -1);
++
++  g_settings_set_enum (panel->gsd_settings, "antialiasing", value);
++}
++
++static void
++changed_scale_spin (GtkWidget *widget, CcFontPanel *panel)
++{
++  gdouble value;
++  value = gtk_spin_button_get_value (GTK_SPIN_BUTTON (panel->scale_spin));
++
++  g_settings_set_double (panel->interface_settings, "text-scaling-factor", value);
++}
++
++static void
++cc_font_panel_class_init (CcFontPanelClass *klass)
++{
++  GObjectClass *object_class = G_OBJECT_CLASS (klass);
++  CcPanelClass *panel_class = CC_PANEL_CLASS (klass);
++
++  object_class->dispose = cc_font_panel_dispose;
++
++  panel_class->get_help_uri = cc_font_panel_get_help_uri;
++}
++
++static void
++cc_font_panel_init (CcFontPanel *panel)
++{
++  gchar *objects[] = {"font-main-scrolled-window", NULL };
++  g_autoptr(GError) err = NULL;
++  GtkWidget *w;
++  gint button_val;
++  gdouble i_val;
++
++  g_resources_register (cc_font_get_resource ());
++
++  panel->builder = gtk_builder_new ();
++  gtk_builder_add_objects_from_resource (panel->builder,
++                                         "/org/gnome/control-center/font/font.ui",
++                                         objects, &err);
++
++  if (err)
++  {
++    g_warning ("Could not load ui: %s", err->message);
++    return;
++  }
++
++  panel->hinting_cb = WID ("hint-combobox");
++  panel->antialias_cb = WID ("antialiasing-combobox");
++  panel->scale_spin = WID ("scale-spin");
++  panel->font_list = WID ("font-listbox");
++  panel->render_list = WID ("render-listbox");
++
++  panel->scale_adjustment = gtk_adjustment_new (1, 0.5, 3, 0.01, 0, 0);
++  gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (panel->scale_spin), panel->scale_adjustment);
++
++  // set header separator on listbox row
++  gtk_list_box_set_header_func (panel->font_list, call_list_box_separator, NULL, NULL);
++  gtk_list_box_set_header_func (panel->render_list, call_list_box_separator, NULL, NULL);
++
++  panel->interface_settings = g_settings_new ("org.gnome.desktop.interface");
++  panel->wm_settings = g_settings_new ("org.gnome.desktop.wm.preferences");
++  panel->gsd_settings = g_settings_new ("org.gnome.settings-daemon.plugins.xsettings");
++
++  // font data binding
++  g_settings_bind (panel->interface_settings, "font-name", WID("interface-fontbutton"),"font", G_SETTINGS_BIND_DEFAULT);
++  g_settings_bind (panel->interface_settings, "document-font-name", WID("doc-text-fontbutton"),"font", G_SETTINGS_BIND_DEFAULT);
++  g_settings_bind (panel->interface_settings, "monospace-font-name", WID("mono-text-fontbutton"),"font", G_SETTINGS_BIND_DEFAULT);
++  g_settings_bind (panel->wm_settings, "titlebar-font", WID("windowtitle-text-fontbutton"),"font", G_SETTINGS_BIND_DEFAULT);
++
++  // initialize gsd combo box
++  init_gsd_combo_box_model (panel);
++
++  button_val = g_settings_get_enum (panel->gsd_settings, "hinting");
++  set_value_for_combo (GTK_COMBO_BOX (panel->hinting_cb), button_val);
++
++  button_val = g_settings_get_enum (panel->gsd_settings, "antialiasing");
++  set_value_for_combo (GTK_COMBO_BOX (panel->antialias_cb), button_val);
++
++  // set font scale value
++  i_val = g_settings_get_double (panel->interface_settings, "text-scaling-factor");
++  gtk_spin_button_set_value (panel->scale_spin, i_val);
++
++  g_signal_connect (panel->hinting_cb, "changed",
++                    G_CALLBACK (changed_hinting_cb), panel);
++  g_signal_connect (panel->antialias_cb, "changed",
++                    G_CALLBACK (changed_antialias_cb), panel);
++  g_signal_connect (panel->scale_spin, "value-changed",
++                    G_CALLBACK (changed_scale_spin), panel);
++
++  w = WID ("font-main-scrolled-window");
++  gtk_container_add (GTK_CONTAINER (panel), w);
++  gtk_widget_show_all (GTK_WIDGET (panel));
++}
+diff --git a/panels/font/cc-font-panel.h b/panels/font/cc-font-panel.h
+new file mode 100644
+index 0000000..ae0aca7
+--- /dev/null
++++ b/panels/font/cc-font-panel.h
+@@ -0,0 +1,32 @@
++/*
++ * Copyright (C) 2010 Intel, Inc
++ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ */
++
++#ifndef _CC_FONT_PANEL_H
++#define _CC_FONT_PANEL_H
++
++#include <shell/cc-panel.h>
++
++#define CC_TYPE_FONT_PANEL (cc_font_panel_get_type ())
++
++G_DECLARE_FINAL_TYPE (CcFontPanel, cc_font_panel, CC, FONT_PANEL, CcPanel)
++
++G_END_DECLS
++
++#endif /* _CC_FONT_PANEL_H */
+diff --git a/panels/font/font.gresource.xml b/panels/font/font.gresource.xml
+new file mode 100644
+index 0000000..90315d6
+--- /dev/null
++++ b/panels/font/font.gresource.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<gresources>
++  <gresource prefix="/org/gnome/control-center/font">
++    <file preprocess="xml-stripblanks">font.ui</file>
++    <!--<file preprocess="xml-stripblanks">font-dialog.ui</file>-->
++  </gresource>
++</gresources>
++
+diff --git a/panels/font/font.ui b/panels/font/font.ui
+new file mode 100644
+index 0000000..be3eda7
+--- /dev/null
++++ b/panels/font/font.ui
+@@ -0,0 +1,509 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!-- Generated with glade 3.22.1 -->
++<interface>
++  <requires lib="gtk+" version="3.20"/>
++  <object class="GtkScrolledWindow" id="font-main-scrolled-window">
++    <property name="height_request">400</property>
++    <property name="visible">True</property>
++    <property name="can_focus">True</property>
++    <property name="hscrollbar_policy">never</property>
++    <child>
++      <object class="GtkViewport" id="font-viewport">
++        <property name="visible">True</property>
++        <property name="can_focus">False</property>
++        <child>
++          <object class="GtkBox" id="box1">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <child>
++              <object class="GtkBox">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
++                <property name="hexpand">True</property>
++              </object>
++              <packing>
++                <property name="expand">False</property>
++                <property name="fill">True</property>
++                <property name="position">0</property>
++              </packing>
++            </child>
++            <child>
++              <object class="GtkBox">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
++                <property name="hexpand">True</property>
++              </object>
++              <packing>
++                <property name="expand">False</property>
++                <property name="fill">True</property>
++                <property name="pack_type">end</property>
++                <property name="position">1</property>
++              </packing>
++            </child>
++            <child>
++              <object class="GtkBox" id="font-main-box">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
++                <property name="margin_left">24</property>
++                <property name="margin_right">24</property>
++                <property name="margin_top">32</property>
++                <property name="margin_bottom">32</property>
++                <property name="hexpand">True</property>
++                <property name="orientation">vertical</property>
++                <child>
++                  <object class="GtkFrame" id="font-frame">
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="margin_bottom">32</property>
++                    <property name="hexpand">True</property>
++                    <property name="label_xalign">0</property>
++                    <property name="shadow_type">in</property>
++                    <child>
++                      <object class="GtkListBox" id="font-listbox">
++                        <property name="visible">True</property>
++                        <property name="can_focus">False</property>
++                        <property name="hexpand">True</property>
++                        <property name="selection_mode">none</property>
++                        <property name="activate_on_single_click">False</property>
++                        <child>
++                          <object class="GtkListBoxRow" id="interface-text-listboxrow">
++                            <property name="height_request">32</property>
++                            <property name="visible">True</property>
++                            <property name="can_focus">True</property>
++                            <property name="activatable">False</property>
++                            <property name="selectable">False</property>
++                            <child>
++                              <object class="GtkBox" id="interface-text-box">
++                                <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <property name="valign">center</property>
++                                <property name="spacing">6</property>
++                                <child>
++                                  <object class="GtkLabel" id="interface-text-label">
++                                    <property name="height_request">32</property>
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="halign">start</property>
++                                    <property name="margin_left">12</property>
++                                    <property name="margin_start">12</property>
++                                    <property name="margin_top">8</property>
++                                    <property name="margin_bottom">8</property>
++                                    <property name="hexpand">True</property>
++                                    <property name="label" translatable="yes">Interface Text</property>
++                                    <property name="use_underline">True</property>
++                                    <property name="xalign">0</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">0</property>
++                                  </packing>
++                                </child>
++                                <child>
++                                  <object class="GtkFontButton" id="interface-fontbutton">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">True</property>
++                                    <property name="receives_default">True</property>
++                                    <property name="halign">end</property>
++                                    <property name="valign">center</property>
++                                    <property name="margin_right">15</property>
++                                    <property name="font">Sans 12</property>
++                                    <property name="language">ko-kr</property>
++                                    <property name="preview_text"/>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">1</property>
++                                  </packing>
++                                </child>
++                              </object>
++                            </child>
++                          </object>
++                        </child>
++                        <child>
++                          <object class="GtkListBoxRow" id="doc-text-listboxrow">
++                            <property name="height_request">32</property>
++                            <property name="visible">True</property>
++                            <property name="can_focus">True</property>
++                            <property name="activatable">False</property>
++                            <property name="selectable">False</property>
++                            <child>
++                              <object class="GtkBox" id="doc-text-box">
++                                <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <property name="valign">center</property>
++                                <child>
++                                  <object class="GtkLabel" id="doc-text-label">
++                                    <property name="height_request">32</property>
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="halign">start</property>
++                                    <property name="margin_left">12</property>
++                                    <property name="margin_start">12</property>
++                                    <property name="margin_top">8</property>
++                                    <property name="margin_bottom">8</property>
++                                    <property name="hexpand">True</property>
++                                    <property name="label" translatable="yes">Document Text</property>
++                                    <property name="use_underline">True</property>
++                                    <property name="xalign">0</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">0</property>
++                                  </packing>
++                                </child>
++                                <child>
++                                  <object class="GtkFontButton" id="doc-text-fontbutton">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">True</property>
++                                    <property name="receives_default">True</property>
++                                    <property name="halign">end</property>
++                                    <property name="valign">center</property>
++                                    <property name="margin_right">15</property>
++                                    <property name="font">Sans 12</property>
++                                    <property name="language">ko-kr</property>
++                                    <property name="preview_text"/>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">1</property>
++                                  </packing>
++                                </child>
++                              </object>
++                            </child>
++                          </object>
++                        </child>
++                        <child>
++                          <object class="GtkListBoxRow" id="mono-text-listboxrow">
++                            <property name="height_request">32</property>
++                            <property name="visible">True</property>
++                            <property name="can_focus">True</property>
++                            <property name="activatable">False</property>
++                            <property name="selectable">False</property>
++                            <child>
++                              <object class="GtkBox" id="mono-text-box">
++                                <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <property name="valign">center</property>
++                                <child>
++                                  <object class="GtkLabel" id="mono-text-label">
++                                    <property name="height_request">32</property>
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="halign">start</property>
++                                    <property name="margin_left">12</property>
++                                    <property name="margin_start">12</property>
++                                    <property name="margin_top">8</property>
++                                    <property name="margin_bottom">8</property>
++                                    <property name="hexpand">True</property>
++                                    <property name="label" translatable="yes">Monospace Text</property>
++                                    <property name="use_underline">True</property>
++                                    <property name="xalign">0</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">0</property>
++                                  </packing>
++                                </child>
++                                <child>
++                                  <object class="GtkFontButton" id="mono-text-fontbutton">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">True</property>
++                                    <property name="receives_default">True</property>
++                                    <property name="halign">end</property>
++                                    <property name="valign">center</property>
++                                    <property name="margin_right">15</property>
++                                    <property name="font">Sans 12</property>
++                                    <property name="language">ko-kr</property>
++                                    <property name="preview_text"/>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">1</property>
++                                  </packing>
++                                </child>
++                              </object>
++                            </child>
++                          </object>
++                        </child>
++                        <child>
++                          <object class="GtkListBoxRow" id="windowtitle-text-listboxrow">
++                            <property name="height_request">32</property>
++                            <property name="visible">True</property>
++                            <property name="can_focus">True</property>
++                            <property name="activatable">False</property>
++                            <property name="selectable">False</property>
++                            <child>
++                              <object class="GtkBox" id="windowtitle-text-box">
++                                <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <property name="valign">center</property>
++                                <child>
++                                  <object class="GtkLabel" id="windowtitle-text-label">
++                                    <property name="height_request">32</property>
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="halign">start</property>
++                                    <property name="margin_left">12</property>
++                                    <property name="margin_start">12</property>
++                                    <property name="margin_top">8</property>
++                                    <property name="margin_bottom">8</property>
++                                    <property name="hexpand">True</property>
++                                    <property name="label" translatable="yes">Legacy Window Titles</property>
++                                    <property name="use_underline">True</property>
++                                    <property name="xalign">0</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">0</property>
++                                  </packing>
++                                </child>
++                                <child>
++                                  <object class="GtkFontButton" id="windowtitle-text-fontbutton">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">True</property>
++                                    <property name="receives_default">True</property>
++                                    <property name="halign">end</property>
++                                    <property name="valign">center</property>
++                                    <property name="margin_right">15</property>
++                                    <property name="font">Sans 12</property>
++                                    <property name="language">ko-kr</property>
++                                    <property name="preview_text"/>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">1</property>
++                                  </packing>
++                                </child>
++                              </object>
++                            </child>
++                          </object>
++                        </child>
++                      </object>
++                    </child>
++                    <child type="label_item">
++                      <placeholder/>
++                    </child>
++                  </object>
++                  <packing>
++                    <property name="expand">False</property>
++                    <property name="fill">True</property>
++                    <property name="position">0</property>
++                  </packing>
++                </child>
++                <child>
++                  <object class="GtkLabel" id="label1">
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="margin_bottom">12</property>
++                    <property name="label" translatable="yes" comments="List of applications.">Font Rendering Settings</property>
++                    <property name="xalign">0</property>
++                    <attributes>
++                      <attribute name="weight" value="bold"/>
++                    </attributes>
++                  </object>
++                  <packing>
++                    <property name="expand">False</property>
++                    <property name="fill">True</property>
++                    <property name="position">1</property>
++                  </packing>
++                </child>
++                <child>
++                  <object class="GtkFrame" id="render-frame">
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="margin_bottom">32</property>
++                    <property name="hexpand">True</property>
++                    <property name="label_xalign">0</property>
++                    <property name="shadow_type">in</property>
++                    <child>
++                      <object class="GtkListBox" id="render-listbox">
++                        <property name="visible">True</property>
++                        <property name="can_focus">False</property>
++                        <property name="selection_mode">none</property>
++                        <child>
++                          <object class="GtkListBoxRow" id="hint-listboxrow">
++                            <property name="height_request">32</property>
++                            <property name="visible">True</property>
++                            <property name="can_focus">False</property>
++                            <property name="activatable">False</property>
++                            <property name="selectable">False</property>
++                            <child>
++                              <object class="GtkBox" id="hint-box">
++                                <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <property name="valign">center</property>
++                                <child>
++                                  <object class="GtkLabel" id="hint-label">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="halign">start</property>
++                                    <property name="margin_left">12</property>
++                                    <property name="margin_start">12</property>
++                                    <property name="margin_top">8</property>
++                                    <property name="margin_bottom">8</property>
++                                    <property name="hexpand">True</property>
++                                    <property name="label" translatable="yes">Legacy Window Titles</property>
++                                    <property name="use_underline">True</property>
++                                    <property name="xalign">0</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">0</property>
++                                  </packing>
++                                </child>
++                                <child>
++                                  <object class="GtkComboBoxText" id="hint-combobox">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="margin_right">15</property>
++                                    <property name="margin_top">10</property>
++                                    <property name="margin_bottom">10</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">1</property>
++                                  </packing>
++                                </child>
++                              </object>
++                            </child>
++                          </object>
++                        </child>
++                        <child>
++                          <object class="GtkListBoxRow" id="antialiasing-listboxrow">
++                            <property name="height_request">32</property>
++                            <property name="visible">True</property>
++                            <property name="can_focus">True</property>
++                            <property name="activatable">False</property>
++                            <property name="selectable">False</property>
++                            <child>
++                              <object class="GtkBox" id="antialiasing-box">
++                                <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <property name="valign">center</property>
++                                <child>
++                                  <object class="GtkLabel" id="antialiasing-label">
++                                    <property name="height_request">32</property>
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="halign">start</property>
++                                    <property name="margin_left">12</property>
++                                    <property name="margin_start">12</property>
++                                    <property name="margin_top">8</property>
++                                    <property name="margin_bottom">8</property>
++                                    <property name="hexpand">True</property>
++                                    <property name="label" translatable="yes">AntiAliasing</property>
++                                    <property name="use_underline">True</property>
++                                    <property name="xalign">0</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">0</property>
++                                  </packing>
++                                </child>
++                                <child>
++                                  <object class="GtkComboBoxText" id="antialiasing-combobox">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="margin_right">15</property>
++                                    <property name="margin_top">10</property>
++                                    <property name="margin_bottom">10</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">1</property>
++                                  </packing>
++                                </child>
++                              </object>
++                            </child>
++                          </object>
++                        </child>
++                        <child>
++                          <object class="GtkListBoxRow" id="scale-listboxrow">
++                            <property name="height_request">32</property>
++                            <property name="visible">True</property>
++                            <property name="can_focus">True</property>
++                            <property name="activatable">False</property>
++                            <property name="selectable">False</property>
++                            <child>
++                              <object class="GtkBox" id="scale-box">
++                                <property name="visible">True</property>
++                                <property name="can_focus">False</property>
++                                <child>
++                                  <object class="GtkLabel" id="scale-label">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="margin_left">12</property>
++                                    <property name="margin_top">8</property>
++                                    <property name="margin_bottom">8</property>
++                                    <property name="ypad">2</property>
++                                    <property name="label" translatable="yes">Scale Constant</property>
++                                    <property name="use_underline">True</property>
++                                    <property name="xalign">0</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="position">0</property>
++                                  </packing>
++                                </child>
++                                <child>
++                                  <object class="GtkSpinButton" id="scale-spin">
++                                    <property name="visible">True</property>
++                                    <property name="can_focus">True</property>
++                                    <property name="halign">start</property>
++                                    <property name="margin_right">15</property>
++                                    <property name="margin_top">12</property>
++                                    <property name="margin_bottom">12</property>
++                                    <property name="text">1.00</property>
++                                    <property name="caps_lock_warning">False</property>
++                                    <property name="digits">2</property>
++                                    <property name="value">1</property>
++                                  </object>
++                                  <packing>
++                                    <property name="expand">False</property>
++                                    <property name="fill">True</property>
++                                    <property name="pack_type">end</property>
++                                    <property name="position">1</property>
++                                  </packing>
++                                </child>
++                              </object>
++                            </child>
++                          </object>
++                        </child>
++                      </object>
++                    </child>
++                  </object>
++                  <packing>
++                    <property name="expand">False</property>
++                    <property name="fill">True</property>
++                    <property name="position">2</property>
++                  </packing>
++                </child>
++              </object>
++              <packing>
++                <property name="expand">False</property>
++                <property name="fill">True</property>
++                <property name="position">2</property>
++              </packing>
++            </child>
++          </object>
++        </child>
++      </object>
++    </child>
++  </object>
++  <object class="GtkSizeGroup" id="sizegroup1">
++    <property name="mode">both</property>
++  </object>
++</interface>
+diff --git a/panels/font/gnome-font-panel.desktop.in.in b/panels/font/gnome-font-panel.desktop.in.in
+new file mode 100644
+index 0000000..dfa8118
+--- /dev/null
++++ b/panels/font/gnome-font-panel.desktop.in.in
+@@ -0,0 +1,14 @@
++[Desktop Entry]
++Name=Font
++Comment=Change your font
++Exec=gnome-control-center font
++# Translators: Do NOT translate or transliterate this text (this is an icon file name)!
++Icon=preferences-desktop-font
++Terminal=false
++Type=Application
++NoDisplay=true
++StartupNotify=true
++Categories=GNOME;GTK;Settings;DesktopSettings;X-GNOME-Settings-Panel;X-GNOME-PersonalizationSettings;
++OnlyShowIn=GNOME;
++# Translators: Search terms to find the Font panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
++Keywords=Font;
+diff --git a/panels/font/meson.build b/panels/font/meson.build
+new file mode 100644
+index 0000000..36c38d1
+--- /dev/null
++++ b/panels/font/meson.build
+@@ -0,0 +1,57 @@
++panels_list += cappletname
++desktop = 'gnome-@0@-panel.desktop'.format(cappletname)
++
++desktop_in = configure_file(
++  input: desktop + '.in.in',
++  output: desktop + '.in',
++  configuration: desktop_conf
++)
++
++i18n.merge_file(
++  desktop,
++  type: 'desktop',
++  input: desktop_in,
++  output: desktop,
++  po_dir: po_dir,
++  install: true,
++  install_dir: control_center_desktopdir
++)
++
++datadir = get_option('datadir')
++
++resource_data = files(
++  'font.ui',
++  #'font-dialog.ui',
++  #'rgba-images.h'
++)
++
++common_sources = []
++common_sources += gnome.compile_resources(
++  'cc-@0@-resources'.format(cappletname),
++  cappletname + '.gresource.xml',
++  c_name: 'cc_' + cappletname,
++  dependencies: resource_data,
++  export: true
++)
++
++sources = files(
++  'cc-font-panel.c',
++)
++
++deps = common_deps + [
++  libxml_dep
++]
++
++cflags += [
++  '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir),
++  '-DDATADIR="@0@"'.format(control_center_datadir),
++]
++
++sources += common_sources + files('cc-font-panel.c')
++panels_libs += static_library(
++  cappletname,
++  sources: sources,
++  include_directories: [ top_inc, common_inc ],
++  dependencies: deps,
++  c_args: cflags
++)
+diff --git a/panels/font/rgba-images.h b/panels/font/rgba-images.h
+new file mode 100644
+index 0000000..e9859bb
+--- /dev/null
++++ b/panels/font/rgba-images.h
+@@ -0,0 +1,138 @@
++/*
++ *  Copyright (c) 2008 Nick Schermer <nick@xfce.org>
++ *
++ *  This program is free software; you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation; either version 2 of the License, or
++ *  (at your option) any later version.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU Library General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License along
++ *  with this program; if not, write to the Free Software Foundation, Inc.,
++ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++#ifdef HAVE_CONFIG_H
++#include <config.h>
++#endif
++
++static const gchar *rgba_image_none_xpm[] =
++{
++    "18 15 1 1",
++    " 	c None",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  ",
++    "                  "
++};
++
++static const gchar *rgba_image_rgb_xpm[] =
++{
++    "18 15 4 1",
++    " 	c None",
++    ".	c #FF0000",
++    "+	c #00FF00",
++    "@	c #0000FF",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   "
++};
++
++static const gchar *rgba_image_bgr_xpm[] =
++{
++    "18 15 4 1",
++    " 	c None",
++    ".	c #0000FF",
++    "+	c #00FF00",
++    "@	c #FF0000",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   ",
++    ".....+++++@@@@@   "
++};
++
++static const gchar *rgba_image_vrgb_xpm[] =
++{
++    "18 15 4 1",
++    " 	c None",
++    ".	c #FF0000",
++    "+	c #00FF00",
++    "@	c #0000FF",
++    "...............   ",
++    "...............   ",
++    "...............   ",
++    "...............   ",
++    "...............   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   "
++};
++
++static const gchar *rgba_image_vbgr_xpm[] =
++{
++    "18 15 4 1",
++    " 	c None",
++    ".	c #0000FF",
++    "+	c #00FF00",
++    "@	c #FF0000",
++    "...............   ",
++    "...............   ",
++    "...............   ",
++    "...............   ",
++    "...............   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "+++++++++++++++   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   ",
++    "@@@@@@@@@@@@@@@   "
++};
+diff --git a/panels/meson.build b/panels/meson.build
+index 37a3436..c7f2201 100644
+--- a/panels/meson.build
++++ b/panels/meson.build
+@@ -18,7 +18,8 @@ panels = [
+   'sharing',
+   'sound',
+   'universal-access',
+-  'user-accounts'
++  'user-accounts',
++  'font'
+ ]
+
+ if host_is_linux
+diff --git a/panels/network/cc-wifi-panel.c b/panels/network/cc-wifi-panel.c
+index 09e16ba..061cb65 100644
+--- a/panels/network/cc-wifi-panel.c
++++ b/panels/network/cc-wifi-panel.c
+@@ -111,7 +111,7 @@ update_panel_visibility (NMClient *client)
+   application = CC_APPLICATION (g_application_get_default ());
+   cc_shell_model_set_panel_visibility (cc_application_get_model (application),
+                                        "wifi",
+-                                       visible ? CC_PANEL_VISIBLE : CC_PANEL_VISIBLE_IN_SEARCH);
++                                       visible ? CC_PANEL_VISIBLE : CC_PANEL_HIDDEN);
+
+   g_debug ("Wi-Fi panel visible: %s", visible ? "yes" : "no");
+ }
+diff --git a/panels/wacom/cc-wacom-panel.c b/panels/wacom/cc-wacom-panel.c
+index 0cb2f42..ca3480b 100644
+--- a/panels/wacom/cc-wacom-panel.c
++++ b/panels/wacom/cc-wacom-panel.c
+@@ -101,7 +101,7 @@ update_visibility (GsdDeviceManager *manager,
+ 	application = CC_APPLICATION (g_application_get_default ());
+ 	cc_shell_model_set_panel_visibility (cc_application_get_model (application),
+ 					     "wacom",
+-					     i > 0 ? CC_PANEL_VISIBLE : CC_PANEL_VISIBLE_IN_SEARCH);
++					     i > 0 ? CC_PANEL_VISIBLE : CC_PANEL_HIDDEN);
+
+ 	g_debug ("Wacom panel visible: %s", i > 0 ? "yes" : "no");
+ }
+diff --git a/po/en.po b/po/en.po
+index b5bf16d..e16895c 100644
+--- a/po/en.po
++++ b/po/en.po
+@@ -3193,3 +3193,66 @@ msgstr ""
+ #: ../shell/shell.ui.h:2
+ msgid "_All Settings"
+ msgstr ""
++
++msgid "Font"
++msgstr ""
++
++#: ../panels/font/font.ui:10
++msgid "full"
++msgstr ""
++
++#: ../panels/font/font.ui:13
++msgid "medium"
++msgstr ""
++
++#: ../panels/font/font.ui:16
++msgid "slight"
++msgstr ""
++
++#: ../panels/font/font.ui:19
++msgid "none"
++msgstr ""
++
++#: ../panels/font/font.ui:22
++msgid "rgba"
++msgstr ""
++
++#: ../panels/font/font.ui:25
++msgid "grayscale"
++msgstr ""
++
++#: ../panels/font/font.ui:118
++msgid "Interface Text"
++msgstr ""
++
++#: ../panels/font/font.ui:172
++msgid "Document Text"
++msgstr ""
++
++#: ../panels/font/font.ui:226
++msgid "Monospace Text"
++msgstr ""
++
++#: ../panels/font/font.ui:280 ../panels/font/font.ui:375
++#: ../panels/font/font.ui:425
++msgid "Legacy Window Titles"
++msgstr ""
++
++#. List of applications.
++#: ../panels/font/font.ui:328
++msgid "Font Rendering Settings"
++msgstr ""
++
++#: ../panels/font/font.ui:425
++msgid "AntiAliasing"
++msgstr ""
++
++#: ../panels/font/font.ui:480
++msgid "Scale Constant"
++msgstr ""
++
++msgid "Show settings list"
++msgstr ""
++
++msgid "Show side panel list that matches the User settings values."
++msgstr ""
+diff --git a/po/en_GB.po b/po/en_GB.po
+index 200d00a..fac6a71 100644
+--- a/po/en_GB.po
++++ b/po/en_GB.po
+@@ -7739,6 +7739,69 @@ msgstr[1] "%u Inputs"
+ msgid "System Sounds"
+ msgstr "System Sounds"
+
++msgid "Font"
++msgstr "Font"
++
++#: ../panels/font/font.ui:10
++msgid "full"
++msgstr "Full"
++
++#: ../panels/font/font.ui:13
++msgid "medium"
++msgstr "Medium"
++
++#: ../panels/font/font.ui:16
++msgid "slight"
++msgstr "Slight"
++
++#: ../panels/font/font.ui:19
++msgid "none"
++msgstr "None"
++
++#: ../panels/font/font.ui:22
++msgid "rgba"
++msgstr "Sub Pixel(For LCD Display)"
++
++#: ../panels/font/font.ui:25
++msgid "grayscale"
++msgstr "Standard(Grayscale)"
++
++#: ../panels/font/font.ui:118
++msgid "Interface Text"
++msgstr "Interface Text"
++
++#: ../panels/font/font.ui:172
++msgid "Document Text"
++msgstr "Document Text"
++
++#: ../panels/font/font.ui:226
++msgid "Monospace Text"
++msgstr "Monospace Text"
++
++#: ../panels/font/font.ui:280 ../panels/font/font.ui:375
++#: ../panels/font/font.ui:425
++msgid "Legacy Window Titles"
++msgstr "Legacy Window Titles"
++
++#. List of applications.
++#: ../panels/font/font.ui:328
++msgid "Font Rendering Settings"
++msgstr "Font Rendering Settings"
++
++#: ../panels/font/font.ui:425
++msgid "AntiAliasing"
++msgstr "AntiAliasing"
++
++#: ../panels/font/font.ui:480
++msgid "Scale Constant"
++msgstr "Scale Constant"
++
++msgid "Show settings list"
++msgstr "Show settings list"
++
++msgid "Show side panel list that matches the User settings values."
++msgstr "Show side panel list that matches the User settings values."
++
+ #~ msgid "_Verify New Password"
+ #~ msgstr "_Verify New Password"
+
+diff --git a/po/ko.po b/po/ko.po
+index a891961..ff5cdfe 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -7706,3 +7706,66 @@ msgstr[0] "%u개 입력"
+ #: subprojects/gvc/gvc-mixer-control.c:2738
+ msgid "System Sounds"
+ msgstr "시스템 사운드"
++
++msgid "Font"
++msgstr "글꼴"
++
++#: ../panels/font/font.ui:10
++msgid "full"
++msgstr "완전히"
++
++#: ../panels/font/font.ui:13
++msgid "medium"
++msgstr "적당히"
++
++#: ../panels/font/font.ui:16
++msgid "slight"
++msgstr "조금"
++
++#: ../panels/font/font.ui:19
++msgid "none"
++msgstr "없음"
++
++#: ../panels/font/font.ui:22
++msgid "rgba"
++msgstr "서브픽셀(LCD 화면용)"
++
++#: ../panels/font/font.ui:25
++msgid "grayscale"
++msgstr "표준(흑백)"
++
++#: ../panels/font/font.ui:118
++msgid "Interface Text"
++msgstr "인터페이스 텍스트"
++
++#: ../panels/font/font.ui:172
++msgid "Document Text"
++msgstr "문서 텍스트"
++
++#: ../panels/font/font.ui:226
++msgid "Monospace Text"
++msgstr "고적폭 텍스트"
++
++#: ../panels/font/font.ui:280 ../panels/font/font.ui:375
++#: ../panels/font/font.ui:425
++msgid "Legacy Window Titles"
++msgstr "이전 방식 창 제목"
++
++#. List of applications.
++#: ../panels/font/font.ui:328
++msgid "Font Rendering Settings"
++msgstr "글꼴 그리기 설정"
++
++#: ../panels/font/font.ui:425
++msgid "AntiAliasing"
++msgstr "안티 알리아싱"
++
++#: ../panels/font/font.ui:480
++msgid "Scale Constant"
++msgstr "스케일 상수"
++
++msgid "Show settings list"
++msgstr "패널 목록을 숨김"
++
++msgid "Show side panel list that matches the User settings values."
++msgstr "사용자 설정 값과 일치하는 사이드 목록을 숨깁니다."
+diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
+index 39a46b4..67cc741 100644
+--- a/shell/cc-panel-list.c
++++ b/shell/cc-panel-list.c
+@@ -329,6 +329,7 @@ static const gchar * const panel_order[] = {
+   "mobile-broadband",
+   "bluetooth",
+   "background",
++  "font",
+   "notifications",
+   "search",
+   "region",
+@@ -516,6 +517,25 @@ header_func (GtkListBoxRow *row,
+     }
+ }
+
++// set visible details_row & devices_row
++static void
++show_panel_list_row_box (GtkWidget *listbox, GtkWidget *row)
++{
++  GList   *child_list, *l;
++
++  gtk_widget_hide ((GtkWidget*)row);
++  child_list = gtk_container_get_children (GTK_CONTAINER (listbox));
++  for (l = child_list; l != NULL; l = l->next)
++  {
++    RowData *rd = g_object_get_data (l->data, "data");
++    if (gtk_widget_get_visible (rd->row))
++    {
++      gtk_widget_show ((GtkWidget*)row);
++      break;
++    }
++  }
++}
++
+ /*
+  * Callbacks
+  */
+@@ -525,6 +545,7 @@ row_activated_cb (GtkWidget     *listbox,
+                   CcPanelList   *self)
+ {
+   RowData *data;
++  GList   *child_list, *l;
+
+   /* Details */
+   if (row == self->details_row)
+@@ -556,6 +577,10 @@ row_activated_cb (GtkWidget     *listbox,
+         gtk_list_box_unselect_all (GTK_LIST_BOX (self->devices_listbox));
+     }
+
++  // visible details & devices list row box
++  show_panel_list_row_box (self->details_listbox, self->details_row);
++  show_panel_list_row_box (self->devices_listbox, self->devices_row);
++
+   /*
+    * Since we're not sure that the activated row is in the
+    * current view, set the view here.
+diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
+index 6b5c6e3..468a6fe 100644
+--- a/shell/cc-panel-loader.c
++++ b/shell/cc-panel-loader.c
+@@ -55,6 +55,7 @@ extern GType cc_region_panel_get_type (void);
+ extern GType cc_search_panel_get_type (void);
+ extern GType cc_sharing_panel_get_type (void);
+ extern GType cc_sound_panel_get_type (void);
++extern GType cc_font_panel_get_type (void);
+ #ifdef BUILD_THUNDERBOLT
+ extern GType cc_bolt_panel_get_type (void);
+ #endif /* BUILD_THUNDERBOLT */
+@@ -91,6 +92,7 @@ static struct {
+ #ifdef BUILD_BLUETOOTH
+   PANEL_TYPE("bluetooth",        cc_bluetooth_panel_get_type,            NULL),
+ #endif
++  PANEL_TYPE("font",             cc_font_panel_get_type,                 NULL),
+   PANEL_TYPE("color",            cc_color_panel_get_type,                NULL),
+   PANEL_TYPE("datetime",         cc_date_time_panel_get_type,            NULL),
+   PANEL_TYPE("display",          cc_display_panel_get_type,              NULL),
+@@ -172,6 +174,26 @@ parse_categories (GDesktopAppInfo *app)
+   return retval;
+ }
+
++void
++cc_panel_loader_visible_from_schema (CcShellModel *model)
++{
++  g_auto(GStrv) whiteList;
++  GSettings *settings;
++  settings = g_settings_new ("org.gnome.ControlCenter");
++  whiteList = g_settings_get_strv (settings, "whitelist-panels");
++
++  for (gint i = 0; i < G_N_ELEMENTS (all_panels); i++)
++  {
++    for (int j = 0; j < whiteList[j] != NULL; j++)
++    {
++      if (g_strcmp0(all_panels[i].name, whiteList[j]) == 0)
++        cc_shell_model_set_panel_visibility (model, all_panels[i].name, CC_PANEL_VISIBLE);
++    }
++  }
++
++  g_clear_object (&settings);
++}
++
+ void
+ cc_panel_loader_fill_model (CcShellModel *model)
+ {
+@@ -182,6 +204,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
+       g_autoptr (GDesktopAppInfo) app;
+       g_autofree gchar *desktop_name = NULL;
+       gint category;
++      gboolean isVisible = TRUE;
+
+       desktop_name = g_strconcat ("gnome-", all_panels[i].name, "-panel.desktop", NULL);
+       app = g_desktop_app_info_new (desktop_name);
+@@ -200,9 +223,10 @@ cc_panel_loader_fill_model (CcShellModel *model)
+       if (!g_desktop_app_info_get_show_in (app, NULL))
+         continue;
+
+-      cc_shell_model_add_item (model, category, G_APP_INFO (app), all_panels[i].name);
++        cc_shell_model_add_item (model, category, G_APP_INFO (app), all_panels[i].name);
+     }
+
++  cc_panel_loader_visible_from_schema (model);
+   /* If there's an static init function, execute it after adding all panels to
+    * the model. This will allow the panels to show or hide themselves without
+    * having an instance running.
+diff --git a/shell/cc-shell-model.c b/shell/cc-shell-model.c
+index a84de3e..644a6cd 100644
+--- a/shell/cc-shell-model.c
++++ b/shell/cc-shell-model.c
+@@ -337,7 +337,7 @@ cc_shell_model_add_item (CcShellModel    *model,
+                                      COL_CASEFOLDED_DESCRIPTION, casefolded_description,
+                                      COL_GICON, icon,
+                                      COL_KEYWORDS, keywords,
+-                                     COL_VISIBILITY, CC_PANEL_VISIBLE,
++                                     COL_VISIBILITY, CC_PANEL_HIDDEN,
+                                      -1);
+
+   g_free (casefolded_name);
+@@ -420,6 +420,36 @@ cc_shell_model_set_sort_terms (CcShellModel  *self,
+                                            NULL);
+ }
+
++gboolean
++cc_shell_model_get_panel_visibility (CcShellModel *self,
++                                          const gchar  *id)
++{
++  GtkTreeModel *model;
++  GtkTreeIter iter;
++  gboolean valid;
++  gboolean visibility = FALSE;
++
++  g_return_if_fail (CC_IS_SHELL_MODEL (self));
++
++  model = GTK_TREE_MODEL (self);
++  valid = gtk_tree_model_get_iter_first (model, &iter);
++  while (valid)
++  {
++    g_autofree gchar *item_id = NULL;
++
++    gtk_tree_model_get (model, &iter, COL_ID, &item_id, -1);
++    if (g_str_equal (id, item_id))
++      break;
++
++    valid = gtk_tree_model_iter_next (model, &iter);
++  }
++  g_assert (valid);
++
++  gtk_tree_model_get (GTK_LIST_STORE (self), &iter, COL_VISIBILITY, visibility, -1);
++
++  return visibility;
++}
++
+ void
+ cc_shell_model_set_panel_visibility (CcShellModel      *self,
+                                      const gchar       *id,
+diff --git a/shell/org.gnome.ControlCenter.gschema.xml b/shell/org.gnome.ControlCenter.gschema.xml
+index 40350bc..6887550 100644
+--- a/shell/org.gnome.ControlCenter.gschema.xml
++++ b/shell/org.gnome.ControlCenter.gschema.xml
+@@ -15,5 +15,10 @@
+         Whether Settings should show a warning when running a development build.
+       </description>
+     </key>
++    <key name="whitelist-panels" type="as">
++      <default>['bluetooth', 'background', 'notifications', 'search', 'region', 'universal-access', 'font', 'online-accounts', 'privacy', 'sharing', 'sound', 'power', 'network', 'wifi', 'wacom', 'display', 'keyboard', 'printers', 'removable-media', 'thunderbolt', 'color', 'info-overview', 'datetime', 'user-accounts', 'default-apps']</default>
++      <summary>Show settings list</summary>
++      <description>Show side panel list that matches the User settings values.</description>
++    </key>
+   </schema>
+ </schemalist>

@@ -12,3 +12,4 @@ universal-access-Remove-redundant-label-for-relations.patch
 mouse-fix-misplaced-mnemonic-labels.patch
 mouse-Don-t-use-a-separate-box-for-touchpad-switch.patch
 distro-logo.patch
+gooroom-added-font-features.patch
