@@ -1,9 +1,9 @@
 diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
 new file mode 100644
-index 0000000..54aade2
+index 0000000..c3240bd
 --- /dev/null
 +++ b/panels/font/cc-font-panel.c
-@@ -0,0 +1,342 @@
+@@ -0,0 +1,430 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
 + * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
@@ -54,6 +54,12 @@ index 0000000..54aade2
 +  GSD_ANTIALIAS_ACTION_SUBPIXEL,
 +} GsdAntialiasActionType;
 +
++typedef enum {
++  GSD_SCALE_ACTION_SMALL,
++  GSD_SCALE_ACTION_MEDIUM,
++  GSD_SCALE_ACTION_LARGE,
++}GsdScaleActionType;
++
 +struct _CcFontPanel
 +{
 +  CcPanel parent_instance;
@@ -72,7 +78,7 @@ index 0000000..54aade2
 +
 +  GtkWidget         *hinting_cb;
 +  GtkWidget         *antialias_cb;
-+  GtkWidget         *scale_spin;
++//  GtkWidget         *scale_spin;
 +  GtkWidget         *scale_adjustment;
 +
 +  GtkWidget         *font_list;
@@ -80,6 +86,8 @@ index 0000000..54aade2
 +
 +  GtkListStore      *liststore_hinting;
 +  GtkListStore      *liststore_antialias;
++
++  gboolean           is_updating;
 +};
 +
 +CC_PANEL_REGISTER (CcFontPanel, cc_font_panel)
@@ -90,69 +98,17 @@ index 0000000..54aade2
 +  return "help:gnome-help/font";
 +}
 +
-+static void
-+init_gsd_combo_box_model (CcFontPanel *panel)
-+{
-+  struct {
-+    char *name;
-+    GsdHintingActionType value;
-+  } hinting_actions[] = {
-+    { N_("none"), GSD_HINTING_ACTION_NONE },
-+    { N_("slight"), GSD_HINTING_ACTION_SLIGHT },
-+    { N_("medium"), GSD_HINTING_ACTION_MEDIUM },
-+    { N_("full"), GSD_HINTING_ACTION_FULL },
-+  };
-+
-+  struct {
-+    char *name;
-+    GsdAntialiasActionType value;
-+  } antialias_actions[] = {
-+    { N_("none"), GSD_ANTIALIAS_ACTION_NONE },
-+    { N_("grayscale"), GSD_ANTIALIAS_ACTION_STANDARD },
-+    { N_("rgba"), GSD_ANTIALIAS_ACTION_SUBPIXEL },
-+  };
-+
-+  guint i;
-+  GtkListStore *store;
-+  GtkTreeModel *model = NULL;
-+
-+  panel->liststore_hinting = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
-+  model = GTK_TREE_MODEL (panel->liststore_hinting);
-+  for (i = 0; i < G_N_ELEMENTS (hinting_actions); i++)
-+  {
-+    gtk_list_store_insert_with_values (panel->liststore_hinting,
-+                                       NULL, -1,
-+                                       COMBO_BOX_MODEL_TEXT, _(hinting_actions[i].name),
-+                                       COMBO_BOX_MODEL_VALUE, hinting_actions[i].value,
-+                                       -1);
-+  }
-+
-+  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->hinting_cb), model);
-+
-+  panel->liststore_antialias = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
-+  model = GTK_TREE_MODEL (panel->liststore_antialias);
-+  for (i = 0; i < G_N_ELEMENTS (antialias_actions); i++)
-+  {
-+    gtk_list_store_insert_with_values (panel->liststore_antialias,
-+                                       NULL, -1,
-+                                       COMBO_BOX_MODEL_TEXT, _(antialias_actions[i].name),
-+                                       COMBO_BOX_MODEL_VALUE, antialias_actions[i].value,
-+                                       -1);
-+  }
-+
-+  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->antialias_cb), model);
-+}
-+
-+static void
++static void 
 +set_value_for_combo (GtkComboBox *combo_box, gint value)
 +{
 +  GtkTreeIter iter;
 +  g_autoptr(GtkTreeIter) insert = NULL;
-+  GtkTreeIter new;
++  GtkTreeIter new; 
 +  GtkTreeModel *model;
 +  gint value_tmp;
++  //gint value_last = 0; 
 +  g_autofree gchar *text = NULL;
-+  gboolean ret;
++  gboolean ret; 
 +
 +  /* get entry */
 +  model = gtk_combo_box_get_model (combo_box);
@@ -162,15 +118,15 @@ index 0000000..54aade2
 +
 +  /* try to make the UI match the setting */
 +  do
-+    {
++    {    
 +      gtk_tree_model_get (model, &iter,
 +                          COMBO_BOX_MODEL_VALUE, &value_tmp,
-+                          -1);
++                          -1); 
 +      if (value_tmp == value)
-+      {
++      {    
 +        gtk_combo_box_set_active_iter (combo_box, &iter);
 +        return;
-+      }
++      }    
 +
 +    } while (gtk_tree_model_iter_next (model, &iter));
 +}
@@ -193,6 +149,42 @@ index 0000000..54aade2
 +    current = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
 +    gtk_widget_show (current);
 +    gtk_list_box_row_set_header (row, current);
++  }
++}
++
++static void
++scale_buttons_active (CcFontPanel *panel,
++                     GParamSpec  *pspec,
++                     GtkWidget   *button)
++{
++  if (panel->is_updating)
++    return;
++
++  double value = 1.0;
++  if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button)))
++  {
++    value = *(double*) g_object_get_data (G_OBJECT (button), "scale");
++    g_settings_set_double (panel->interface_settings, "text-scaling-factor", value);
++  }
++}
++
++static void
++scale_buttons_sync (GtkWidget *bbox,
++                    CcFontPanel *panel)
++{
++  g_autoptr (GList) children;
++  GList *l;
++  double value;
++  value = g_settings_get_double (panel->interface_settings, "text-scaling-factor");
++
++  children = gtk_container_get_children (GTK_CONTAINER (bbox));
++  for (l = children; l; l = l->next)
++  {
++    GtkWidget *button = l->data;
++    gdouble scale = *(double*) g_object_get_data (G_OBJECT (button), "scale");
++    if (scale == value)
++      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
++
 +  }
 +}
 +
@@ -257,14 +249,14 @@ index 0000000..54aade2
 +  g_settings_set_enum (panel->gsd_settings, "antialiasing", value);
 +}
 +
-+static void
-+changed_scale_spin (GtkWidget *widget, CcFontPanel *panel)
-+{
-+  gdouble value;
-+  value = gtk_spin_button_get_value (GTK_SPIN_BUTTON (panel->scale_spin));
-+
-+  g_settings_set_double (panel->interface_settings, "text-scaling-factor", value);
-+}
++//static void
++//changed_scale_spin (GtkWidget *widget, CcFontPanel *panel)
++//{
++//  gdouble value;
++//  value = gtk_spin_button_get_value (GTK_SPIN_BUTTON (panel->scale_spin));
++//
++//  g_settings_set_double (panel->interface_settings, "text-scaling-factor", value);
++//}
 +
 +static void
 +cc_font_panel_class_init (CcFontPanelClass *klass)
@@ -277,6 +269,107 @@ index 0000000..54aade2
 +  panel_class->get_help_uri = cc_font_panel_get_help_uri;
 +}
 +
++static GtkWidget *
++make_label_for_scale (char *text)
++{
++  g_autofree *label = g_strdup_printf ("  %s  ",text);
++  return gtk_label_new (label);
++}
++
++static void
++init_gsd_combo_box_model (CcFontPanel *panel)
++{
++  struct {
++    char *name;
++    GsdHintingActionType value;
++  } hinting_actions[] = {
++    { N_("none"), GSD_HINTING_ACTION_NONE },
++    { N_("slight"), GSD_HINTING_ACTION_SLIGHT },
++    { N_("medium"), GSD_HINTING_ACTION_MEDIUM },
++    { N_("full"), GSD_HINTING_ACTION_FULL },
++  };
++
++  struct {
++    char *name;
++    GsdAntialiasActionType value;
++  } antialias_actions[] = {
++    { N_("none"), GSD_ANTIALIAS_ACTION_NONE },
++    { N_("grayscale"), GSD_ANTIALIAS_ACTION_STANDARD },
++    { N_("rgba"), GSD_ANTIALIAS_ACTION_SUBPIXEL },
++  };
++
++  guint i;
++  GtkListStore *store;
++  GtkTreeModel *model = NULL;
++
++  panel->liststore_hinting = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
++  model = GTK_TREE_MODEL (panel->liststore_hinting);
++  for (i = 0; i < G_N_ELEMENTS (hinting_actions); i++)
++  {
++    gtk_list_store_insert_with_values (panel->liststore_hinting,
++                                       NULL, -1,
++                                       COMBO_BOX_MODEL_TEXT, _(hinting_actions[i].name),
++                                       COMBO_BOX_MODEL_VALUE, hinting_actions[i].value,
++                                       -1);
++  }
++
++  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->hinting_cb), model);
++
++  panel->liststore_antialias = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
++  model = GTK_TREE_MODEL (panel->liststore_antialias);
++  for (i = 0; i < G_N_ELEMENTS (antialias_actions); i++)
++  {
++    gtk_list_store_insert_with_values (panel->liststore_antialias,
++                                       NULL, -1,
++                                       COMBO_BOX_MODEL_TEXT, _(antialias_actions[i].name),
++                                       COMBO_BOX_MODEL_VALUE, antialias_actions[i].value,
++                                       -1);
++  }
++
++  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->antialias_cb), model);
++}
++
++static void
++init_scale_buttons (CcFontPanel *panel)
++{
++  GtkWidget *w;
++  double scale;
++  GtkRadioButton *group = NULL;
++  struct {
++    char *name;
++    GsdScaleActionType value;
++  } scale_actions[] = {
++    { N_("_small"), GSD_SCALE_ACTION_SMALL },
++    { N_("_medium"), GSD_SCALE_ACTION_MEDIUM },
++    { N_("_large"), GSD_SCALE_ACTION_LARGE },
++  };
++
++  scale = 0.75;
++  w = WID ("scale-bbox");
++  gtk_button_box_set_layout (GTK_BUTTON_BOX (w), GTK_BUTTONBOX_EXPAND);
++  for (int i = 0; i < G_N_ELEMENTS (scale_actions); i++)
++  {
++    GtkWidget *button;
++    button = gtk_radio_button_new_from_widget (group);
++    gtk_button_set_image (GTK_BUTTON (button), make_label_for_scale(_(scale_actions[i].name)));
++    gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
++
++    // 숫자로 변경
++    g_object_set_data_full (G_OBJECT (button), "scale", g_memdup (&scale, sizeof (double)), g_free);
++
++    g_signal_connect_object (button, "notify::active", G_CALLBACK (scale_buttons_active),
++                             panel, G_CONNECT_SWAPPED);
++    gtk_container_add (GTK_CONTAINER (w), button);
++    group = GTK_RADIO_BUTTON (button);
++
++    scale += 0.25;
++  }
++
++  panel->is_updating = TRUE;
++  scale_buttons_sync (w, panel);
++  panel->is_updating = FALSE;
++}
++
 +static void
 +cc_font_panel_init (CcFontPanel *panel)
 +{
@@ -284,7 +377,6 @@ index 0000000..54aade2
 +  g_autoptr(GError) err = NULL;
 +  GtkWidget *w;
 +  gint button_val;
-+  gdouble i_val;
 +
 +  g_resources_register (cc_font_get_resource ());
 +
@@ -292,7 +384,6 @@ index 0000000..54aade2
 +  gtk_builder_add_objects_from_resource (panel->builder,
 +                                         "/org/gnome/control-center/font/font.ui",
 +                                         objects, &err);
-+
 +  if (err)
 +  {
 +    g_warning ("Could not load ui: %s", err->message);
@@ -301,12 +392,12 @@ index 0000000..54aade2
 +
 +  panel->hinting_cb = WID ("hint-combobox");
 +  panel->antialias_cb = WID ("antialiasing-combobox");
-+  panel->scale_spin = WID ("scale-spin");
++//  panel->scale_spin = WID ("scale-spin");
 +  panel->font_list = WID ("font-listbox");
 +  panel->render_list = WID ("render-listbox");
 +
 +  panel->scale_adjustment = gtk_adjustment_new (1, 0.5, 3, 0.01, 0, 0);
-+  gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (panel->scale_spin), panel->scale_adjustment);
++//  gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (panel->scale_spin), panel->scale_adjustment);
 +
 +  // set header separator on listbox row
 +  gtk_list_box_set_header_func (panel->font_list, call_list_box_separator, NULL, NULL);
@@ -324,6 +415,7 @@ index 0000000..54aade2
 +
 +  // initialize gsd combo box
 +  init_gsd_combo_box_model (panel);
++  init_scale_buttons (panel);
 +
 +  button_val = g_settings_get_enum (panel->gsd_settings, "hinting");
 +  set_value_for_combo (GTK_COMBO_BOX (panel->hinting_cb), button_val);
@@ -331,16 +423,12 @@ index 0000000..54aade2
 +  button_val = g_settings_get_enum (panel->gsd_settings, "antialiasing");
 +  set_value_for_combo (GTK_COMBO_BOX (panel->antialias_cb), button_val);
 +
-+  // set font scale value
-+  i_val = g_settings_get_double (panel->interface_settings, "text-scaling-factor");
-+  gtk_spin_button_set_value (panel->scale_spin, i_val);
-+
 +  g_signal_connect (panel->hinting_cb, "changed",
 +                    G_CALLBACK (changed_hinting_cb), panel);
 +  g_signal_connect (panel->antialias_cb, "changed",
 +                    G_CALLBACK (changed_antialias_cb), panel);
-+  g_signal_connect (panel->scale_spin, "value-changed",
-+                    G_CALLBACK (changed_scale_spin), panel);
++//  g_signal_connect (panel->scale_spin, "value-changed",
++//                    G_CALLBACK (changed_scale_spin), panel);
 +
 +  w = WID ("font-main-scrolled-window");
 +  gtk_container_add (GTK_CONTAINER (panel), w);
@@ -400,10 +488,10 @@ index 0000000..90315d6
 +
 diff --git a/panels/font/font.ui b/panels/font/font.ui
 new file mode 100644
-index 0000000..be3eda7
+index 0000000..992b191
 --- /dev/null
 +++ b/panels/font/font.ui
-@@ -0,0 +1,509 @@
+@@ -0,0 +1,511 @@
 +<?xml version="1.0" encoding="UTF-8"?>
 +<!-- Generated with glade 3.22.1 -->
 +<interface>
@@ -865,17 +953,19 @@ index 0000000..be3eda7
 +                                  </packing>
 +                                </child>
 +                                <child>
-+                                  <object class="GtkSpinButton" id="scale-spin">
++                                  <object class="GtkButtonBox" id="scale-bbox">
 +                                    <property name="visible">True</property>
-+                                    <property name="can_focus">True</property>
-+                                    <property name="halign">start</property>
++                                    <property name="can_focus">False</property>
++                                    <property name="halign">end</property>
++                                    <property name="valign">center</property>
 +                                    <property name="margin_right">15</property>
-+                                    <property name="margin_top">12</property>
-+                                    <property name="margin_bottom">12</property>
-+                                    <property name="text">1.00</property>
-+                                    <property name="caps_lock_warning">False</property>
-+                                    <property name="digits">2</property>
-+                                    <property name="value">1</property>
++                                    <property name="margin_top">10</property>
++                                    <property name="margin_bottom">10</property>
++                                    <property name="homogeneous">True</property>
++                                    <property name="layout_style">start</property>
++                                    <child>
++                                      <placeholder/>
++                                    </child>
 +                                  </object>
 +                                  <packing>
 +                                    <property name="expand">False</property>
@@ -1140,19 +1230,110 @@ index 0000000..e9859bb
 +    "@@@@@@@@@@@@@@@   ",
 +    "@@@@@@@@@@@@@@@   "
 +};
+diff --git a/panels/info/cc-info-overview-panel.c b/panels/info/cc-info-overview-panel.c
+index 131106c..75edf11 100644
+--- a/panels/info/cc-info-overview-panel.c
++++ b/panels/info/cc-info-overview-panel.c
+@@ -58,12 +58,10 @@ typedef struct {
+ 
+ typedef struct
+ {
+-  GtkWidget      *system_image;
+   GtkWidget      *version_label;
+   GtkWidget      *name_entry;
+   GtkWidget      *memory_label;
+   GtkWidget      *processor_label;
+-  GtkWidget      *os_name_label;
+   GtkWidget      *os_type_label;
+   GtkWidget      *disk_label;
+   GtkWidget      *graphics_label;
+@@ -788,9 +786,6 @@ info_overview_panel_setup_overview (CcInfoOverviewPanel *self)
+   os_type_text = get_os_type ();
+   gtk_label_set_text (GTK_LABEL (priv->os_type_label), os_type_text ? os_type_text : "");
+ 
+-  os_name_text = get_os_name ();
+-  gtk_label_set_text (GTK_LABEL (priv->os_name_label), os_name_text ? os_name_text : "");
+-
+   get_primary_disc_info (self);
+ 
+   gtk_label_set_markup (GTK_LABEL (priv->graphics_label), priv->graphics_data->hardware_string);
+@@ -873,12 +868,10 @@ cc_info_overview_panel_class_init (CcInfoOverviewPanelClass *klass)
+ 
+   gtk_widget_class_set_template_from_resource (widget_class, "/org/gnome/control-center/info/info-overview.ui");
+ 
+-  gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, system_image);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, version_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, name_entry);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, memory_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, processor_label);
+-  gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, os_name_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, os_type_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, disk_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, graphics_label);
+diff --git a/panels/info/info-overview.ui b/panels/info/info-overview.ui
+index ace1747..a837649 100644
+--- a/panels/info/info-overview.ui
++++ b/panels/info/info-overview.ui
+@@ -4,7 +4,6 @@
+   <template class="CcInfoOverviewPanel" parent="CcPanel">
+     <property name="visible">True</property>
+     <property name="can-focus">False</property>
+-    <property name="valign">center</property>
+     <property name="halign">center</property>
+     <property name="expand">True</property>
+     <property name="margin">24</property>
+@@ -14,37 +13,6 @@
+         <property name="can_focus">False</property>
+         <property name="spacing">6</property>
+         <property name="orientation">vertical</property>
+-        <child>
+-          <object class="GtkImage" id="system_image">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="pixel_size">128</property>
+-            <property name="pixbuf">/usr/share/icons/vendor/scalable/emblems/emblem-vendor.svg</property>
+-          </object>
+-          <packing>
+-            <property name="expand">False</property>
+-            <property name="fill">False</property>
+-            <property name="position">0</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkLabel" id="os_name_label">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="label">Version 3.0</property>
+-            <property name="selectable">True</property>
+-            <property name="margin-bottom">24</property>
+-            <attributes>
+-              <attribute name="scale" value="1.25"/>
+-              <attribute name="size" value="16000"/>
+-            </attributes>
+-          </object>
+-          <packing>
+-            <property name="expand">False</property>
+-            <property name="fill">False</property>
+-            <property name="position">1</property>
+-          </packing>
+-        </child>
+         <child>
+           <object class="GtkGrid" id="grid1">
+             <property name="visible">True</property>
 diff --git a/panels/meson.build b/panels/meson.build
-index 37a3436..c7f2201 100644
+index 37a3436..f5e81c5 100644
 --- a/panels/meson.build
 +++ b/panels/meson.build
-@@ -18,7 +18,8 @@ panels = [
+@@ -18,7 +18,9 @@ panels = [
    'sharing',
    'sound',
    'universal-access',
 -  'user-accounts'
 +  'user-accounts',
-+  'font'
++  'font',
++  'themes'
  ]
-
+ 
  if host_is_linux
 diff --git a/panels/network/cc-wifi-panel.c b/panels/network/cc-wifi-panel.c
 index 09e16ba..061cb65 100644
@@ -1164,9 +1345,1061 @@ index 09e16ba..061cb65 100644
                                         "wifi",
 -                                       visible ? CC_PANEL_VISIBLE : CC_PANEL_VISIBLE_IN_SEARCH);
 +                                       visible ? CC_PANEL_VISIBLE : CC_PANEL_HIDDEN);
-
+ 
    g_debug ("Wi-Fi panel visible: %s", visible ? "yes" : "no");
  }
+diff --git a/panels/network/net-device-ethernet.c b/panels/network/net-device-ethernet.c
+index afb5443..6338ae2 100644
+--- a/panels/network/net-device-ethernet.c
++++ b/panels/network/net-device-ethernet.c
+@@ -459,6 +459,55 @@ add_profile (GtkButton *button, NetDeviceEthernet *device)
+         net_connection_editor_run (editor);
+ }
+ 
++static void
++ethernet_connected (GObject *source_object,
++                  GAsyncResult *res,
++                  NetDeviceEthernet *device)
++{
++    gboolean success = FALSE;
++    GtkWidget *widget;
++    GError **error;
++//    NMClient *client;
++//    NMDevice *nm_device;
++//    NMDeviceState state;
++//    NMActiveConnection *nm_ac;
++//    NMActiveConnectionState nm_acs;
++
++
++//    client = net_object_get_client (NET_OBJECT (device));
++//    nm_device = net_device_get_nm_device (NET_DEVICE (device));
++//    nm_ac = nm_client_activate_connection_finish (client, res, error);
++//    nm_acs = nm_active_connection_get_state (nm_ac);
++    success = g_async_result_legacy_propagate_error (res, error);
++
++    widget = GTK_WIDGET (gtk_builder_get_object (device->builder, "device_off_switch"));
++    if (success)
++      gtk_switch_set_state (GTK_SWITCH (widget), FALSE);
++
++    device->is_authenticating = FALSE;
++}
++
++static void
++ethernet_disconnected (GObject *source_object,
++                  GAsyncResult *res,
++                  NetDeviceEthernet *device)
++
++{
++    GError **error;
++    gboolean success = FALSE;
++    NMDevice *nm_device;
++    GtkWidget *widget;
++
++    nm_device = net_device_get_nm_device (NET_DEVICE (device));
++    success = nm_device_disconnect_finish (nm_device, res, error);
++
++    widget = GTK_WIDGET (gtk_builder_get_object (device->builder, "device_off_switch"));
++    if (!success)
++        gtk_switch_set_state (GTK_SWITCH (widget), TRUE);
++
++    device->is_authenticating = FALSE;
++}
++
+ static void
+ device_off_toggled (GtkSwitch         *sw,
+                     GParamSpec        *pspec,
+@@ -467,12 +516,19 @@ device_off_toggled (GtkSwitch         *sw,
+         NMClient *client;
+         NMDevice *nm_device;
+         NMConnection *connection;
++        GAsyncResult *result;
++        GError **error;
++        gboolean success;
+ 
+         if (device->updating_device)
+                 return;
+ 
++        if (device->is_authenticating)
++            return;
++
+         client = net_object_get_client (NET_OBJECT (device));
+         nm_device = net_device_get_nm_device (NET_DEVICE (device));
++        device->is_authenticating = TRUE;
+ 
+         if (gtk_switch_get_active (sw)) {
+                 connection = net_device_get_find_connection (NET_DEVICE (device));
+@@ -480,10 +536,10 @@ device_off_toggled (GtkSwitch         *sw,
+                         nm_client_activate_connection_async (client,
+                                                              connection,
+                                                              nm_device,
+-                                                             NULL, NULL, NULL, NULL);
++                                                             NULL, NULL, ethernet_connected, device);
+                 }
+         } else {
+-                nm_device_disconnect (nm_device, NULL, NULL);
++                nm_device_disconnect_async (nm_device, NULL, ethernet_disconnected, device);
+         }
+ }
+ 
+@@ -607,6 +663,7 @@ net_device_ethernet_init (NetDeviceEthernet *device)
+         }
+ 
+         device->connections = g_hash_table_new (NULL, NULL);
++        device->is_authenticating = FALSE;
+ 
+         g_signal_connect (device, "notify::title", G_CALLBACK (device_title_changed), NULL);
+ }
+diff --git a/panels/network/net-device-ethernet.h b/panels/network/net-device-ethernet.h
+index 0d92fd1..aa02ca0 100644
+--- a/panels/network/net-device-ethernet.h
++++ b/panels/network/net-device-ethernet.h
+@@ -51,6 +51,7 @@ struct _NetDeviceEthernet
+         GtkWidget *details_button;
+         GtkWidget *add_profile_button;
+         gboolean   updating_device;
++        gboolean   is_authenticating;
+ 
+         GHashTable *connections;
+ };
+diff --git a/panels/printers/cc-printers-panel.c b/panels/printers/cc-printers-panel.c
+index f05a3ec..4489b40 100644
+--- a/panels/printers/cc-printers-panel.c
++++ b/panels/printers/cc-printers-panel.c
+@@ -77,6 +77,8 @@ struct _CcPrintersPanelPrivate
+ 
+   GPermission *permission;
+   gboolean is_authorized;
++  gboolean is_authenticating;
++
+ 
+   GSettings *lockdown_settings;
+ 
+@@ -249,7 +251,7 @@ cc_printers_panel_constructed (GObject *object)
+ 
+   widget = (GtkWidget*)
+     gtk_builder_get_object (priv->builder, "lock-button");
+-  gtk_lock_button_set_permission (GTK_LOCK_BUTTON (widget), priv->permission);
++  //gtk_lock_button_set_permission (GTK_LOCK_BUTTON (widget), priv->permission);
+ 
+   widget = (GtkWidget*)
+     gtk_builder_get_object (priv->builder, "search-button");
+@@ -1081,6 +1083,44 @@ new_printer_dialog_response_cb (PpNewPrinterDialog *dialog,
+                             allocation.y - gtk_widget_get_margin_top (printer_entry));
+ }
+ 
++static void
++acquired_permission (GObject *object,
++                     GAsyncResult *res,
++                     gpointer data)
++{
++  CcPrintersPanel        *self = (CcPrintersPanel*) data;
++  CcPrintersPanelPrivate *priv = PRINTERS_PANEL_PRIVATE (self);
++
++  g_autoptr(GError) error = NULL;
++  gboolean allowed;
++
++  priv->is_authenticating = FALSE;
++  allowed = g_permission_acquire_finish (priv->permission, res, &error);
++  if (!allowed)
++    return;
++
++  priv->is_authorized = TRUE;
++
++  actualize_printers_list (data);
++  update_sensitivity (data);
++}
++
++static void
++on_clicked_auth (GtkButton *button,
++                 gpointer user_data)
++{
++  CcPrintersPanel         *self = (CcPrintersPanel*) user_data;
++  CcPrintersPanelPrivate  *priv = PRINTERS_PANEL_PRIVATE (self);
++
++  if (!priv->is_authenticating)
++  {
++    priv->is_authenticating = TRUE;
++    g_permission_acquire_async (priv->permission, NULL,
++                                acquired_permission,
++                                self);
++  }
++}
++
+ static void
+ printer_add_cb (GtkToolButton *toolbutton,
+                 gpointer       user_data)
+@@ -1105,6 +1145,7 @@ printer_add_cb (GtkToolButton *toolbutton,
+                     "response",
+                     G_CALLBACK (new_printer_dialog_response_cb),
+                     self);
++
+ }
+ 
+ static void
+@@ -1116,6 +1157,7 @@ update_sensitivity (gpointer user_data)
+   GtkWidget               *widget;
+   gboolean                 local_server = TRUE;
+   gboolean                 no_cups = FALSE;
++  const gchar *test;
+ 
+   priv = PRINTERS_PANEL_PRIVATE (self);
+ 
+@@ -1129,6 +1171,7 @@ update_sensitivity (gpointer user_data)
+     priv->is_authorized ? PAGE_ADDPRINTER : PAGE_LOCK);
+ 
+   widget = (GtkWidget*) gtk_builder_get_object (priv->builder, "main-vbox");
++  test = gtk_stack_get_visible_child_name (GTK_STACK (widget));
+   if (g_strcmp0 (gtk_stack_get_visible_child_name (GTK_STACK (widget)), "no-cups-page") == 0)
+     no_cups = TRUE;
+ 
+@@ -1384,6 +1427,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
+   priv->actualize_printers_list_cancellable = g_cancellable_new ();
+   priv->cups_status_check_cancellable = g_cancellable_new ();
+ 
++  priv->is_authenticating = FALSE;
++
+   builder_result = gtk_builder_add_objects_from_resource (priv->builder,
+                                                           "/org/gnome/control-center/printers/printers.ui",
+                                                           objects, &error);
+@@ -1400,6 +1445,10 @@ cc_printers_panel_init (CcPrintersPanel *self)
+     gtk_builder_get_object (priv->builder, "headerbar-buttons");
+   priv->headerbar_buttons = widget;
+ 
++    g_signal_connect (GTK_BUTTON (gtk_builder_get_object (priv->builder, "lock-button")),
++                      "clicked",
++                      G_CALLBACK (on_clicked_auth), self);
++
+   priv->notification = (GtkRevealer*)
+     gtk_builder_get_object (priv->builder, "notification");
+ 
+@@ -1457,8 +1506,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
+     }
+   else
+     g_warning ("Your system does not have the cups-pk-helper's policy \
+-\"org.opensuse.cupspkhelper.mechanism.all-edit\" installed. \
+-Please check your installation");
++      \"org.opensuse.cupspkhelper.mechanism.all-edit\" installed. \
++      Please check your installation");
+ 
+   priv->subscription_renew_cancellable = g_cancellable_new ();
+ 
+diff --git a/panels/printers/printers.ui b/panels/printers/printers.ui
+index 2894b7e..4051776 100644
+--- a/panels/printers/printers.ui
++++ b/panels/printers/printers.ui
+@@ -7,6 +7,11 @@
+     <child>
+       <object class="GtkLockButton" id="lock-button">
+         <property name="visible">True</property>
++        <property name="can_focus">False</property>
++        <property name="text_lock" translatable="yes">Unlock</property>
++        <property name="text_unlock" translatable="yes">Locked</property>
++        <property name="tooltip_lock" translatable="yes">Dialog is locked.
++Click to make changes</property>
+       </object>
+       <packing>
+         <property name="name">_lock</property>
+diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
+new file mode 100644
+index 0000000..f06d651
+--- /dev/null
++++ b/panels/themes/cc-themes-panel.c
+@@ -0,0 +1,480 @@
++/*
++ * Copyright (C) 2010 Intel, Inc
++ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ */
++
++#include "cc-themes-panel.h"
++//#include "font-dialog.h"
++#include "cc-themes-resources.h"
++
++#include <config.h>
++#include <gtk/gtk.h>
++
++#include <glib/gi18n.h>
++
++#define DEFAULT_GTK_THEME   "Default"
++#define DEFAULT_WM_THEME    "Default"
++#define DEFAULT_ICON_THEME  "Rodent"
++
++//#define DEFAULT_THEME_DIR   "/usr/share/themes"
++#define DEFAULT_THEME_DIR   "/usr/share/icons"
++
++#define WID(y) (GtkWidget *) gtk_builder_get_object (panel->builder, y)
++
++struct {
++  char *icon;
++  char *icon_name;
++  char *bg_name;
++} icon_themes[] = {
++  { "Gooroom-Arc", N_("Gooroom Icon Theme 1"), "file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_1.jpg" },
++  { "Gooroom-Faenza", N_("Gooroom Icon Theme 2"), "file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_2.jpg" },
++  { "Gooroom-Papirus", N_("Gooroom Icon Theme 3"), "file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_3.jpg" },
++};
++
++enum
++{
++  COL_THUMBNAIL,
++  COL_ICON_THEME_NAME,
++  COL_THUMB_PATH,
++  COL_BACKGROUND_PATH,
++  NUM_COLS
++};
++
++struct _CcThemesPanel
++{
++  CcPanel           parent_instance;
++
++  GtkBuilder        *builder;
++
++  GSettings         *interface_settings;
++  GSettings         *wm_settings;
++  GSettings         *bg_settings;
++
++  GtkIconView       *icon_view;
++  GtkListStore      *themes_liststore;
++  GtkDrawingArea    *current_theme_drawingarea;
++  GtkWidget         *theme_apply_button;
++  GtkWidget         *themes_list_sw;
++
++  GdkPixbuf         *current_theme_thumbnail;
++
++  gchar             *selected_icon_name;
++  gchar             *selected_bg_name;
++  gchar             *current_icon_name;
++  gchar             *current_bg_name;
++};
++
++CC_PANEL_REGISTER (CcThemesPanel, cc_themes_panel)
++
++static const char *
++cc_themes_panel_get_help_uri (CcPanel *panel)
++{
++  return "help:gnome-help/themes";
++}
++
++static void
++set_thumbnail (CcThemesPanel *panel, gchar *thumb_path)
++{
++  GdkPixbuf *old_pixbuf;
++  old_pixbuf = panel->current_theme_thumbnail;
++  gint width;
++  gint height;
++
++  if (panel->current_theme_thumbnail != NULL)
++  {
++    //g_object_unref (panel->current_theme_thumbnail);
++    g_clear_object (&panel->current_theme_thumbnail);
++    panel->current_theme_thumbnail = NULL;
++  }
++
++  panel->current_theme_thumbnail = gdk_pixbuf_new_from_file (thumb_path, NULL);
++
++// FIXME: redraw drawingarea
++  gtk_widget_get_size_request (WID ("current-theme-drawingarea"), &width, &height);
++  gtk_widget_queue_draw_area (WID ("current-theme-drawingarea"), 0, 0, width, height);
++
++}
++
++static gboolean
++on_draw_theme (GtkWidget *widget, cairo_t *cr, gpointer data)
++{
++  GdkPixbuf *pixbuf;
++  CcThemesPanel *panel = CC_THEMES_PANEL (data);
++  cairo_t *_cr;
++  GdkRGBA color;
++
++  color.red = 1.0;
++  color.green = 1.0;
++  color.blue = 1.0;
++  color.alpha = 1.0;
++
++  pixbuf = gdk_pixbuf_scale_simple (panel->current_theme_thumbnail, 302, 181, GDK_INTERP_BILINEAR);
++  _cr = gdk_cairo_create (gtk_widget_get_window (widget));
++
++  // border color
++  gdk_cairo_set_source_rgba (_cr, &color);
++
++  gdk_cairo_set_source_pixbuf (_cr, pixbuf, 20, 22);
++  cairo_paint (_cr);
++  cairo_destroy (_cr);
++
++  return FALSE;
++}
++
++static gint
++compare_func (gconstpointer a, gconstpointer b)
++{
++  return g_strcmp0 ((gchar*)a, (gchar*)b);
++}
++
++static gint
++sort_func (GtkTreeModel *model,
++           GtkTreeIter  *a,
++           GtkTreeIter  *b,
++           gpointer      user_data)
++{
++  char *theme_a, *theme_b;
++  int ret;
++
++  gtk_tree_model_get (model, a,
++                      COL_ICON_THEME_NAME, &theme_a, -1);
++
++  gtk_tree_model_get (model, b,
++                      COL_ICON_THEME_NAME, &theme_b, -1);
++
++  ret = g_utf8_collate (theme_a, theme_b);
++
++  g_free (theme_a);
++  g_free (theme_b);
++}
++
++static GtkListStore*
++create_store (void)
++{
++  GtkListStore *store;
++
++  store = gtk_list_store_new (NUM_COLS,
++                              GDK_TYPE_PIXBUF,
++                              G_TYPE_STRING,
++                              G_TYPE_STRING,
++                              G_TYPE_STRING);
++
++  gtk_tree_sortable_set_default_sort_func (GTK_TREE_SORTABLE (store),
++                                           sort_func, NULL, NULL);
++
++  gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (store),
++                                        GTK_TREE_SORTABLE_DEFAULT_SORT_COLUMN_ID,
++                                        GTK_SORT_ASCENDING);
++
++  return store;
++}
++
++static GSList*
++sorted_theme_dirs_get ()
++{
++  GSList *list = NULL;
++  GDir *dir;
++  const gchar *file;
++
++  dir = g_dir_open (DEFAULT_THEME_DIR, 0, NULL);
++
++  if (G_UNLIKELY (dir == NULL))
++    return NULL;
++
++  /* Iterate over filenames in the directory */
++  while ((file = g_dir_read_name (dir)) != NULL) {
++      list = g_slist_append (list, g_strdup (file));
++  }
++
++  g_dir_close (dir);
++
++  list = g_slist_sort (list, compare_func);
++
++  return list;
++}
++
++static void
++set_current_theme_label (CcThemesPanel *panel, gchar *icon_name)
++{
++  for (int i = 0; i < G_N_ELEMENTS (icon_themes); i++)
++  {
++    if (g_strcmp0 (icon_themes[i].icon, icon_name) == 0)
++    {
++      gchar **name = g_strsplit (icon_themes[i].icon_name, " ", -1);
++      gchar *theme_name = g_strdup_printf (_("Gooroom Icon Theme %s"), name[3]);
++
++      gtk_label_set_text (WID ("current-theme-label"), theme_name);
++
++      g_strfreev (name);
++      g_free (theme_name);
++    }
++  }
++}
++
++static GtkListStore *
++load_themes_liststore (CcThemesPanel *panel)
++{
++  GSList *theme_dirs = sorted_theme_dirs_get ();
++  GFile *theme_f;
++  GFileInputStream *theme_fs;
++  GDataInputStream *theme_ds;
++  GCancellable *cancellable;
++  g_autoptr(GError) err = NULL;
++  g_autoptr(GError) inner_err = NULL;
++  gchar *line;
++  GtkListStore *store;
++  GtkTreeIter iter;
++  GtkTreeIter pre_iter;
++  GtkWidget *current_theme_drawingarea;
++  g_autofree char *current_theme = NULL;
++
++  if (!theme_dirs)
++    return FALSE;
++
++  GSList *l = NULL;
++  GSList *check_list = NULL;
++
++  // add screen data in list store
++  store = create_store ();
++  for (l = theme_dirs; l; l = l->next)
++  {
++    gchar *theme_dir = g_strdup ((gchar *) l->data);
++    gchar *gtkrc_filename = g_build_filename (DEFAULT_THEME_DIR, theme_dir, NULL);
++    const gchar *icon_theme_name = NULL;
++    gchar *thumb_path;
++    gchar *background_dir = NULL;
++    gboolean is_gooroom_theme = FALSE;
++
++    for (int i = 0; i < G_N_ELEMENTS (icon_themes); i++)
++    {
++      if (g_strcmp0 (icon_themes[i].icon, theme_dir) == 0)
++      {
++        is_gooroom_theme = TRUE;
++        // get background directory from struct list
++        background_dir = icon_themes[i].bg_name;
++        break;
++      }
++    }
++
++    if (!is_gooroom_theme)
++      continue;
++
++    thumb_path = g_strdup_printf ("%s/%s/thumbnail.png", DEFAULT_THEME_DIR, theme_dir);
++
++    if (g_file_test (gtkrc_filename, G_FILE_TEST_EXISTS)
++      && g_slist_find_custom (check_list, theme_dir, (GCompareFunc) g_utf8_collate) == NULL)
++    {
++      current_theme = g_settings_get_string (panel->interface_settings, "icon-theme");
++      if (g_strcmp0 (current_theme, theme_dir) == 0)
++      {
++        set_thumbnail (panel, thumb_path);
++        set_current_theme_label (panel, theme_dir);
++
++        //panel->current_icon_name = theme_dir;
++        //panel->current_bg_name = background_dir;
++      }
++
++      check_list = g_slist_prepend (check_list, g_strdup (theme_dir));
++
++      gtk_list_store_append (store, &iter);
++      gtk_list_store_set (store, &iter,
++                          COL_THUMBNAIL, gdk_pixbuf_new_from_file_at_size (thumb_path, 180, 110, NULL),
++                          COL_ICON_THEME_NAME, theme_dir ? g_strdup (theme_dir) : NULL,
++                          COL_BACKGROUND_PATH, background_dir ? g_strdup (background_dir) : NULL,
++                          COL_THUMB_PATH, thumb_path, -1);
++    }
++
++    g_free (theme_dir);
++    g_free (thumb_path);
++  }
++
++  if (G_LIKELY (theme_dirs)) {
++    g_slist_foreach (theme_dirs, (GFunc)g_free, NULL);
++    g_slist_free (theme_dirs);
++  }
++
++  if (G_LIKELY (check_list)) {
++    g_slist_foreach (check_list, (GFunc) g_free, NULL);
++    g_slist_free (check_list);
++  }
++
++  return store;
++}
++
++static void 
++on_selection_theme (GtkIconView *icon_view,
++                    CcThemesPanel *panel)
++{
++  GList *list;
++  GtkTreeModel *model;
++  GtkTreeIter iter;
++  gchar *icon_name;
++  gchar *background_dir;
++  gchar *thumb_path;
++  GtkWidget *thumbnail;
++
++  list = gtk_icon_view_get_selected_items (icon_view);
++  if (list == NULL)
++    return;
++
++  model = gtk_icon_view_get_model (GTK_ICON_VIEW (icon_view));
++
++  if (gtk_tree_model_get_iter (model, &iter, (GtkTreePath*)list->data) == FALSE)
++    goto bail;
++
++  gtk_tree_model_get (model, &iter, COL_THUMBNAIL, &thumbnail,
++                      COL_ICON_THEME_NAME, &panel->selected_icon_name,
++                      COL_BACKGROUND_PATH, &panel->selected_bg_name,
++                      COL_THUMB_PATH, &thumb_path, -1);
++
++  set_thumbnail (panel, thumb_path);
++
++  g_settings_set_string (panel->interface_settings, "icon-theme", panel->selected_icon_name);
++  g_settings_set_string (panel->bg_settings, "picture-uri", panel->selected_bg_name);
++
++bail:
++  g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
++
++}
++
++static gboolean
++on_clicked_apply (GtkButton *button, CcThemesPanel *panel)
++{
++  GList *list;
++  GtkTreeModel *model;
++  GtkTreeIter iter;
++
++  list = gtk_icon_view_get_selected_items (panel->icon_view);
++  if (list == NULL)
++    return FALSE;
++  model = gtk_icon_view_get_model (GTK_ICON_VIEW (panel->icon_view));
++
++  if (gtk_tree_model_get_iter (model, &iter, (GtkTreePath*)list->data) == FALSE)
++    goto bail;
++
++  panel->current_icon_name = panel->selected_icon_name;
++  panel->current_bg_name =  panel->selected_bg_name;
++
++  set_current_theme_label (panel, panel->current_icon_name);
++
++  g_settings_set_string (panel->interface_settings, "icon-theme", panel->current_icon_name);
++  g_settings_set_string (panel->bg_settings, "picture-uri", panel->current_bg_name);
++
++bail:
++  g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
++
++return FALSE;
++}
++
++static void
++cc_themes_panel_dispose (GObject *object)
++{
++  CcThemesPanel *panel = CC_THEMES_PANEL (object);
++
++  if (panel->interface_settings)
++    g_settings_set_string (panel->interface_settings, "icon-theme", panel->current_icon_name);
++  if (panel->bg_settings)
++    g_settings_set_string (panel->bg_settings, "picture-uri", panel->current_bg_name);
++
++  g_clear_object (&panel->interface_settings);
++  g_clear_object (&panel->wm_settings);
++  g_clear_object (&panel->bg_settings);
++
++  g_clear_object (&panel->builder);
++
++  G_OBJECT_CLASS (cc_themes_panel_parent_class)->dispose (object);
++}
++
++static void
++cc_themes_panel_class_init (CcThemesPanelClass *klass)
++{
++  GObjectClass *object_class = G_OBJECT_CLASS (klass);
++  CcPanelClass *panel_class = CC_PANEL_CLASS (klass);
++
++  object_class->dispose = cc_themes_panel_dispose;
++
++  panel_class->get_help_uri = cc_themes_panel_get_help_uri;
++}
++
++static void
++cc_themes_panel_init (CcThemesPanel *panel)
++{
++  gchar *objects[] = {"themes-main-scrolled-window", NULL};
++  g_autoptr(GError) err = NULL;
++  GtkWidget *w;
++  gint button_val;
++  gdouble i_val;
++  GtkWidget *themes_list_sw;
++  GtkWidget *theme_apply_button;
++  GtkWidget *current_theme_drawingarea;
++  GtkTreeIter iter;
++
++  g_resources_register (cc_themes_get_resource ());
++
++  panel->builder = gtk_builder_new ();
++  gtk_builder_add_objects_from_resource (panel->builder,
++                                         "/org/gnome/control-center/themes/themes.ui",
++                                         objects, &err);
++  if (err)
++  {
++    g_warning ("Could not load ui: %s", err->message);
++    return;
++  }
++
++  panel->theme_apply_button = WID ("theme-apply-button");
++  panel->themes_list_sw = WID ("themes-list-sw");
++
++  panel->interface_settings = g_settings_new ("org.gnome.desktop.interface");
++  panel->wm_settings = g_settings_new ("org.gnome.desktop.wm.preferences");
++  panel->bg_settings = g_settings_new ("org.gnome.desktop.background");
++
++  panel->themes_liststore = load_themes_liststore(panel);
++
++  panel->current_icon_name = g_settings_get_string (panel->interface_settings, "icon-theme");
++  panel->current_bg_name = g_settings_get_string (panel->bg_settings, "picture-uri");
++
++// create icon view from list store
++  panel->icon_view = gtk_icon_view_new_with_model (GTK_TREE_MODEL (panel->themes_liststore));
++  gtk_icon_view_set_selection_mode (GTK_ICON_VIEW (panel->icon_view),
++                                    GTK_SELECTION_SINGLE);
++
++  gtk_icon_view_set_text_column (GTK_ICON_VIEW (panel->icon_view), COL_ICON_THEME_NAME);
++
++  gtk_icon_view_set_pixbuf_column (GTK_ICON_VIEW (panel->icon_view), COL_THUMBNAIL);
++  gtk_icon_view_set_columns (GTK_ICON_VIEW (panel->icon_view), 3);
++  gtk_icon_view_set_item_width (GTK_ICON_VIEW (panel->icon_view), 120);
++  gtk_icon_view_set_column_spacing (GTK_ICON_VIEW (panel->icon_view), 10);
++  gtk_icon_view_set_margin (GTK_ICON_VIEW (panel->icon_view), 10);
++
++  g_signal_connect (WID ("current-theme-drawingarea"), "draw", G_CALLBACK(on_draw_theme), panel);
++  g_signal_connect (panel->theme_apply_button, "clicked", G_CALLBACK (on_clicked_apply), panel);
++  g_signal_connect (panel->icon_view, "selection-changed",
++                    G_CALLBACK (on_selection_theme), panel);
++
++  gtk_scrolled_window_set_shadow_type (panel->themes_list_sw, GTK_SHADOW_ETCHED_IN);
++  gtk_scrolled_window_set_policy (panel->themes_list_sw,
++                                  GTK_POLICY_AUTOMATIC,
++                                  GTK_POLICY_AUTOMATIC);
++
++  gtk_container_add (GTK_CONTAINER (panel->themes_list_sw), panel->icon_view);
++  gtk_widget_grab_focus (panel->icon_view);
++
++  w = WID ("themes-main-scrolled-window");
++  gtk_container_add (GTK_CONTAINER (panel), w);
++  gtk_widget_show_all (GTK_WIDGET (panel));
++}
+diff --git a/panels/themes/cc-themes-panel.h b/panels/themes/cc-themes-panel.h
+new file mode 100644
+index 0000000..eb7058a
+--- /dev/null
++++ b/panels/themes/cc-themes-panel.h
+@@ -0,0 +1,32 @@
++/*
++ * Copyright (C) 2010 Intel, Inc
++ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ */
++
++#ifndef _CC_THEMES_PANEL_H
++#define _CC_THEMES_PANEL_H
++
++#include <shell/cc-panel.h>
++
++#define CC_TYPE_THEMES_PANEL (cc_themes_panel_get_type ())
++
++G_DECLARE_FINAL_TYPE (CcThemesPanel, cc_themes_panel, CC, THEMES_PANEL, CcPanel)
++
++G_END_DECLS
++
++#endif /* _CC_THEMES_PANEL_H */
+diff --git a/panels/themes/gnome-themes-panel.desktop.in.in b/panels/themes/gnome-themes-panel.desktop.in.in
+new file mode 100644
+index 0000000..4a43041
+--- /dev/null
++++ b/panels/themes/gnome-themes-panel.desktop.in.in
+@@ -0,0 +1,14 @@
++[Desktop Entry]
++Name=Themes
++Comment=Change your Thema for window and icon
++Exec=gnome-control-center themes
++# Translators: Do NOT translate or transliterate this text (this is an icon file name)!
++Icon=preferences-desktop-wallpaper
++Terminal=false
++Type=Application
++NoDisplay=true
++StartupNotify=true
++Categories=GNOME;GTK;Settings;DesktopSettings;X-GNOME-Settings-Panel;X-GNOME-PersonalizationSettings;
++OnlyShowIn=GNOME;
++# Translators: Search terms to find the Background panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
++Keywords=Theme;Desktop;
+diff --git a/panels/themes/meson.build b/panels/themes/meson.build
+new file mode 100644
+index 0000000..7d21107
+--- /dev/null
++++ b/panels/themes/meson.build
+@@ -0,0 +1,52 @@
++panels_list += cappletname
++desktop = 'gnome-@0@-panel.desktop'.format(cappletname)
++
++desktop_in = configure_file(
++  input: desktop + '.in.in',
++  output: desktop + '.in',
++  configuration: desktop_conf
++)
++
++i18n.merge_file(
++  desktop,
++  type: 'desktop',
++  input: desktop_in,
++  output: desktop,
++  po_dir: po_dir,
++  install: true,
++  install_dir: control_center_desktopdir
++)
++
++sources = files(
++  'cc-themes-panel.c',
++)
++
++resource_data = files(
++  'themes.ui'
++)
++
++sources += gnome.compile_resources(
++  'cc-' + cappletname + '-resources',
++  cappletname + '.gresource.xml',
++  c_name: 'cc_' + cappletname,
++  dependencies: resource_data,
++  export: true
++)
++
++deps = common_deps + [
++  cups_dep,
++  m_dep,
++  polkit_gobject_dep,
++  dependency('smbclient')
++]
++
++cflags += '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir)
++
++themes_panel_lib = static_library(
++  cappletname,
++  sources: sources,
++  include_directories: [top_inc, common_inc, shell_inc],
++  dependencies: deps,
++  c_args: cflags
++)
++panels_libs += [ themes_panel_lib ]
+diff --git a/panels/themes/themes.gresource.xml b/panels/themes/themes.gresource.xml
+new file mode 100644
+index 0000000..b3915eb
+--- /dev/null
++++ b/panels/themes/themes.gresource.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<gresources>
++  <gresource prefix="/org/gnome/control-center/themes">
++    <file preprocess="xml-stripblanks">themes.ui</file>
++  </gresource>
++</gresources>
++
+diff --git a/panels/themes/themes.ui b/panels/themes/themes.ui
+new file mode 100644
+index 0000000..659fb6a
+--- /dev/null
++++ b/panels/themes/themes.ui
+@@ -0,0 +1,180 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!-- Generated with glade 3.22.1 -->
++<interface>
++  <requires lib="gtk+" version="3.20"/>
++  <object class="GtkSizeGroup" id="sizegroup1">
++    <property name="mode">both</property>
++  </object>
++  <object class="GtkScrolledWindow" id="themes-main-scrolled-window">
++    <property name="visible">True</property>
++    <property name="can_focus">True</property>
++    <property name="shadow_type">in</property>
++    <property name="min_content_width">700</property>
++    <property name="min_content_height">400</property>
++    <child>
++      <object class="GtkViewport">
++        <property name="visible">True</property>
++        <property name="can_focus">False</property>
++        <child>
++          <object class="GtkBox">
++            <property name="visible">True</property>
++            <property name="can_focus">False</property>
++            <property name="hexpand">True</property>
++            <property name="vexpand">True</property>
++            <property name="orientation">vertical</property>
++            <property name="spacing">1</property>
++            <property name="baseline_position">top</property>
++            <child>
++              <object class="GtkFixed">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
++                <child>
++                  <object class="GtkBox">
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="halign">start</property>
++                    <property name="valign">start</property>
++                    <child>
++                      <object class="GtkLabel">
++                        <property name="visible">True</property>
++                        <property name="can_focus">False</property>
++                        <property name="halign">start</property>
++                        <property name="valign">start</property>
++                        <property name="label" translatable="yes">Current Theme : </property>
++                        <attributes>
++                          <attribute name="weight" value="bold"/>
++                        </attributes>
++                      </object>
++                      <packing>
++                        <property name="expand">False</property>
++                        <property name="fill">True</property>
++                        <property name="position">0</property>
++                      </packing>
++                    </child>
++                    <child>
++                      <object class="GtkLabel" id="current-theme-label">
++                        <property name="visible">True</property>
++                        <property name="can_focus">False</property>
++                        <property name="halign">start</property>
++                        <property name="valign">start</property>
++                        <property name="label" translatable="yes">label</property>
++                        <attributes>
++                          <attribute name="weight" value="bold"/>
++                        </attributes>
++                      </object>
++                      <packing>
++                        <property name="expand">False</property>
++                        <property name="fill">True</property>
++                        <property name="position">1</property>
++                      </packing>
++                    </child>
++                  </object>
++                  <packing>
++                    <property name="x">10</property>
++                    <property name="y">13</property>
++                  </packing>
++                </child>
++                <child>
++                  <object class="GtkBox">
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="orientation">vertical</property>
++                    <child>
++                      <object class="GtkButton" id="theme-apply-button">
++                        <property name="label" translatable="yes">Apply</property>
++                        <property name="width_request">80</property>
++                        <property name="height_request">20</property>
++                        <property name="visible">True</property>
++                        <property name="can_focus">True</property>
++                        <property name="receives_default">True</property>
++                        <property name="halign">center</property>
++                      </object>
++                      <packing>
++                        <property name="expand">False</property>
++                        <property name="fill">False</property>
++                        <property name="position">0</property>
++                      </packing>
++                    </child>
++                    <child>
++                      <object class="GtkDrawingArea" id="current-theme-drawingarea">
++                        <property name="width_request">330</property>
++                        <property name="height_request">234</property>
++                        <property name="visible">True</property>
++                        <property name="can_focus">False</property>
++                        <property name="margin_top">15</property>
++                        <property name="margin_bottom">10</property>
++                      </object>
++                      <packing>
++                        <property name="expand">False</property>
++                        <property name="fill">True</property>
++                        <property name="position">1</property>
++                      </packing>
++                    </child>
++                  </object>
++                  <packing>
++                    <property name="x">208</property>
++                    <property name="y">10</property>
++                  </packing>
++                </child>
++              </object>
++              <packing>
++                <property name="expand">False</property>
++                <property name="fill">True</property>
++                <property name="position">0</property>
++              </packing>
++            </child>
++            <child>
++              <object class="GtkBox" id="themes-list-box">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
++                <property name="orientation">vertical</property>
++                <child>
++                  <object class="GtkLabel">
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="halign">start</property>
++                    <property name="valign">start</property>
++                    <property name="margin_left">25</property>
++                    <property name="label" translatable="yes">Theme List</property>
++                    <attributes>
++                      <attribute name="weight" value="bold"/>
++                    </attributes>
++                  </object>
++                  <packing>
++                    <property name="expand">False</property>
++                    <property name="fill">True</property>
++                    <property name="position">0</property>
++                  </packing>
++                </child>
++                <child>
++                  <object class="GtkScrolledWindow" id="themes-list-sw">
++                    <property name="visible">True</property>
++                    <property name="can_focus">False</property>
++                    <property name="margin_left">25</property>
++                    <property name="margin_right">25</property>
++                    <property name="margin_top">10</property>
++                    <property name="margin_bottom">10</property>
++                    <property name="shadow_type">in</property>
++                    <child>
++                      <placeholder/>
++                    </child>
++                  </object>
++                  <packing>
++                    <property name="expand">True</property>
++                    <property name="fill">True</property>
++                    <property name="position">1</property>
++                  </packing>
++                </child>
++              </object>
++              <packing>
++                <property name="expand">True</property>
++                <property name="fill">True</property>
++                <property name="position">2</property>
++              </packing>
++            </child>
++          </object>
++        </child>
++      </object>
++    </child>
++  </object>
++</interface>
 diff --git a/panels/wacom/cc-wacom-panel.c b/panels/wacom/cc-wacom-panel.c
 index 0cb2f42..ca3480b 100644
 --- a/panels/wacom/cc-wacom-panel.c
@@ -1177,14 +2410,31 @@ index 0cb2f42..ca3480b 100644
  					     "wacom",
 -					     i > 0 ? CC_PANEL_VISIBLE : CC_PANEL_VISIBLE_IN_SEARCH);
 +					     i > 0 ? CC_PANEL_VISIBLE : CC_PANEL_HIDDEN);
-
+ 
  	g_debug ("Wacom panel visible: %s", i > 0 ? "yes" : "no");
  }
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 43c542b..ce2d45a 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -33,6 +33,12 @@ panels/datetime/ydm.ui
+ panels/display/cc-display-panel.c
+ panels/display/cc-night-light-dialog.ui
+ panels/display/gnome-display-panel.desktop.in.in
++panels/font/cc-font-panel.c
++panels/font/font.ui
++panels/font/gnome-font-panel.desktop.in.in
++panals/themes/cc-themes-panel.c
++panels/themes/themes.ui
++panels/themes/gnome-themes-panel.desktop.in.in
+ panels/info/cc-info-overview-panel.c
+ panels/info/cc-info-removable-media-panel.c
+ panels/info/gnome-default-apps-panel.desktop.in.in
 diff --git a/po/en.po b/po/en.po
-index b5bf16d..e16895c 100644
+index b5bf16d..d92d49e 100644
 --- a/po/en.po
 +++ b/po/en.po
-@@ -3193,3 +3193,66 @@ msgstr ""
+@@ -3193,3 +3193,105 @@ msgstr ""
  #: ../shell/shell.ui.h:2
  msgid "_All Settings"
  msgstr ""
@@ -1251,14 +2501,53 @@ index b5bf16d..e16895c 100644
 +
 +msgid "Show side panel list that matches the User settings values."
 +msgstr ""
++
++#: ../panels/themes/themes.ui:65
++msgid "Apply"
++msgstr ""
++
++#: ../panels/themes/gnome-themes-panel.desktop.in.in:4
++msgid "Change your Thema for window and icon"
++msgstr ""
++
++#: ../panels/themes/themes.ui:37
++msgid "Current Theme : "
++msgstr ""
++
++#: ../panels/themes/themes.ui:116
++msgid "Theme List"
++msgstr ""
++
++#: ../panels/themes/gnome-themes-panel.desktop.in.in:3
++msgid "Themes"
++msgstr ""
++
++#: ../panels/themes/themes.ui:52
++msgid "theme"
++msgstr ""
++
++msgid "Gooroom Icon Theme %s"
++msgstr ""
++
++#: ../panels/font/cc-font-panel.c:339
++msgid "_small"
++msgstr ""
++
++#: ../panels/font/cc-font-panel.c:340
++msgid "_medium"
++msgstr ""
++
++#: ../panels/font/cc-font-panel.c:341
++msgid "_large"
++msgstr ""
 diff --git a/po/en_GB.po b/po/en_GB.po
-index 200d00a..fac6a71 100644
+index 200d00a..c17e2d9 100644
 --- a/po/en_GB.po
 +++ b/po/en_GB.po
 @@ -7739,6 +7739,69 @@ msgstr[1] "%u Inputs"
  msgid "System Sounds"
  msgstr "System Sounds"
-
+ 
 +msgid "Font"
 +msgstr "Font"
 +
@@ -1324,12 +2613,66 @@ index 200d00a..fac6a71 100644
 +
  #~ msgid "_Verify New Password"
  #~ msgstr "_Verify New Password"
-
+ 
+@@ -12359,9 +12422,6 @@ msgstr "System Sounds"
+ #~ "The theme you have selected suggests a new font. A preview of the font is "
+ #~ "shown below."
+ 
+-#~ msgid "Themes"
+-#~ msgstr "Themes"
+-
+ #~ msgid "Description"
+ #~ msgstr "Description"
+ 
+@@ -13309,3 +13369,43 @@ msgstr "System Sounds"
+ 
+ #~ msgid "The typing monitor is already running."
+ #~ msgstr "The typing monitor is already running."
++
++#: ../panels/themes/gnome-themes-panel.desktop.in.in:4
++msgid "Change your Thema for window and icon"
++msgstr "Change your Thema for window and icon"
++
++#: ../panels/themes/themes.ui:37
++msgid "Current Theme : "
++msgstr "Current Theme : "
++
++#: ../panels/themes/themes.ui:116
++msgid "Theme List"
++msgstr "Theme List"
++
++#: ../panels/themes/gnome-themes-panel.desktop.in.in:3
++msgid "Themes"
++msgstr "Themes"
++
++#: ../panels/themes/themes.ui:52
++msgid "theme"
++msgstr "theme"
++
++msgid "Gooroom Icon Theme %s"
++msgstr "Gooroom Theme %s"
++
++#: ../panels/font/cc-font-panel.c:339
++msgid "_small"
++msgstr "Small"
++
++#: ../panels/font/cc-font-panel.c:340
++msgid "_medium"
++msgstr "Medium"
++
++#: ../panels/font/cc-font-panel.c:341
++msgid "_large"
++msgstr "Large"
++
++#: ../panels/network/network.ui.h:23
++#: ../panels/user-accounts/um-lockbutton.c:356
++msgid "Unlock"
++msgstr "Unlock"
 diff --git a/po/ko.po b/po/ko.po
-index a891961..ff5cdfe 100644
+index a891961..6cf35c0 100644
 --- a/po/ko.po
 +++ b/po/ko.po
-@@ -7706,3 +7706,66 @@ msgstr[0] "%u개 입력"
+@@ -7706,3 +7706,122 @@ msgstr[0] "%u개 입력"
  #: subprojects/gvc/gvc-mixer-control.c:2738
  msgid "System Sounds"
  msgstr "시스템 사운드"
@@ -1371,7 +2714,7 @@ index a891961..ff5cdfe 100644
 +
 +#: ../panels/font/font.ui:226
 +msgid "Monospace Text"
-+msgstr "고적폭 텍스트"
++msgstr "고정폭 텍스트"
 +
 +#: ../panels/font/font.ui:280 ../panels/font/font.ui:375
 +#: ../panels/font/font.ui:425
@@ -1396,24 +2739,81 @@ index a891961..ff5cdfe 100644
 +
 +msgid "Show side panel list that matches the User settings values."
 +msgstr "사용자 설정 값과 일치하는 사이드 목록을 숨깁니다."
++
++#: ../panels/themes/themes.ui:65
++msgid "Apply"
++msgstr "적용"
++
++#: ../panels/themes/gnome-themes-panel.desktop.in.in:4
++msgid "Change your Thema for window and icon"
++msgstr "아이콘 또는 윈도우 창의 테마를 변경합니다."
++
++#: ../panels/themes/themes.ui:37
++msgid "Current Theme : "
++msgstr "현재 테마 : "
++
++#: ../panels/themes/themes.ui:116
++msgid "Theme List"
++msgstr "테마 목록"
++
++#: ../panels/themes/gnome-themes-panel.desktop.in.in:3
++msgid "Themes"
++msgstr "테마"
++
++#: ../panels/themes/themes.ui:52
++msgid "theme"
++msgstr "테마"
++
++msgid "Gooroom Icon Theme %s"
++msgstr "구름 테마 %s"
++
++#: ../panels/font/cc-font-panel.c:339
++msgid "_small"
++msgstr "작게"
++
++#: ../panels/font/cc-font-panel.c:340
++msgid "_medium"
++msgstr "중간"
++
++#: ../panels/font/cc-font-panel.c:341
++msgid "_large"
++msgstr "크게"
++
++#: ../panels/user-accounts/um-lockbutton.c:365
++msgid "Locked"
++msgstr "잠김"
++
++#: ../panels/network/network.ui.h:23
++#: ../panels/user-accounts/um-lockbutton.c:356
++msgid "Unlock"
++msgstr "잠금 해제"
++
++#: ../panels/user-accounts/um-lockbutton.c:383
++msgid ""
++"Dialog is locked.\n"
++"Click to make changes"
++msgstr ""
++"대화창이 잠겼습니다.\n"
++"바꾸려면 누르십시오"
 diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
-index 39a46b4..67cc741 100644
+index 39a46b4..5174ff5 100644
 --- a/shell/cc-panel-list.c
 +++ b/shell/cc-panel-list.c
-@@ -329,6 +329,7 @@ static const gchar * const panel_order[] = {
+@@ -329,6 +329,8 @@ static const gchar * const panel_order[] = {
    "mobile-broadband",
    "bluetooth",
    "background",
 +  "font",
++  "themes",
    "notifications",
    "search",
    "region",
-@@ -516,6 +517,25 @@ header_func (GtkListBoxRow *row,
+@@ -516,6 +518,25 @@ header_func (GtkListBoxRow *row,
      }
  }
-
+ 
 +// set visible details_row & devices_row
-+static void
++static void 
 +show_panel_list_row_box (GtkWidget *listbox, GtkWidget *row)
 +{
 +  GList   *child_list, *l;
@@ -1434,18 +2834,18 @@ index 39a46b4..67cc741 100644
  /*
   * Callbacks
   */
-@@ -525,6 +545,7 @@ row_activated_cb (GtkWidget     *listbox,
+@@ -525,6 +546,7 @@ row_activated_cb (GtkWidget     *listbox,
                    CcPanelList   *self)
  {
    RowData *data;
 +  GList   *child_list, *l;
-
+ 
    /* Details */
    if (row == self->details_row)
-@@ -556,6 +577,10 @@ row_activated_cb (GtkWidget     *listbox,
+@@ -556,6 +578,10 @@ row_activated_cb (GtkWidget     *listbox,
          gtk_list_box_unselect_all (GTK_LIST_BOX (self->devices_listbox));
      }
-
+ 
 +  // visible details & devices list row box
 +  show_panel_list_row_box (self->details_listbox, self->details_row);
 +  show_panel_list_row_box (self->devices_listbox, self->devices_row);
@@ -1454,29 +2854,31 @@ index 39a46b4..67cc741 100644
     * Since we're not sure that the activated row is in the
     * current view, set the view here.
 diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
-index 6b5c6e3..468a6fe 100644
+index 6b5c6e3..671f774 100644
 --- a/shell/cc-panel-loader.c
 +++ b/shell/cc-panel-loader.c
-@@ -55,6 +55,7 @@ extern GType cc_region_panel_get_type (void);
+@@ -55,6 +55,8 @@ extern GType cc_region_panel_get_type (void);
  extern GType cc_search_panel_get_type (void);
  extern GType cc_sharing_panel_get_type (void);
  extern GType cc_sound_panel_get_type (void);
 +extern GType cc_font_panel_get_type (void);
++extern GType cc_themes_panel_get_type (void);
  #ifdef BUILD_THUNDERBOLT
  extern GType cc_bolt_panel_get_type (void);
  #endif /* BUILD_THUNDERBOLT */
-@@ -91,6 +92,7 @@ static struct {
+@@ -91,6 +93,8 @@ static struct {
  #ifdef BUILD_BLUETOOTH
    PANEL_TYPE("bluetooth",        cc_bluetooth_panel_get_type,            NULL),
  #endif
 +  PANEL_TYPE("font",             cc_font_panel_get_type,                 NULL),
++  PANEL_TYPE("themes",           cc_themes_panel_get_type,               NULL),
    PANEL_TYPE("color",            cc_color_panel_get_type,                NULL),
    PANEL_TYPE("datetime",         cc_date_time_panel_get_type,            NULL),
    PANEL_TYPE("display",          cc_display_panel_get_type,              NULL),
-@@ -172,6 +174,26 @@ parse_categories (GDesktopAppInfo *app)
+@@ -172,6 +176,26 @@ parse_categories (GDesktopAppInfo *app)
    return retval;
  }
-
+ 
 +void
 +cc_panel_loader_visible_from_schema (CcShellModel *model)
 +{
@@ -1500,28 +2902,28 @@ index 6b5c6e3..468a6fe 100644
  void
  cc_panel_loader_fill_model (CcShellModel *model)
  {
-@@ -182,6 +204,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -182,6 +206,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
        g_autoptr (GDesktopAppInfo) app;
        g_autofree gchar *desktop_name = NULL;
        gint category;
 +      gboolean isVisible = TRUE;
-
+ 
        desktop_name = g_strconcat ("gnome-", all_panels[i].name, "-panel.desktop", NULL);
        app = g_desktop_app_info_new (desktop_name);
-@@ -200,9 +223,10 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -200,9 +225,10 @@ cc_panel_loader_fill_model (CcShellModel *model)
        if (!g_desktop_app_info_get_show_in (app, NULL))
          continue;
-
+ 
 -      cc_shell_model_add_item (model, category, G_APP_INFO (app), all_panels[i].name);
 +        cc_shell_model_add_item (model, category, G_APP_INFO (app), all_panels[i].name);
      }
-
+ 
 +  cc_panel_loader_visible_from_schema (model);
    /* If there's an static init function, execute it after adding all panels to
     * the model. This will allow the panels to show or hide themselves without
     * having an instance running.
 diff --git a/shell/cc-shell-model.c b/shell/cc-shell-model.c
-index a84de3e..644a6cd 100644
+index a84de3e..b665667 100644
 --- a/shell/cc-shell-model.c
 +++ b/shell/cc-shell-model.c
 @@ -337,7 +337,7 @@ cc_shell_model_add_item (CcShellModel    *model,
@@ -1531,12 +2933,12 @@ index a84de3e..644a6cd 100644
 -                                     COL_VISIBILITY, CC_PANEL_VISIBLE,
 +                                     COL_VISIBILITY, CC_PANEL_HIDDEN,
                                       -1);
-
+ 
    g_free (casefolded_name);
 @@ -420,6 +420,36 @@ cc_shell_model_set_sort_terms (CcShellModel  *self,
                                             NULL);
  }
-
+ 
 +gboolean
 +cc_shell_model_get_panel_visibility (CcShellModel *self,
 +                                          const gchar  *id)
@@ -1547,7 +2949,7 @@ index a84de3e..644a6cd 100644
 +  gboolean visibility = FALSE;
 +
 +  g_return_if_fail (CC_IS_SHELL_MODEL (self));
-+
++  
 +  model = GTK_TREE_MODEL (self);
 +  valid = gtk_tree_model_get_iter_first (model, &iter);
 +  while (valid)
@@ -1571,7 +2973,7 @@ index a84de3e..644a6cd 100644
  cc_shell_model_set_panel_visibility (CcShellModel      *self,
                                       const gchar       *id,
 diff --git a/shell/org.gnome.ControlCenter.gschema.xml b/shell/org.gnome.ControlCenter.gschema.xml
-index 40350bc..6887550 100644
+index 40350bc..e79b247 100644
 --- a/shell/org.gnome.ControlCenter.gschema.xml
 +++ b/shell/org.gnome.ControlCenter.gschema.xml
 @@ -15,5 +15,10 @@
@@ -1579,7 +2981,7 @@ index 40350bc..6887550 100644
        </description>
      </key>
 +    <key name="whitelist-panels" type="as">
-+      <default>['bluetooth', 'background', 'notifications', 'search', 'region', 'universal-access', 'font', 'online-accounts', 'privacy', 'sharing', 'sound', 'power', 'network', 'wifi', 'wacom', 'display', 'keyboard', 'printers', 'removable-media', 'thunderbolt', 'color', 'info-overview', 'datetime', 'user-accounts', 'default-apps']</default>
++      <default>['bluetooth', 'background', 'notifications', 'search', 'region', 'universal-access', 'font', 'online-accounts', 'privacy', 'sharing', 'sound', 'power', 'network', 'wifi', 'wacom', 'display', 'keyboard', 'printers', 'removable-media', 'thunderbolt', 'color', 'info-overview', 'datetime', 'user-accounts', 'default-apps', 'themes']</default>
 +      <summary>Show settings list</summary>
 +      <description>Show side panel list that matches the User settings values.</description>
 +    </key>
