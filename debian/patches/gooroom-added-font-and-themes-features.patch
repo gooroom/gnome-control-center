@@ -1348,6 +1348,315 @@ index 09e16ba..061cb65 100644
  
    g_debug ("Wi-Fi panel visible: %s", visible ? "yes" : "no");
  }
+diff --git a/panels/network/connection-editor/ce-page-ethernet.c b/panels/network/connection-editor/ce-page-ethernet.c
+index 7b8f5b5..72dcb73 100644
+--- a/panels/network/connection-editor/ce-page-ethernet.c
++++ b/panels/network/connection-editor/ce-page-ethernet.c
+@@ -74,9 +74,9 @@ connect_ethernet_page (CEPageEthernet *page)
+                           G_CALLBACK (ce_spin_output_with_default),
+                           GINT_TO_POINTER (mtu_def));
+         gtk_spin_button_set_value (page->mtu, (gdouble) nm_setting_wired_get_mtu (setting));
+-        g_signal_connect (page->mtu, "value-changed",
+-                          G_CALLBACK (mtu_changed), page);
+-        mtu_changed (page->mtu, page);
++//        g_signal_connect (page->mtu, "value-changed",
++//                          G_CALLBACK (mtu_changed), page);
++//        mtu_changed (page->mtu, page);
+ 
+         g_signal_connect_swapped (page->name, "changed", G_CALLBACK (ce_page_changed), page);
+         g_signal_connect_swapped (page->mtu, "value-changed", G_CALLBACK (ce_page_changed), page);
+diff --git a/panels/network/connection-editor/ethernet-page.ui b/panels/network/connection-editor/ethernet-page.ui
+index eb1bfb0..f74b3f3 100644
+--- a/panels/network/connection-editor/ethernet-page.ui
++++ b/panels/network/connection-editor/ethernet-page.ui
+@@ -1,57 +1,12 @@
+ <?xml version="1.0" encoding="UTF-8"?>
++<!-- Generated with glade 3.22.1 -->
+ <interface>
+-  <!-- interface-requires gtk+ 3.0 -->
++  <requires lib="gtk+" version="3.0"/>
+   <object class="GtkAdjustment" id="adjustment1">
+     <property name="upper">10000</property>
+     <property name="step_increment">1</property>
+     <property name="page_increment">10</property>
+   </object>
+-  <object class="GtkListStore" id="model1">
+-    <columns>
+-      <!-- column-name gchararray1 -->
+-      <column type="gchararray"/>
+-    </columns>
+-    <data>
+-      <row>
+-        <col id="0" translatable="yes">Automatic</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">Twisted Pair (TP)</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">Attachment Unit Interface (AUI)</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">BNC</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">Media Independent Interface (MII)</col>
+-      </row>
+-    </data>
+-  </object>
+-  <object class="GtkListStore" id="model2">
+-    <columns>
+-      <!-- column-name < -->
+-      <column type="gchararray"/>
+-    </columns>
+-    <data>
+-      <row>
+-        <col id="0" translatable="yes">Automatic</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">10 Mb/s</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">100 Mb/s</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">1 Gb/s</col>
+-      </row>
+-      <row>
+-        <col id="0" translatable="yes">10 Gb/s</col>
+-      </row>
+-    </data>
+-  </object>
+   <object class="GtkGrid" id="page">
+     <property name="visible">True</property>
+     <property name="can_focus">False</property>
+@@ -67,16 +22,14 @@
+       <object class="GtkLabel" id="heading_name">
+         <property name="visible">True</property>
+         <property name="can_focus">False</property>
+-        <property name="xalign">1</property>
+         <property name="label" translatable="yes">_Name</property>
+         <property name="use_underline">True</property>
+         <property name="mnemonic_widget">entry_name</property>
++        <property name="xalign">1</property>
+       </object>
+       <packing>
+         <property name="left_attach">0</property>
+         <property name="top_attach">0</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+     <child>
+@@ -88,24 +41,20 @@
+       <packing>
+         <property name="left_attach">1</property>
+         <property name="top_attach">0</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+     <child>
+       <object class="GtkLabel" id="heading_mac">
+         <property name="visible">True</property>
+         <property name="can_focus">False</property>
+-        <property name="xalign">1</property>
+         <property name="label" translatable="yes">_MAC Address</property>
+         <property name="use_underline">True</property>
+         <property name="mnemonic_widget">combo_mac</property>
++        <property name="xalign">1</property>
+       </object>
+       <packing>
+         <property name="left_attach">0</property>
+         <property name="top_attach">1</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+     <child>
+@@ -113,14 +62,15 @@
+         <property name="visible">True</property>
+         <property name="can_focus">False</property>
+         <property name="has_entry">True</property>
+-        <property name="entry_text_column">0</property>
+-        <property name="id_column">1</property>
++        <child internal-child="entry">
++          <object class="GtkEntry">
++            <property name="can_focus">False</property>
++          </object>
++        </child>
+       </object>
+       <packing>
+         <property name="left_attach">1</property>
+         <property name="top_attach">1</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+     <child>
+@@ -129,29 +79,24 @@
+         <property name="can_focus">True</property>
+         <property name="hexpand">True</property>
+         <property name="invisible_char">●</property>
+-        <property name="invisible_char_set">True</property>
+       </object>
+       <packing>
+         <property name="left_attach">1</property>
+         <property name="top_attach">2</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+     <child>
+       <object class="GtkLabel" id="heading_mtu">
+         <property name="visible">True</property>
+         <property name="can_focus">False</property>
+-        <property name="xalign">1</property>
+         <property name="label" translatable="yes">M_TU</property>
+         <property name="use_underline">True</property>
+         <property name="mnemonic_widget">spin_mtu</property>
++        <property name="xalign">1</property>
+       </object>
+       <packing>
+         <property name="left_attach">0</property>
+         <property name="top_attach">3</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+     <child>
+@@ -159,67 +104,52 @@
+         <property name="visible">True</property>
+         <property name="can_focus">False</property>
+         <property name="valign">center</property>
+-        <property name="xalign">1</property>
+         <property name="label" translatable="yes">_Cloned Address</property>
+         <property name="use_underline">True</property>
+         <property name="mnemonic_widget">entry_cloned_mac</property>
++        <property name="xalign">1</property>
+       </object>
+       <packing>
+         <property name="left_attach">0</property>
+         <property name="top_attach">2</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
++      </packing>
++    </child>
++    <child>
++      <object class="GtkLabel" id="filler">
++        <property name="visible">True</property>
++        <property name="can_focus">False</property>
++      </object>
++      <packing>
++        <property name="left_attach">2</property>
++        <property name="top_attach">0</property>
+       </packing>
+     </child>
+     <child>
+       <object class="GtkLabel" id="label_mtu">
+         <property name="visible">True</property>
+         <property name="can_focus">False</property>
++        <property name="halign">center</property>
++        <property name="valign">center</property>
+         <property name="label" translatable="yes">bytes</property>
+       </object>
+       <packing>
+         <property name="left_attach">2</property>
+         <property name="top_attach">3</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+     <child>
+       <object class="GtkSpinButton" id="spin_mtu">
+         <property name="visible">True</property>
+         <property name="can_focus">True</property>
++        <property name="hexpand">True</property>
+         <property name="invisible_char">●</property>
+-        <property name="invisible_char_set">True</property>
+         <property name="adjustment">adjustment1</property>
+       </object>
+       <packing>
+         <property name="left_attach">1</property>
+         <property name="top_attach">3</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+       </packing>
+     </child>
+-    <child>
+-      <object class="GtkLabel" id="filler">
+-        <property name="visible">True</property>
+-        <property name="can_focus">False</property>
+-      </object>
+-      <packing>
+-        <property name="left_attach">2</property>
+-        <property name="top_attach">0</property>
+-        <property name="width">1</property>
+-        <property name="height">1</property>
+-      </packing>
+-    </child>
+-    <child>
+-      <placeholder/>
+-    </child>
+-    <child>
+-      <placeholder/>
+-    </child>
+-    <child>
+-      <placeholder/>
+-    </child>
+     <child>
+       <placeholder/>
+     </child>
+@@ -233,4 +163,50 @@
+       <widget name="filler"/>
+     </widgets>
+   </object>
++  <object class="GtkListStore" id="model1">
++    <columns>
++      <!-- column-name gchararray1 -->
++      <column type="gchararray"/>
++    </columns>
++    <data>
++      <row>
++        <col id="0" translatable="yes">Automatic</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">Twisted Pair (TP)</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">Attachment Unit Interface (AUI)</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">BNC</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">Media Independent Interface (MII)</col>
++      </row>
++    </data>
++  </object>
++  <object class="GtkListStore" id="model2">
++    <columns>
++      <!-- column-name < -->
++      <column type="gchararray"/>
++    </columns>
++    <data>
++      <row>
++        <col id="0" translatable="yes">Automatic</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">10 Mb/s</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">100 Mb/s</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">1 Gb/s</col>
++      </row>
++      <row>
++        <col id="0" translatable="yes">10 Gb/s</col>
++      </row>
++    </data>
++  </object>
+ </interface>
 diff --git a/panels/network/net-device-ethernet.c b/panels/network/net-device-ethernet.c
 index afb5443..6338ae2 100644
 --- a/panels/network/net-device-ethernet.c
@@ -1601,10 +1910,10 @@ index 2894b7e..4051776 100644
          <property name="name">_lock</property>
 diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
 new file mode 100644
-index 0000000..f06d651
+index 0000000..25e5d20
 --- /dev/null
 +++ b/panels/themes/cc-themes-panel.c
-@@ -0,0 +1,480 @@
+@@ -0,0 +1,487 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
 + * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
@@ -1656,7 +1965,8 @@ index 0000000..f06d651
 +enum
 +{
 +  COL_THUMBNAIL,
-+  COL_ICON_THEME_NAME,
++  COL_ICON_THEME,
++  COL_ICON_NAME,
 +  COL_THUMB_PATH,
 +  COL_BACKGROUND_PATH,
 +  NUM_COLS
@@ -1757,12 +2067,11 @@ index 0000000..f06d651
 +{
 +  char *theme_a, *theme_b;
 +  int ret;
-+
 +  gtk_tree_model_get (model, a,
-+                      COL_ICON_THEME_NAME, &theme_a, -1);
++                      COL_ICON_THEME, &theme_a, -1);
 +
 +  gtk_tree_model_get (model, b,
-+                      COL_ICON_THEME_NAME, &theme_b, -1);
++                      COL_ICON_THEME, &theme_b, -1);
 +
 +  ret = g_utf8_collate (theme_a, theme_b);
 +
@@ -1777,6 +2086,7 @@ index 0000000..f06d651
 +
 +  store = gtk_list_store_new (NUM_COLS,
 +                              GDK_TYPE_PIXBUF,
++                              G_TYPE_STRING,
 +                              G_TYPE_STRING,
 +                              G_TYPE_STRING,
 +                              G_TYPE_STRING);
@@ -1860,20 +2170,28 @@ index 0000000..f06d651
 +  store = create_store ();
 +  for (l = theme_dirs; l; l = l->next)
 +  {
-+    gchar *theme_dir = g_strdup ((gchar *) l->data);
-+    gchar *gtkrc_filename = g_build_filename (DEFAULT_THEME_DIR, theme_dir, NULL);
-+    const gchar *icon_theme_name = NULL;
-+    gchar *thumb_path;
++    g_autofree gchar *theme_dir = NULL;
++    g_autofree gchar *thumb_path = NULL;
++    g_autofree gchar *icon_name = NULL;
 +    gchar *background_dir = NULL;
++    gchar *gtkrc_filename = g_build_filename (DEFAULT_THEME_DIR, theme_dir, NULL);
 +    gboolean is_gooroom_theme = FALSE;
++
++    theme_dir = g_strdup ((gchar *) l->data);
 +
 +    for (int i = 0; i < G_N_ELEMENTS (icon_themes); i++)
 +    {
 +      if (g_strcmp0 (icon_themes[i].icon, theme_dir) == 0)
 +      {
++        gchar **name = g_strsplit (icon_themes[i].icon_name, " ", -1);
++        icon_name = g_strdup_printf (_("Gooroom Icon Theme %s"), name[3]);
++
 +        is_gooroom_theme = TRUE;
++
 +        // get background directory from struct list
 +        background_dir = icon_themes[i].bg_name;
++
++        g_strfreev (name);
 +        break;
 +      }
 +    }
@@ -1901,13 +2219,11 @@ index 0000000..f06d651
 +      gtk_list_store_append (store, &iter);
 +      gtk_list_store_set (store, &iter,
 +                          COL_THUMBNAIL, gdk_pixbuf_new_from_file_at_size (thumb_path, 180, 110, NULL),
-+                          COL_ICON_THEME_NAME, theme_dir ? g_strdup (theme_dir) : NULL,
++                          COL_ICON_THEME, theme_dir ? g_strdup (theme_dir) : NULL,
++                          COL_ICON_NAME, icon_name ? g_strdup (_(icon_name)) : NULL,
 +                          COL_BACKGROUND_PATH, background_dir ? g_strdup (background_dir) : NULL,
 +                          COL_THUMB_PATH, thumb_path, -1);
 +    }
-+
-+    g_free (theme_dir);
-+    g_free (thumb_path);
 +  }
 +
 +  if (G_LIKELY (theme_dirs)) {
@@ -1945,7 +2261,7 @@ index 0000000..f06d651
 +    goto bail;
 +
 +  gtk_tree_model_get (model, &iter, COL_THUMBNAIL, &thumbnail,
-+                      COL_ICON_THEME_NAME, &panel->selected_icon_name,
++                      COL_ICON_THEME, &panel->selected_icon_name,
 +                      COL_BACKGROUND_PATH, &panel->selected_bg_name,
 +                      COL_THUMB_PATH, &thumb_path, -1);
 +
@@ -2060,7 +2376,7 @@ index 0000000..f06d651
 +  gtk_icon_view_set_selection_mode (GTK_ICON_VIEW (panel->icon_view),
 +                                    GTK_SELECTION_SINGLE);
 +
-+  gtk_icon_view_set_text_column (GTK_ICON_VIEW (panel->icon_view), COL_ICON_THEME_NAME);
++  gtk_icon_view_set_text_column (GTK_ICON_VIEW (panel->icon_view), COL_ICON_NAME);
 +
 +  gtk_icon_view_set_pixbuf_column (GTK_ICON_VIEW (panel->icon_view), COL_THUMBNAIL);
 +  gtk_icon_view_set_columns (GTK_ICON_VIEW (panel->icon_view), 3);
@@ -2795,6 +3111,47 @@ index a891961..6cf35c0 100644
 +msgstr ""
 +"대화창이 잠겼습니다.\n"
 +"바꾸려면 누르십시오"
+diff --git a/shell/cc-application.c b/shell/cc-application.c
+index 8ffb2bd..8dbc0b3 100644
+--- a/shell/cc-application.c
++++ b/shell/cc-application.c
+@@ -227,8 +227,8 @@ static void
+ cc_application_startup (GApplication *application)
+ {
+   CcApplication *self = CC_APPLICATION (application);
+-  GMenu *section;
+-  GMenu *menu;
++  //GMenu *section;
++  //GMenu *menu;
+   const gchar *help_accels[] = { "F1", NULL };
+ 
+   g_action_map_add_action_entries (G_ACTION_MAP (self),
+@@ -246,17 +246,17 @@ cc_application_startup (GApplication *application)
+     }
+ #endif /* HAVE_WACOM || HAVE_CHEESE */
+ 
+-  menu = g_menu_new ();
++  //menu = g_menu_new ();
+ 
+-  section = g_menu_new ();
+-  g_menu_append (section, _("Keyboard Shortcuts"), "win.show-help-overlay");
+-  g_menu_append (section, _("Help"), "app.help");
+-  g_menu_append (section, _("Quit"), "app.quit");
++  //section = g_menu_new ();
++  //g_menu_append (section, _("Keyboard Shortcuts"), "win.show-help-overlay");
++  //g_menu_append (section, _("Help"), "app.help");
++  //g_menu_append (section, _("Quit"), "app.quit");
+ 
+-  g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
++  //g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
+ 
+-  gtk_application_set_app_menu (GTK_APPLICATION (application),
+-                                G_MENU_MODEL (menu));
++  //gtk_application_set_app_menu (GTK_APPLICATION (application),
++  //                              G_MENU_MODEL (menu));
+ 
+   gtk_application_set_accels_for_action (GTK_APPLICATION (application),
+                                          "app.help", help_accels);
 diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
 index 39a46b4..5174ff5 100644
 --- a/shell/cc-panel-list.c
@@ -2854,7 +3211,7 @@ index 39a46b4..5174ff5 100644
     * Since we're not sure that the activated row is in the
     * current view, set the view here.
 diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
-index 6b5c6e3..671f774 100644
+index 6b5c6e3..df2f74e 100644
 --- a/shell/cc-panel-loader.c
 +++ b/shell/cc-panel-loader.c
 @@ -55,6 +55,8 @@ extern GType cc_region_panel_get_type (void);
@@ -2910,7 +3267,7 @@ index 6b5c6e3..671f774 100644
  
        desktop_name = g_strconcat ("gnome-", all_panels[i].name, "-panel.desktop", NULL);
        app = g_desktop_app_info_new (desktop_name);
-@@ -200,9 +225,10 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -200,7 +225,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
        if (!g_desktop_app_info_get_show_in (app, NULL))
          continue;
  
@@ -2918,10 +3275,16 @@ index 6b5c6e3..671f774 100644
 +        cc_shell_model_add_item (model, category, G_APP_INFO (app), all_panels[i].name);
      }
  
-+  cc_panel_loader_visible_from_schema (model);
    /* If there's an static init function, execute it after adding all panels to
-    * the model. This will allow the panels to show or hide themselves without
-    * having an instance running.
+@@ -214,6 +239,8 @@ cc_panel_loader_fill_model (CcShellModel *model)
+         all_panels[i].static_init_func ();
+     }
+ #endif
++
++  cc_panel_loader_visible_from_schema (model);
+ }
+ 
+ #ifndef CC_PANEL_LOADER_NO_GTYPES
 diff --git a/shell/cc-shell-model.c b/shell/cc-shell-model.c
 index a84de3e..b665667 100644
 --- a/shell/cc-shell-model.c
