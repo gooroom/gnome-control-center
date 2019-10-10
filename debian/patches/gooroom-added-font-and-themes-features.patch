@@ -1366,7 +1366,7 @@ index 7b8f5b5..72dcb73 100644
          g_signal_connect_swapped (page->name, "changed", G_CALLBACK (ce_page_changed), page);
          g_signal_connect_swapped (page->mtu, "value-changed", G_CALLBACK (ce_page_changed), page);
 diff --git a/panels/network/connection-editor/ethernet-page.ui b/panels/network/connection-editor/ethernet-page.ui
-index eb1bfb0..f74b3f3 100644
+index eb1bfb0..f195ee3 100644
 --- a/panels/network/connection-editor/ethernet-page.ui
 +++ b/panels/network/connection-editor/ethernet-page.ui
 @@ -1,57 +1,12 @@
@@ -1447,7 +1447,7 @@ index eb1bfb0..f74b3f3 100644
        </packing>
      </child>
      <child>
-@@ -88,24 +41,20 @@
+@@ -88,39 +41,20 @@
        <packing>
          <property name="left_attach">1</property>
          <property name="top_attach">0</property>
@@ -1470,30 +1470,25 @@ index eb1bfb0..f74b3f3 100644
          <property name="top_attach">1</property>
 -        <property name="width">1</property>
 -        <property name="height">1</property>
-       </packing>
-     </child>
-     <child>
-@@ -113,14 +62,15 @@
-         <property name="visible">True</property>
-         <property name="can_focus">False</property>
-         <property name="has_entry">True</property>
+-      </packing>
+-    </child>
+-    <child>
+-      <object class="GtkComboBoxText" id="combo_mac">
+-        <property name="visible">True</property>
+-        <property name="can_focus">False</property>
+-        <property name="has_entry">True</property>
 -        <property name="entry_text_column">0</property>
 -        <property name="id_column">1</property>
-+        <child internal-child="entry">
-+          <object class="GtkEntry">
-+            <property name="can_focus">False</property>
-+          </object>
-+        </child>
-       </object>
-       <packing>
-         <property name="left_attach">1</property>
-         <property name="top_attach">1</property>
+-      </object>
+-      <packing>
+-        <property name="left_attach">1</property>
+-        <property name="top_attach">1</property>
 -        <property name="width">1</property>
 -        <property name="height">1</property>
        </packing>
      </child>
      <child>
-@@ -129,29 +79,24 @@
+@@ -129,29 +63,24 @@
          <property name="can_focus">True</property>
          <property name="hexpand">True</property>
          <property name="invisible_char">●</property>
@@ -1524,7 +1519,7 @@ index eb1bfb0..f74b3f3 100644
        </packing>
      </child>
      <child>
-@@ -159,67 +104,52 @@
+@@ -159,56 +88,67 @@
          <property name="visible">True</property>
          <property name="can_focus">False</property>
          <property name="valign">center</property>
@@ -1582,31 +1577,46 @@ index eb1bfb0..f74b3f3 100644
 -        <property name="height">1</property>
        </packing>
      </child>
--    <child>
+     <child>
 -      <object class="GtkLabel" id="filler">
--        <property name="visible">True</property>
--        <property name="can_focus">False</property>
--      </object>
--      <packing>
++      <object class="GtkComboBoxText" id="combo_mac">
+         <property name="visible">True</property>
+         <property name="can_focus">False</property>
++        <property name="has_entry">True</property>
++        <child internal-child="entry">
++          <object class="GtkEntry">
++            <property name="visible">True</property>
++            <property name="can_focus">True</property>
++          </object>
++        </child>
+       </object>
+       <packing>
 -        <property name="left_attach">2</property>
 -        <property name="top_attach">0</property>
 -        <property name="width">1</property>
 -        <property name="height">1</property>
--      </packing>
--    </child>
--    <child>
--      <placeholder/>
--    </child>
--    <child>
--      <placeholder/>
--    </child>
--    <child>
--      <placeholder/>
--    </child>
++        <property name="left_attach">1</property>
++        <property name="top_attach">1</property>
+       </packing>
+     </child>
+     <child>
+@@ -217,15 +157,6 @@
      <child>
        <placeholder/>
      </child>
-@@ -233,4 +163,50 @@
+-    <child>
+-      <placeholder/>
+-    </child>
+-    <child>
+-      <placeholder/>
+-    </child>
+-    <child>
+-      <placeholder/>
+-    </child>
+   </object>
+   <object class="GtkSizeGroup" id="sizegroup1">
+     <widgets>
+@@ -233,4 +164,50 @@
        <widget name="filler"/>
      </widgets>
    </object>
