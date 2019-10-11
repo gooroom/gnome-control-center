@@ -1,12 +1,38 @@
+diff --git a/debian/copyright b/debian/copyright
+index 0d70a60..067500f 100644
+--- a/debian/copyright
++++ b/debian/copyright
+@@ -64,6 +64,7 @@ Copyright:
+  2017-2018 Georges Basile Stavracas Neto
+  2017 Mohammed Sadiq
+  Nuno Pires
++ 2015-2019 Gooroom
+ License: GPL-2+
+ 
+ Files:
+@@ -102,6 +103,13 @@ Copyright:
+  2017-2018 Red Hat, Inc.
+ License: LGPL-2.1+
+ 
++Files:
++ panels/font/*
++ panels/themes/*
++Copyright:
++ 2015-2019 Gooroom
++License: GPL-2+
++
+ License: GPL-2+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
 diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
 new file mode 100644
-index 0000000..c3240bd
+index 0000000..ca9dd68
 --- /dev/null
 +++ b/panels/font/cc-font-panel.c
 @@ -0,0 +1,430 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -436,13 +462,13 @@ index 0000000..c3240bd
 +}
 diff --git a/panels/font/cc-font-panel.h b/panels/font/cc-font-panel.h
 new file mode 100644
-index 0000000..ae0aca7
+index 0000000..6108113
 --- /dev/null
 +++ b/panels/font/cc-font-panel.h
 @@ -0,0 +1,32 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -1086,155 +1112,19 @@ index 0000000..36c38d1
 +  dependencies: deps,
 +  c_args: cflags
 +)
-diff --git a/panels/font/rgba-images.h b/panels/font/rgba-images.h
-new file mode 100644
-index 0000000..e9859bb
---- /dev/null
-+++ b/panels/font/rgba-images.h
-@@ -0,0 +1,138 @@
-+/*
-+ *  Copyright (c) 2008 Nick Schermer <nick@xfce.org>
-+ *
-+ *  This program is free software; you can redistribute it and/or modify
-+ *  it under the terms of the GNU General Public License as published by
-+ *  the Free Software Foundation; either version 2 of the License, or
-+ *  (at your option) any later version.
-+ *
-+ *  This program is distributed in the hope that it will be useful,
-+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ *  GNU Library General Public License for more details.
-+ *
-+ *  You should have received a copy of the GNU General Public License along
-+ *  with this program; if not, write to the Free Software Foundation, Inc.,
-+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-+ */
-+
-+#ifdef HAVE_CONFIG_H
-+#include <config.h>
-+#endif
-+
-+static const gchar *rgba_image_none_xpm[] =
-+{
-+    "18 15 1 1",
-+    " 	c None",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  ",
-+    "                  "
-+};
-+
-+static const gchar *rgba_image_rgb_xpm[] =
-+{
-+    "18 15 4 1",
-+    " 	c None",
-+    ".	c #FF0000",
-+    "+	c #00FF00",
-+    "@	c #0000FF",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   "
-+};
-+
-+static const gchar *rgba_image_bgr_xpm[] =
-+{
-+    "18 15 4 1",
-+    " 	c None",
-+    ".	c #0000FF",
-+    "+	c #00FF00",
-+    "@	c #FF0000",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   ",
-+    ".....+++++@@@@@   "
-+};
-+
-+static const gchar *rgba_image_vrgb_xpm[] =
-+{
-+    "18 15 4 1",
-+    " 	c None",
-+    ".	c #FF0000",
-+    "+	c #00FF00",
-+    "@	c #0000FF",
-+    "...............   ",
-+    "...............   ",
-+    "...............   ",
-+    "...............   ",
-+    "...............   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   "
-+};
-+
-+static const gchar *rgba_image_vbgr_xpm[] =
-+{
-+    "18 15 4 1",
-+    " 	c None",
-+    ".	c #0000FF",
-+    "+	c #00FF00",
-+    "@	c #FF0000",
-+    "...............   ",
-+    "...............   ",
-+    "...............   ",
-+    "...............   ",
-+    "...............   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "+++++++++++++++   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   ",
-+    "@@@@@@@@@@@@@@@   "
-+};
 diff --git a/panels/info/cc-info-overview-panel.c b/panels/info/cc-info-overview-panel.c
-index 131106c..75edf11 100644
+index 131106c..3ed6454 100644
 --- a/panels/info/cc-info-overview-panel.c
 +++ b/panels/info/cc-info-overview-panel.c
-@@ -58,12 +58,10 @@ typedef struct {
+@@ -3,6 +3,7 @@
+  * Copyright (C) 2017 Mohammed Sadiq <sadiq@sadiqpk.org>
+  * Copyright (C) 2010 Red Hat, Inc
+  * Copyright (C) 2008 William Jon McCann <jmccann@redhat.com>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -58,12 +59,10 @@ typedef struct {
  
  typedef struct
  {
@@ -1247,7 +1137,7 @@ index 131106c..75edf11 100644
    GtkWidget      *os_type_label;
    GtkWidget      *disk_label;
    GtkWidget      *graphics_label;
-@@ -788,9 +786,6 @@ info_overview_panel_setup_overview (CcInfoOverviewPanel *self)
+@@ -788,9 +787,6 @@ info_overview_panel_setup_overview (CcInfoOverviewPanel *self)
    os_type_text = get_os_type ();
    gtk_label_set_text (GTK_LABEL (priv->os_type_label), os_type_text ? os_type_text : "");
  
@@ -1257,7 +1147,7 @@ index 131106c..75edf11 100644
    get_primary_disc_info (self);
  
    gtk_label_set_markup (GTK_LABEL (priv->graphics_label), priv->graphics_data->hardware_string);
-@@ -873,12 +868,10 @@ cc_info_overview_panel_class_init (CcInfoOverviewPanelClass *klass)
+@@ -873,12 +869,10 @@ cc_info_overview_panel_class_init (CcInfoOverviewPanelClass *klass)
  
    gtk_widget_class_set_template_from_resource (widget_class, "/org/gnome/control-center/info/info-overview.ui");
  
@@ -1336,10 +1226,18 @@ index 37a3436..f5e81c5 100644
  
  if host_is_linux
 diff --git a/panels/network/cc-wifi-panel.c b/panels/network/cc-wifi-panel.c
-index 09e16ba..061cb65 100644
+index 09e16ba..797867a 100644
 --- a/panels/network/cc-wifi-panel.c
 +++ b/panels/network/cc-wifi-panel.c
-@@ -111,7 +111,7 @@ update_panel_visibility (NMClient *client)
+@@ -1,6 +1,7 @@
+ /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*-
+  *
+  * Copyright (C) 2017 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -111,7 +112,7 @@ update_panel_visibility (NMClient *client)
    application = CC_APPLICATION (g_application_get_default ());
    cc_shell_model_set_panel_visibility (cc_application_get_model (application),
                                         "wifi",
@@ -1349,10 +1247,18 @@ index 09e16ba..061cb65 100644
    g_debug ("Wi-Fi panel visible: %s", visible ? "yes" : "no");
  }
 diff --git a/panels/network/connection-editor/ce-page-ethernet.c b/panels/network/connection-editor/ce-page-ethernet.c
-index 7b8f5b5..72dcb73 100644
+index 7b8f5b5..8911fad 100644
 --- a/panels/network/connection-editor/ce-page-ethernet.c
 +++ b/panels/network/connection-editor/ce-page-ethernet.c
-@@ -74,9 +74,9 @@ connect_ethernet_page (CEPageEthernet *page)
+@@ -1,6 +1,7 @@
+ /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
+  *
+  * Copyright (C) 2012 Red Hat, Inc
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * Licensed under the GNU General Public License Version 2
+  *
+@@ -74,9 +75,9 @@ connect_ethernet_page (CEPageEthernet *page)
                            G_CALLBACK (ce_spin_output_with_default),
                            GINT_TO_POINTER (mtu_def));
          gtk_spin_button_set_value (page->mtu, (gdouble) nm_setting_wired_get_mtu (setting));
@@ -1668,10 +1574,18 @@ index eb1bfb0..f195ee3 100644
 +  </object>
  </interface>
 diff --git a/panels/network/net-device-ethernet.c b/panels/network/net-device-ethernet.c
-index afb5443..6338ae2 100644
+index afb5443..5fce464 100644
 --- a/panels/network/net-device-ethernet.c
 +++ b/panels/network/net-device-ethernet.c
-@@ -459,6 +459,55 @@ add_profile (GtkButton *button, NetDeviceEthernet *device)
+@@ -1,6 +1,7 @@
+ /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
+  *
+  * Copyright (C) 2011-2012 Richard Hughes <richard@hughsie.com>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * Licensed under the GNU General Public License Version 2
+  *
+@@ -459,6 +460,55 @@ add_profile (GtkButton *button, NetDeviceEthernet *device)
          net_connection_editor_run (editor);
  }
  
@@ -1727,7 +1641,7 @@ index afb5443..6338ae2 100644
  static void
  device_off_toggled (GtkSwitch         *sw,
                      GParamSpec        *pspec,
-@@ -467,12 +516,19 @@ device_off_toggled (GtkSwitch         *sw,
+@@ -467,12 +517,19 @@ device_off_toggled (GtkSwitch         *sw,
          NMClient *client;
          NMDevice *nm_device;
          NMConnection *connection;
@@ -1747,7 +1661,7 @@ index afb5443..6338ae2 100644
  
          if (gtk_switch_get_active (sw)) {
                  connection = net_device_get_find_connection (NET_DEVICE (device));
-@@ -480,10 +536,10 @@ device_off_toggled (GtkSwitch         *sw,
+@@ -480,10 +537,10 @@ device_off_toggled (GtkSwitch         *sw,
                          nm_client_activate_connection_async (client,
                                                               connection,
                                                               nm_device,
@@ -1760,7 +1674,7 @@ index afb5443..6338ae2 100644
          }
  }
  
-@@ -607,6 +663,7 @@ net_device_ethernet_init (NetDeviceEthernet *device)
+@@ -607,6 +664,7 @@ net_device_ethernet_init (NetDeviceEthernet *device)
          }
  
          device->connections = g_hash_table_new (NULL, NULL);
@@ -1769,10 +1683,18 @@ index afb5443..6338ae2 100644
          g_signal_connect (device, "notify::title", G_CALLBACK (device_title_changed), NULL);
  }
 diff --git a/panels/network/net-device-ethernet.h b/panels/network/net-device-ethernet.h
-index 0d92fd1..aa02ca0 100644
+index 0d92fd1..bea685c 100644
 --- a/panels/network/net-device-ethernet.h
 +++ b/panels/network/net-device-ethernet.h
-@@ -51,6 +51,7 @@ struct _NetDeviceEthernet
+@@ -1,6 +1,7 @@
+ /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
+  *
+  * Copyright (C) 2012 Red Hat, Inc.
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * Licensed under the GNU General Public License Version 2
+  *
+@@ -51,6 +52,7 @@ struct _NetDeviceEthernet
          GtkWidget *details_button;
          GtkWidget *add_profile_button;
          gboolean   updating_device;
@@ -1781,10 +1703,17 @@ index 0d92fd1..aa02ca0 100644
          GHashTable *connections;
  };
 diff --git a/panels/printers/cc-printers-panel.c b/panels/printers/cc-printers-panel.c
-index f05a3ec..4489b40 100644
+index f05a3ec..36874d9 100644
 --- a/panels/printers/cc-printers-panel.c
 +++ b/panels/printers/cc-printers-panel.c
-@@ -77,6 +77,8 @@ struct _CcPrintersPanelPrivate
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (C) 2010 Red Hat, Inc
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -77,6 +78,8 @@ struct _CcPrintersPanelPrivate
  
    GPermission *permission;
    gboolean is_authorized;
@@ -1793,7 +1722,7 @@ index f05a3ec..4489b40 100644
  
    GSettings *lockdown_settings;
  
-@@ -249,7 +251,7 @@ cc_printers_panel_constructed (GObject *object)
+@@ -249,7 +252,7 @@ cc_printers_panel_constructed (GObject *object)
  
    widget = (GtkWidget*)
      gtk_builder_get_object (priv->builder, "lock-button");
@@ -1802,7 +1731,7 @@ index f05a3ec..4489b40 100644
  
    widget = (GtkWidget*)
      gtk_builder_get_object (priv->builder, "search-button");
-@@ -1081,6 +1083,44 @@ new_printer_dialog_response_cb (PpNewPrinterDialog *dialog,
+@@ -1081,6 +1084,44 @@ new_printer_dialog_response_cb (PpNewPrinterDialog *dialog,
                              allocation.y - gtk_widget_get_margin_top (printer_entry));
  }
  
@@ -1847,7 +1776,7 @@ index f05a3ec..4489b40 100644
  static void
  printer_add_cb (GtkToolButton *toolbutton,
                  gpointer       user_data)
-@@ -1105,6 +1145,7 @@ printer_add_cb (GtkToolButton *toolbutton,
+@@ -1105,6 +1146,7 @@ printer_add_cb (GtkToolButton *toolbutton,
                      "response",
                      G_CALLBACK (new_printer_dialog_response_cb),
                      self);
@@ -1855,7 +1784,7 @@ index f05a3ec..4489b40 100644
  }
  
  static void
-@@ -1116,6 +1157,7 @@ update_sensitivity (gpointer user_data)
+@@ -1116,6 +1158,7 @@ update_sensitivity (gpointer user_data)
    GtkWidget               *widget;
    gboolean                 local_server = TRUE;
    gboolean                 no_cups = FALSE;
@@ -1863,7 +1792,7 @@ index f05a3ec..4489b40 100644
  
    priv = PRINTERS_PANEL_PRIVATE (self);
  
-@@ -1129,6 +1171,7 @@ update_sensitivity (gpointer user_data)
+@@ -1129,6 +1172,7 @@ update_sensitivity (gpointer user_data)
      priv->is_authorized ? PAGE_ADDPRINTER : PAGE_LOCK);
  
    widget = (GtkWidget*) gtk_builder_get_object (priv->builder, "main-vbox");
@@ -1871,7 +1800,7 @@ index f05a3ec..4489b40 100644
    if (g_strcmp0 (gtk_stack_get_visible_child_name (GTK_STACK (widget)), "no-cups-page") == 0)
      no_cups = TRUE;
  
-@@ -1384,6 +1427,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
+@@ -1384,6 +1428,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
    priv->actualize_printers_list_cancellable = g_cancellable_new ();
    priv->cups_status_check_cancellable = g_cancellable_new ();
  
@@ -1880,7 +1809,7 @@ index f05a3ec..4489b40 100644
    builder_result = gtk_builder_add_objects_from_resource (priv->builder,
                                                            "/org/gnome/control-center/printers/printers.ui",
                                                            objects, &error);
-@@ -1400,6 +1445,10 @@ cc_printers_panel_init (CcPrintersPanel *self)
+@@ -1400,6 +1446,10 @@ cc_printers_panel_init (CcPrintersPanel *self)
      gtk_builder_get_object (priv->builder, "headerbar-buttons");
    priv->headerbar_buttons = widget;
  
@@ -1891,7 +1820,7 @@ index f05a3ec..4489b40 100644
    priv->notification = (GtkRevealer*)
      gtk_builder_get_object (priv->builder, "notification");
  
-@@ -1457,8 +1506,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
+@@ -1457,8 +1507,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
      }
    else
      g_warning ("Your system does not have the cups-pk-helper's policy \
@@ -1920,13 +1849,13 @@ index 2894b7e..4051776 100644
          <property name="name">_lock</property>
 diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
 new file mode 100644
-index 0000000..25e5d20
+index 0000000..da56d77
 --- /dev/null
 +++ b/panels/themes/cc-themes-panel.c
 @@ -0,0 +1,487 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -2413,13 +2342,13 @@ index 0000000..25e5d20
 +}
 diff --git a/panels/themes/cc-themes-panel.h b/panels/themes/cc-themes-panel.h
 new file mode 100644
-index 0000000..eb7058a
+index 0000000..18537d7
 --- /dev/null
 +++ b/panels/themes/cc-themes-panel.h
 @@ -0,0 +1,32 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2017 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -2727,10 +2656,17 @@ index 0000000..659fb6a
 +  </object>
 +</interface>
 diff --git a/panels/wacom/cc-wacom-panel.c b/panels/wacom/cc-wacom-panel.c
-index 0cb2f42..ca3480b 100644
+index 0cb2f42..4db5823 100644
 --- a/panels/wacom/cc-wacom-panel.c
 +++ b/panels/wacom/cc-wacom-panel.c
-@@ -101,7 +101,7 @@ update_visibility (GsdDeviceManager *manager,
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright © 2011 Red Hat, Inc.
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -101,7 +102,7 @@ update_visibility (GsdDeviceManager *manager,
  	application = CC_APPLICATION (g_application_get_default ());
  	cc_shell_model_set_panel_visibility (cc_application_get_model (application),
  					     "wacom",
@@ -2757,10 +2693,17 @@ index 43c542b..ce2d45a 100644
  panels/info/cc-info-removable-media-panel.c
  panels/info/gnome-default-apps-panel.desktop.in.in
 diff --git a/po/en.po b/po/en.po
-index b5bf16d..d92d49e 100644
+index b5bf16d..268a85d 100644
 --- a/po/en.po
 +++ b/po/en.po
-@@ -3193,3 +3193,105 @@ msgstr ""
+@@ -1,5 +1,6 @@
+ # SOME DESCRIPTIVE TITLE.
+ # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
++# Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+ # This file is distributed under the same license as the PACKAGE package.
+ # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+ #
+@@ -3193,3 +3194,105 @@ msgstr ""
  #: ../shell/shell.ui.h:2
  msgid "_All Settings"
  msgstr ""
@@ -2867,10 +2810,18 @@ index b5bf16d..d92d49e 100644
 +msgid "_large"
 +msgstr ""
 diff --git a/po/en_GB.po b/po/en_GB.po
-index 200d00a..c17e2d9 100644
+index 200d00a..af3282e 100644
 --- a/po/en_GB.po
 +++ b/po/en_GB.po
-@@ -7739,6 +7739,69 @@ msgstr[1] "%u Inputs"
+@@ -5,6 +5,7 @@
+ # Philip Withnall <philip@tecnocode.co.uk>, 2010, 2013.
+ # Chris Leonard <cjl@laptop.org>, 2012.
+ # Bruce Cowan <bruce@bcowan.eu>, 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018.
++# Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+ #
+ msgid ""
+ msgstr ""
+@@ -7739,6 +7740,69 @@ msgstr[1] "%u Inputs"
  msgid "System Sounds"
  msgstr "System Sounds"
  
@@ -2940,7 +2891,7 @@ index 200d00a..c17e2d9 100644
  #~ msgid "_Verify New Password"
  #~ msgstr "_Verify New Password"
  
-@@ -12359,9 +12422,6 @@ msgstr "System Sounds"
+@@ -12359,9 +12423,6 @@ msgstr "System Sounds"
  #~ "The theme you have selected suggests a new font. A preview of the font is "
  #~ "shown below."
  
@@ -2950,7 +2901,7 @@ index 200d00a..c17e2d9 100644
  #~ msgid "Description"
  #~ msgstr "Description"
  
-@@ -13309,3 +13369,43 @@ msgstr "System Sounds"
+@@ -13309,3 +13370,43 @@ msgstr "System Sounds"
  
  #~ msgid "The typing monitor is already running."
  #~ msgstr "The typing monitor is already running."
@@ -2995,10 +2946,18 @@ index 200d00a..c17e2d9 100644
 +msgid "Unlock"
 +msgstr "Unlock"
 diff --git a/po/ko.po b/po/ko.po
-index a891961..6cf35c0 100644
+index a891961..6803edf 100644
 --- a/po/ko.po
 +++ b/po/ko.po
-@@ -7706,3 +7706,122 @@ msgstr[0] "%u개 입력"
+@@ -4,6 +4,7 @@
+ # Young-Ho Cha <ganadist@chollian.net>, 2002, 2006.
+ # Seong-ho Cho <darkcircle.0426@gmail.com>, 2011, 2012.
+ # Changwoo Ryu <cwryu@debian.org>, 2002-2018.
++# Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+ #
+ #
+ # - 주의: 여러가지 분야의 어려운 용어가 많습니다. 충분히 시간을 두고 실제 의미가
+@@ -7706,3 +7707,122 @@ msgstr[0] "%u개 입력"
  #: subprojects/gvc/gvc-mixer-control.c:2738
  msgid "System Sounds"
  msgstr "시스템 사운드"
@@ -3122,10 +3081,17 @@ index a891961..6cf35c0 100644
 +"대화창이 잠겼습니다.\n"
 +"바꾸려면 누르십시오"
 diff --git a/shell/cc-application.c b/shell/cc-application.c
-index 8ffb2bd..8dbc0b3 100644
+index 8ffb2bd..da6f40e 100644
 --- a/shell/cc-application.c
 +++ b/shell/cc-application.c
-@@ -227,8 +227,8 @@ static void
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright © 2013 Red Hat, Inc.
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -227,8 +228,8 @@ static void
  cc_application_startup (GApplication *application)
  {
    CcApplication *self = CC_APPLICATION (application);
@@ -3136,7 +3102,7 @@ index 8ffb2bd..8dbc0b3 100644
    const gchar *help_accels[] = { "F1", NULL };
  
    g_action_map_add_action_entries (G_ACTION_MAP (self),
-@@ -246,17 +246,17 @@ cc_application_startup (GApplication *application)
+@@ -246,17 +247,17 @@ cc_application_startup (GApplication *application)
      }
  #endif /* HAVE_WACOM || HAVE_CHEESE */
  
@@ -3163,10 +3129,18 @@ index 8ffb2bd..8dbc0b3 100644
    gtk_application_set_accels_for_action (GTK_APPLICATION (application),
                                           "app.help", help_accels);
 diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
-index 39a46b4..5174ff5 100644
+index 39a46b4..995743b 100644
 --- a/shell/cc-panel-list.c
 +++ b/shell/cc-panel-list.c
-@@ -329,6 +329,8 @@ static const gchar * const panel_order[] = {
+@@ -1,6 +1,7 @@
+ /* cc-panel-list.c
+  *
+  * Copyright (C) 2016 Endless, Inc
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software: you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -329,6 +330,8 @@ static const gchar * const panel_order[] = {
    "mobile-broadband",
    "bluetooth",
    "background",
@@ -3175,7 +3149,7 @@ index 39a46b4..5174ff5 100644
    "notifications",
    "search",
    "region",
-@@ -516,6 +518,25 @@ header_func (GtkListBoxRow *row,
+@@ -516,6 +519,25 @@ header_func (GtkListBoxRow *row,
      }
  }
  
@@ -3201,7 +3175,7 @@ index 39a46b4..5174ff5 100644
  /*
   * Callbacks
   */
-@@ -525,6 +546,7 @@ row_activated_cb (GtkWidget     *listbox,
+@@ -525,6 +547,7 @@ row_activated_cb (GtkWidget     *listbox,
                    CcPanelList   *self)
  {
    RowData *data;
@@ -3209,7 +3183,7 @@ index 39a46b4..5174ff5 100644
  
    /* Details */
    if (row == self->details_row)
-@@ -556,6 +578,10 @@ row_activated_cb (GtkWidget     *listbox,
+@@ -556,6 +579,10 @@ row_activated_cb (GtkWidget     *listbox,
          gtk_list_box_unselect_all (GTK_LIST_BOX (self->devices_listbox));
      }
  
@@ -3221,10 +3195,18 @@ index 39a46b4..5174ff5 100644
     * Since we're not sure that the activated row is in the
     * current view, set the view here.
 diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
-index 6b5c6e3..df2f74e 100644
+index 6b5c6e3..e0a0567 100644
 --- a/shell/cc-panel-loader.c
 +++ b/shell/cc-panel-loader.c
-@@ -55,6 +55,8 @@ extern GType cc_region_panel_get_type (void);
+@@ -1,6 +1,7 @@
+ /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
+ /*
+  * Copyright (c) 2012 Giovanni Campagna <scampa.giovanni@gmail.com>
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * The Control Center is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by the
+@@ -55,6 +56,8 @@ extern GType cc_region_panel_get_type (void);
  extern GType cc_search_panel_get_type (void);
  extern GType cc_sharing_panel_get_type (void);
  extern GType cc_sound_panel_get_type (void);
@@ -3233,7 +3215,7 @@ index 6b5c6e3..df2f74e 100644
  #ifdef BUILD_THUNDERBOLT
  extern GType cc_bolt_panel_get_type (void);
  #endif /* BUILD_THUNDERBOLT */
-@@ -91,6 +93,8 @@ static struct {
+@@ -91,6 +94,8 @@ static struct {
  #ifdef BUILD_BLUETOOTH
    PANEL_TYPE("bluetooth",        cc_bluetooth_panel_get_type,            NULL),
  #endif
@@ -3242,7 +3224,7 @@ index 6b5c6e3..df2f74e 100644
    PANEL_TYPE("color",            cc_color_panel_get_type,                NULL),
    PANEL_TYPE("datetime",         cc_date_time_panel_get_type,            NULL),
    PANEL_TYPE("display",          cc_display_panel_get_type,              NULL),
-@@ -172,6 +176,26 @@ parse_categories (GDesktopAppInfo *app)
+@@ -172,6 +177,26 @@ parse_categories (GDesktopAppInfo *app)
    return retval;
  }
  
@@ -3269,7 +3251,7 @@ index 6b5c6e3..df2f74e 100644
  void
  cc_panel_loader_fill_model (CcShellModel *model)
  {
-@@ -182,6 +206,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -182,6 +207,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
        g_autoptr (GDesktopAppInfo) app;
        g_autofree gchar *desktop_name = NULL;
        gint category;
@@ -3277,7 +3259,7 @@ index 6b5c6e3..df2f74e 100644
  
        desktop_name = g_strconcat ("gnome-", all_panels[i].name, "-panel.desktop", NULL);
        app = g_desktop_app_info_new (desktop_name);
-@@ -200,7 +225,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -200,7 +226,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
        if (!g_desktop_app_info_get_show_in (app, NULL))
          continue;
  
@@ -3286,7 +3268,7 @@ index 6b5c6e3..df2f74e 100644
      }
  
    /* If there's an static init function, execute it after adding all panels to
-@@ -214,6 +239,8 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -214,6 +240,8 @@ cc_panel_loader_fill_model (CcShellModel *model)
          all_panels[i].static_init_func ();
      }
  #endif
@@ -3296,10 +3278,18 @@ index 6b5c6e3..df2f74e 100644
  
  #ifndef CC_PANEL_LOADER_NO_GTYPES
 diff --git a/shell/cc-shell-model.c b/shell/cc-shell-model.c
-index a84de3e..b665667 100644
+index a84de3e..5862020 100644
 --- a/shell/cc-shell-model.c
 +++ b/shell/cc-shell-model.c
-@@ -337,7 +337,7 @@ cc_shell_model_add_item (CcShellModel    *model,
+@@ -1,6 +1,7 @@
+ /*
+  * Copyright (c) 2009, 2010 Intel, Inc.
+  * Copyright (c) 2010 Red Hat, Inc.
++ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
+  *
+  * The Control Center is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by the
+@@ -337,7 +338,7 @@ cc_shell_model_add_item (CcShellModel    *model,
                                       COL_CASEFOLDED_DESCRIPTION, casefolded_description,
                                       COL_GICON, icon,
                                       COL_KEYWORDS, keywords,
@@ -3308,7 +3298,7 @@ index a84de3e..b665667 100644
                                       -1);
  
    g_free (casefolded_name);
-@@ -420,6 +420,36 @@ cc_shell_model_set_sort_terms (CcShellModel  *self,
+@@ -420,6 +421,36 @@ cc_shell_model_set_sort_terms (CcShellModel  *self,
                                             NULL);
  }
  
