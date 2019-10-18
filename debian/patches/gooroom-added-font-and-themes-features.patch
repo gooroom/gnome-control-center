@@ -1,29 +1,23 @@
-diff --git a/debian/copyright b/debian/copyright
-index 0d70a60..067500f 100644
---- a/debian/copyright
-+++ b/debian/copyright
-@@ -64,6 +64,7 @@ Copyright:
-  2017-2018 Georges Basile Stavracas Neto
-  2017 Mohammed Sadiq
-  Nuno Pires
-+ 2015-2019 Gooroom
- License: GPL-2+
+diff --git a/panels/display/cc-display-panel.c b/panels/display/cc-display-panel.c
+index f4716f7..8b0a419 100644
+--- a/panels/display/cc-display-panel.c
++++ b/panels/display/cc-display-panel.c
+@@ -1280,6 +1280,7 @@ make_two_output_chooser (CcDisplayPanel *panel)
+   GtkWidget *box;
+   GtkRadioButton *group;
+   GList *outputs, *l;
++  gint number = 0;
  
- Files:
-@@ -102,6 +103,13 @@ Copyright:
-  2017-2018 Red Hat, Inc.
- License: LGPL-2.1+
+   outputs = cc_display_config_get_ui_sorted_monitors (panel->current_config);
  
-+Files:
-+ panels/font/*
-+ panels/themes/*
-+Copyright:
-+ 2015-2019 Gooroom
-+License: GPL-2+
-+
- License: GPL-2+
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
+@@ -1293,6 +1294,7 @@ make_two_output_chooser (CcDisplayPanel *panel)
+       CcDisplayMonitor *output = l->data;
+       GtkWidget *button = gtk_radio_button_new_from_widget (group);
+ 
++      number = cc_display_monitor_get_ui_number (output);
+       gtk_button_set_label (GTK_BUTTON (button), cc_display_monitor_get_ui_name (output));
+       gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
+ 
 diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
 new file mode 100644
 index 0000000..ca9dd68
