@@ -3144,7 +3144,7 @@ index a891961..7c147a5 100644
 +"바뀐 사항을 적용하려면 세션을 다시 시작해야 합니다.\n"
 +"다시 시작하시겠습니까?"
 diff --git a/shell/cc-application.c b/shell/cc-application.c
-index 8ffb2bd..da6f40e 100644
+index 8ffb2bd..f61e6ad 100644
 --- a/shell/cc-application.c
 +++ b/shell/cc-application.c
 @@ -1,5 +1,6 @@
@@ -3154,18 +3154,20 @@ index 8ffb2bd..da6f40e 100644
   *
   * This program is free software; you can redistribute it and/or
   * modify it under the terms of the GNU General Public License
-@@ -227,8 +228,8 @@ static void
+@@ -227,9 +228,9 @@ static void
  cc_application_startup (GApplication *application)
  {
    CcApplication *self = CC_APPLICATION (application);
 -  GMenu *section;
 -  GMenu *menu;
+-  const gchar *help_accels[] = { "F1", NULL };
 +  //GMenu *section;
 +  //GMenu *menu;
-   const gchar *help_accels[] = { "F1", NULL };
++  //const gchar *help_accels[] = { "F1", NULL };
  
    g_action_map_add_action_entries (G_ACTION_MAP (self),
-@@ -246,17 +247,17 @@ cc_application_startup (GApplication *application)
+                                    cc_app_actions,
+@@ -246,20 +247,20 @@ cc_application_startup (GApplication *application)
      }
  #endif /* HAVE_WACOM || HAVE_CHEESE */
  
@@ -3189,8 +3191,13 @@ index 8ffb2bd..da6f40e 100644
 +  //gtk_application_set_app_menu (GTK_APPLICATION (application),
 +  //                              G_MENU_MODEL (menu));
  
-   gtk_application_set_accels_for_action (GTK_APPLICATION (application),
-                                          "app.help", help_accels);
+-  gtk_application_set_accels_for_action (GTK_APPLICATION (application),
+-                                         "app.help", help_accels);
++  //gtk_application_set_accels_for_action (GTK_APPLICATION (application),
++  //                                       "app.help", help_accels);
+ 
+   self->model = cc_shell_model_new ();
+   self->window = cc_window_new (GTK_APPLICATION (application), self->model);
 diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
 index 39a46b4..995743b 100644
 --- a/shell/cc-panel-list.c
