@@ -1,3 +1,25 @@
+diff --git a/panels/datetime/datetime.ui b/panels/datetime/datetime.ui
+index 7ac24d7..6f9b545 100644
+--- a/panels/datetime/datetime.ui
++++ b/panels/datetime/datetime.ui
+@@ -330,7 +330,7 @@
+                                 <property name="visible">True</property>
+                                 <property name="can_focus">False</property>
+                                 <property name="xalign">0</property>
+-                                <property name="label" translatable="yes">Requires internet access</property>
++                                <property name="label" translatable="yes">Apply network time when connecting to the Internet</property>
+                                 <style>
+                                   <class name="dim-label"/>
+                                 </style>
+@@ -408,7 +408,7 @@
+                                 <property name="visible">True</property>
+                                 <property name="can_focus">False</property>
+                                 <property name="xalign">0</property>
+-                                <property name="label" translatable="yes">Requires internet access</property>
++                                <property name="label" translatable="yes">Apply network time when connecting to the Internet</property>
+                                 <style>
+                                   <class name="dim-label"/>
+                                 </style>
 diff --git a/panels/display/cc-display-panel.c b/panels/display/cc-display-panel.c
 index f4716f7..8b0a419 100644
 --- a/panels/display/cc-display-panel.c
@@ -2649,6 +2671,20 @@ index 0000000..659fb6a
 +    </child>
 +  </object>
 +</interface>
+diff --git a/panels/user-accounts/pw-utils.c b/panels/user-accounts/pw-utils.c
+index 8b2c39f..5425791 100644
+--- a/panels/user-accounts/pw-utils.c
++++ b/panels/user-accounts/pw-utils.c
+@@ -94,7 +94,8 @@ pw_error_hint (gint error)
+         case PWQ_ERROR_CRACKLIB_CHECK:
+                 return C_("Password hint", "Try to avoid common words.");
+         case PWQ_ERROR_PALINDROME:
+-                return C_("Password hint", "Try to avoid reordering existing words.");
++                return C_("Password hint", "Do not enter the same words consecutively.");
++                //return C_("Password hint", "Try to avoid reordering existing words.");
+         case PWQ_ERROR_MIN_DIGITS:
+                 return C_("Password hint", "Try to use more numbers.");
+         case PWQ_ERROR_MIN_UPPERS:
 diff --git a/panels/user-accounts/um-user-panel.c b/panels/user-accounts/um-user-panel.c
 index eaa77bd..0546f5f 100644
 --- a/panels/user-accounts/um-user-panel.c
@@ -2857,7 +2893,7 @@ index b5bf16d..670c773 100644
 +"Your session needs to be restarted for changes to take effect.\n"
 +"Do you want restart?"
 diff --git a/po/en_GB.po b/po/en_GB.po
-index 200d00a..4a9e87d 100644
+index 200d00a..0f7c175 100644
 --- a/po/en_GB.po
 +++ b/po/en_GB.po
 @@ -5,6 +5,7 @@
@@ -2948,7 +2984,7 @@ index 200d00a..4a9e87d 100644
  #~ msgid "Description"
  #~ msgstr "Description"
  
-@@ -13309,3 +13370,51 @@ msgstr "System Sounds"
+@@ -13309,3 +13370,61 @@ msgstr "System Sounds"
  
  #~ msgid "The typing monitor is already running."
  #~ msgstr "The typing monitor is already running."
@@ -3000,8 +3036,18 @@ index 200d00a..4a9e87d 100644
 +msgstr ""
 +""
 +""
++
++#: ../panels/datetime/datetime.ui:333
++#: ../panels/datetime/datetime.ui:441
++msgid "Apply network time when connecting to the Internet"
++msgstr ""
++
++#: panels/user-accounts/pw-utils.c:97
++msgctxt "Password hint"
++msgid "Do not enter the same words consecutively."
++msgstr ""
 diff --git a/po/ko.po b/po/ko.po
-index a891961..7c147a5 100644
+index a891961..cd2ce2c 100644
 --- a/po/ko.po
 +++ b/po/ko.po
 @@ -4,6 +4,7 @@
@@ -3012,7 +3058,7 @@ index a891961..7c147a5 100644
  #
  #
  # - 주의: 여러가지 분야의 어려운 용어가 많습니다. 충분히 시간을 두고 실제 의미가
-@@ -7706,3 +7707,130 @@ msgstr[0] "%u개 입력"
+@@ -7706,3 +7707,141 @@ msgstr[0] "%u개 입력"
  #: subprojects/gvc/gvc-mixer-control.c:2738
  msgid "System Sounds"
  msgstr "시스템 사운드"
@@ -3143,6 +3189,17 @@ index a891961..7c147a5 100644
 +msgstr ""
 +"바뀐 사항을 적용하려면 세션을 다시 시작해야 합니다.\n"
 +"다시 시작하시겠습니까?"
++
++#: ../panels/datetime/datetime.ui:333
++#: ../panels/datetime/datetime.ui:441
++msgid "Apply network time when connecting to the Internet"
++msgstr "인터넷 연결 시 네트워크 시간 적용"
++
++
++#: panels/user-accounts/pw-utils.c:97
++msgctxt "Password hint"
++msgid "Do not enter the same words consecutively."
++msgstr "같은 단어를 연속해서 입력하지 마십시오."
 diff --git a/shell/cc-application.c b/shell/cc-application.c
 index 8ffb2bd..f61e6ad 100644
 --- a/shell/cc-application.c
