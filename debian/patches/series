@@ -19,4 +19,6 @@ mouse-Don-t-use-a-separate-box-for-touchpad-switch.patch
 Expose-touchpad-settings-if-synaptics-is-in-use.patch
 Debian-s-adduser-doesn-t-allow-uppercase-letters-by-defau.patch
 distro-logo.patch
-gooroom-added-font-and-themes-features.patch
+
+# Gooroom
+gooroom-01-All-Patchset.patch
