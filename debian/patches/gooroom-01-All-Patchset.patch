@@ -1227,9 +1227,18 @@ index ace1747..a837649 100644
            <object class="GtkGrid" id="grid1">
              <property name="visible">True</property>
 diff --git a/panels/meson.build b/panels/meson.build
-index 37a3436..f5e81c5 100644
+index 37a3436..bcf684a 100644
 --- a/panels/meson.build
 +++ b/panels/meson.build
+@@ -8,7 +8,7 @@ panels = [
+   'info',
+   'keyboard',
+   'mouse',
+-  'notifications',
++#  'notifications',
+   'online-accounts',
+   'power',
+   'printers',
 @@ -18,7 +18,9 @@ panels = [
    'sharing',
    'sound',
@@ -1718,6 +1727,51 @@ index 0d92fd1..bea685c 100644
  
          GHashTable *connections;
  };
+diff --git a/panels/power/cc-power-panel.c b/panels/power/cc-power-panel.c
+index ecf046b..67ceed5 100644
+--- a/panels/power/cc-power-panel.c
++++ b/panels/power/cc-power-panel.c
+@@ -1823,14 +1823,26 @@ add_power_saving_section (CcPowerPanel *self)
+   box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 50);
+   gtk_container_add (GTK_CONTAINER (row), box);
+ 
++  box2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
++  gtk_widget_set_margin_start (box2, 20);
++  gtk_widget_set_margin_end (box2, 20);
++  gtk_widget_set_margin_top (box2, 6);
++  gtk_widget_set_margin_bottom (box2, 6);
++  gtk_box_pack_start (GTK_BOX (box), box2, TRUE, TRUE, 0);
++
+   label = gtk_label_new (_("_Dim screen when inactive"));
+   gtk_widget_set_halign (label, GTK_ALIGN_START);
+   gtk_label_set_use_underline (GTK_LABEL (label), TRUE);
+-  gtk_widget_set_margin_start (label, 20);
+-  gtk_widget_set_margin_end (label, 20);
+-  gtk_widget_set_margin_top (label, 6);
+-  gtk_widget_set_margin_bottom (label, 6);
+-  gtk_box_pack_start (GTK_BOX (box), label, TRUE, TRUE, 0);
++//  gtk_widget_set_margin_start (label, 20);
++//  gtk_widget_set_margin_end (label, 20);
++//  gtk_widget_set_margin_top (label, 6);
++//  gtk_widget_set_margin_bottom (label, 6);
++  gtk_box_pack_start (GTK_BOX (box2), label, TRUE, TRUE, 0);
++
++  w = gtk_label_new (_("Screen dims when the computer operates on battery power."));
++  gtk_widget_set_halign (w, GTK_ALIGN_START);
++  gtk_style_context_add_class (gtk_widget_get_style_context (w), GTK_STYLE_CLASS_DIM_LABEL);
++  gtk_box_pack_start (GTK_BOX (box2), w, TRUE, TRUE, 0);
+ 
+   sw = gtk_switch_new ();
+   g_settings_bind (self->gsd_settings, "idle-dim",
+@@ -1843,6 +1855,8 @@ add_power_saving_section (CcPowerPanel *self)
+   gtk_label_set_mnemonic_widget (GTK_LABEL (label), sw);
+   gtk_container_add (GTK_CONTAINER (widget), row);
+   gtk_size_group_add_widget (self->row_sizegroup, row);
++  gtk_widget_show_all (row);
++  gtk_widget_set_no_show_all (self->dim_screen_row, TRUE);
+ 
+   row = no_prelight_row_new ();
+   box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 50);
 diff --git a/panels/printers/cc-printers-panel.c b/panels/printers/cc-printers-panel.c
 index f05a3ec..36874d9 100644
 --- a/panels/printers/cc-printers-panel.c
@@ -2671,6 +2725,443 @@ index 0000000..659fb6a
 +    </child>
 +  </object>
 +</interface>
+diff --git a/panels/thunderbolt/cc-bolt-panel.ui b/panels/thunderbolt/cc-bolt-panel.ui
+index 226353c..68d340a 100644
+--- a/panels/thunderbolt/cc-bolt-panel.ui
++++ b/panels/thunderbolt/cc-bolt-panel.ui
+@@ -171,6 +171,22 @@
+                         <property name="top_attach">1</property>
+                       </packing>
+                     </child>
++                    <child>
++                      <object class="GtkBox" id="details-supporter">
++                        <property name="visible">True</property>
++                        <property name="can_focus">False</property>
++                        <property name="expand">False</property>
++                        <property name="halign">center</property>
++                        <property name="valign">end</property>
++                        <property name="orientation">vertical</property>
++                        <property name="margin">25</property>
++                      </object>
++                      <packing>
++                        <property name="left_attach">1</property>
++                        <property name="top_attach">2</property>
++                      </packing>
++                    </child>
++
+ 
+                   </object>
+                 </child>
+diff --git a/panels/universal-access/cc-ua-panel.c b/panels/universal-access/cc-ua-panel.c
+index ee4665d..60bbeb1 100644
+--- a/panels/universal-access/cc-ua-panel.c
++++ b/panels/universal-access/cc-ua-panel.c
+@@ -31,7 +31,7 @@
+ #include "cc-ua-panel.h"
+ #include "cc-ua-resources.h"
+ 
+-#include "zoom-options.h"
++//#include "zoom-options.h"
+ 
+ #define DPI_FACTOR_LARGE 1.25
+ #define DPI_FACTOR_NORMAL 1.0
+@@ -128,15 +128,15 @@ struct _CcUaPanel
+   GtkWidget *repeat_keys_switch;
+   GtkWidget *row_accessx;
+   GtkWidget *row_click_assist;
+-  GtkWidget *row_cursor_blinking;
++  //GtkWidget *row_cursor_blinking;
+   GtkWidget *row_cursor_size;
+   GtkWidget *row_repeat_keys;
+   GtkWidget *row_screen_reader;
+   GtkWidget *row_sound_keys;
+   GtkWidget *row_visual_alerts;
+-  GtkWidget *row_zoom;
++  //GtkWidget *row_zoom;
+   GtkWidget *scale_double_click_delay;
+-  GtkWidget *screen_keyboard_switch;
++  //GtkWidget *screen_keyboard_switch;
+   GtkWidget *screen_reader_dialog;
+   GtkWidget *screen_reader_switch;
+   GtkWidget *section_status;
+@@ -166,11 +166,11 @@ struct _CcUaPanel
+   GtkWidget *value_highcontrast;
+   GtkWidget *value_large_text;
+   GtkWidget *value_repeat_keys;
+-  GtkWidget *value_row_cursor_blinking;
++  //GtkWidget *value_row_cursor_blinking;
+   GtkWidget *value_screen_reader;
+   GtkWidget *value_sound_keys;
+   GtkWidget *value_visual_alerts;
+-  GtkWidget *value_zoom;
++  //GtkWidget *value_zoom;
+   GtkWidget *visual_alerts_dialog;
+   GtkWidget *visual_alerts_screen_radio;
+   GtkWidget *visual_alerts_switch;
+@@ -186,7 +186,7 @@ struct _CcUaPanel
+   GSettings *application_settings;
+   GSettings *gsd_mouse_settings;
+ 
+-  ZoomOptions *zoom_options;
++  //ZoomOptions *zoom_options;
+ 
+   GtkAdjustment *focus_adjustment;
+ 
+@@ -215,7 +215,7 @@ cc_ua_panel_dispose (GObject *object)
+   g_clear_object (&self->application_settings);
+   g_clear_object (&self->gsd_mouse_settings);
+ 
+-  g_clear_object (&self->zoom_options);
++  //g_clear_object (&self->zoom_options);
+ 
+   g_clear_pointer (&self->sections, g_list_free);
+   g_clear_pointer (&self->sections_reverse, g_list_free);
+@@ -247,7 +247,7 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, cursor_blinking_switch);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, cursor_size_dialog);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, cursor_size_grid);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_hearing);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_hearing);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_pointing);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_seeing);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_typing);
+@@ -269,17 +269,16 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, repeat_keys_switch);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_accessx);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_click_assist);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_cursor_blinking);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_cursor_blinking);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_cursor_size);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_repeat_keys);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_screen_reader);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_screen_reader);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_sound_keys);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_visual_alerts);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_zoom);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_visual_alerts);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, scale_double_click_delay);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, screen_keyboard_switch);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, screen_keyboard_switch);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, screen_reader_dialog);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, screen_reader_switch);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, screen_reader_switch);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, section_status);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, sound_keys_dialog);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, sound_keys_switch);
+@@ -307,30 +306,29 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_highcontrast);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_large_text);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_repeat_keys);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_row_cursor_blinking);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_screen_reader);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_row_cursor_blinking);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_screen_reader);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_sound_keys);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_visual_alerts);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_zoom);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_visual_alerts);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, visual_alerts_dialog);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, visual_alerts_screen_radio);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, visual_alerts_switch);
+-  gtk_widget_class_bind_template_child (widget_class, CcUaPanel, visual_alerts_test_button);
++  //gtk_widget_class_bind_template_child (widget_class, CcUaPanel, visual_alerts_test_button);
+   gtk_widget_class_bind_template_child (widget_class, CcUaPanel, visual_alerts_window_radio);
+ }
+ 
+ /* zoom options dialog */
+-static void
+-zoom_options_launch (CcUaPanel *self)
+-{
+-  if (self->zoom_options == NULL)
+-    {
+-      GtkWindow *window = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
+-      self->zoom_options = zoom_options_new (window);
+-    }
+-
+-  gtk_window_present_with_time (GTK_WINDOW (self->zoom_options), GDK_CURRENT_TIME);
+-}
++//static void
++//zoom_options_launch (CcUaPanel *self)
++//{
++//  if (self->zoom_options == NULL)
++//    {
++//      GtkWindow *window = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
++//      self->zoom_options = zoom_options_new (window);
++//    }
++//
++//  gtk_window_present_with_time (GTK_WINDOW (self->zoom_options), GDK_CURRENT_TIME);
++//}
+ 
+ /* cursor size dialog */
+ static void
+@@ -620,11 +618,11 @@ activate_row (CcUaPanel *self, GtkListBoxRow *row)
+           toggle_switch (self->value_large_text);
+           return;
+         }
+-      if (!g_strcmp0 (widget_name, "row_screen_keyboard"))
+-        {
+-          toggle_switch (self->screen_keyboard_switch);
+-          return;
+-        }
++//      if (!g_strcmp0 (widget_name, "row_screen_keyboard"))
++//        {
++//          toggle_switch (self->screen_keyboard_switch);
++//          return;
++//        }
+       if (!g_strcmp0 (widget_name, "row_mouse_keys"))
+         {
+           toggle_switch (self->mouse_keys_switch);
+@@ -633,12 +631,12 @@ activate_row (CcUaPanel *self, GtkListBoxRow *row)
+     }
+ 
+   /* Check dialog to open */
+-  dialog_id = (const gchar *)g_object_get_data (G_OBJECT (row), "dialog-id");
+-  if (g_strcmp0 (dialog_id, "zoom") == 0)
+-    {
+-      zoom_options_launch (self);
+-      return;
+-    }
++//  dialog_id = (const gchar *)g_object_get_data (G_OBJECT (row), "dialog-id");
++//  if (g_strcmp0 (dialog_id, "zoom") == 0)
++//    {
++//      zoom_options_launch (self);
++//      return;
++//    }
+ 
+   dialog = (GtkWidget *)g_object_get_data (G_OBJECT (row), "dialog");
+   if (dialog == NULL)
+@@ -695,29 +693,29 @@ cc_ua_panel_init_seeing (CcUaPanel *self)
+ 
+   /* zoom */
+ 
+-  g_settings_bind_with_mapping (self->application_settings, "screen-magnifier-enabled",
+-                                self->value_zoom,
+-                                "label", G_SETTINGS_BIND_GET,
+-                                on_off_label_mapping_get,
+-                                NULL, NULL, NULL);
++//  g_settings_bind_with_mapping (self->application_settings, "screen-magnifier-enabled",
++//                                self->value_zoom,
++//                                "label", G_SETTINGS_BIND_GET,
++//                                on_off_label_mapping_get,
++//                                NULL, NULL, NULL);
+ 
+-  g_object_set_data (G_OBJECT (self->row_zoom), "dialog-id", "zoom");
++  //g_object_set_data (G_OBJECT (self->row_zoom), "dialog-id", "zoom");
+ 
+   /* screen reader */
+ 
+-  g_settings_bind_with_mapping (self->application_settings, "screen-reader-enabled",
+-                                self->value_screen_reader, "label",
+-                                G_SETTINGS_BIND_GET,
+-                                on_off_label_mapping_get,
+-                                NULL, NULL, NULL);
++//  g_settings_bind_with_mapping (self->application_settings, "screen-reader-enabled",
++//                                self->value_screen_reader, "label",
++//                                G_SETTINGS_BIND_GET,
++//                                on_off_label_mapping_get,
++//                                NULL, NULL, NULL);
+ 
+-  g_settings_bind (self->application_settings, "screen-reader-enabled",
+-                   self->screen_reader_switch, "active",
+-                   G_SETTINGS_BIND_DEFAULT);
++//  g_settings_bind (self->application_settings, "screen-reader-enabled",
++//                   self->screen_reader_switch, "active",
++//                   G_SETTINGS_BIND_DEFAULT);
+ 
+   self->toplevels = g_slist_prepend (self->toplevels, self->screen_reader_dialog);
+ 
+-  g_object_set_data (G_OBJECT (self->row_screen_reader), "dialog", self->screen_reader_dialog);
++//  g_object_set_data (G_OBJECT (self->row_screen_reader), "dialog", self->screen_reader_dialog);
+   g_signal_connect (self->screen_reader_dialog, "delete-event",
+                     G_CALLBACK (gtk_widget_hide_on_delete), NULL);
+ 
+@@ -844,15 +842,15 @@ on_repeat_keys_toggled (GSettings *settings, const gchar *key, CcUaPanel *self)
+   gtk_widget_set_sensitive (self->repeat_keys_speed_grid, on);
+ }
+ 
+-static void
+-on_cursor_blinking_toggled (GSettings *settings, const gchar *key, CcUaPanel *self)
+-{
+-  gboolean on;
+-
+-  on = g_settings_get_boolean (settings, KEY_CURSOR_BLINKING);
+-
+-  gtk_label_set_text (GTK_LABEL (self->value_row_cursor_blinking), on ? _("On") : _("Off"));
+-}
++//static void
++//on_cursor_blinking_toggled (GSettings *settings, const gchar *key, CcUaPanel *self)
++//{
++//  gboolean on;
++//
++//  on = g_settings_get_boolean (settings, KEY_CURSOR_BLINKING);
++//
++//  gtk_label_set_text (GTK_LABEL (self->value_row_cursor_blinking), on ? _("On") : _("Off"));
++//}
+ 
+ static void
+ update_accessx_label (GSettings *settings, const gchar *key, CcUaPanel *self)
+@@ -882,9 +880,9 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
+                             G_CALLBACK (activate_row), self);
+ 
+   /* on-screen keyboard */
+-  g_settings_bind (self->application_settings, KEY_SCREEN_KEYBOARD_ENABLED,
+-                   self->screen_keyboard_switch, "active",
+-                   G_SETTINGS_BIND_DEFAULT);
++//  g_settings_bind (self->application_settings, KEY_SCREEN_KEYBOARD_ENABLED,
++//                   self->screen_keyboard_switch, "active",
++//                   G_SETTINGS_BIND_DEFAULT);
+ 
+   /* Repeat keys */
+   g_signal_connect (self->kb_desktop_settings, "changed",
+@@ -911,12 +909,12 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
+                    G_SETTINGS_BIND_DEFAULT);
+ 
+   /* Cursor Blinking */
+-  g_signal_connect (self->interface_settings, "changed",
+-                    G_CALLBACK (on_cursor_blinking_toggled), self);
++//  g_signal_connect (self->interface_settings, "changed",
++//                    G_CALLBACK (on_cursor_blinking_toggled), self);
+ 
+   self->toplevels = g_slist_prepend (self->toplevels, self->cursor_blinking_dialog);
+ 
+-  g_object_set_data (G_OBJECT (self->row_cursor_blinking), "dialog", self->cursor_blinking_dialog);
++  //g_object_set_data (G_OBJECT (self->row_cursor_blinking), "dialog", self->cursor_blinking_dialog);
+ 
+   g_signal_connect (self->cursor_blinking_dialog, "delete-event",
+                     G_CALLBACK (gtk_widget_hide_on_delete), NULL);
+@@ -925,7 +923,7 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
+   g_settings_bind (self->interface_settings, KEY_CURSOR_BLINKING,
+                    sw, "active",
+                    G_SETTINGS_BIND_DEFAULT);
+-  on_cursor_blinking_toggled (self->interface_settings, NULL, self);
++//  on_cursor_blinking_toggled (self->interface_settings, NULL, self);
+ 
+   g_settings_bind (self->interface_settings, KEY_CURSOR_BLINKING_TIME,
+                    gtk_range_get_adjustment (GTK_RANGE (self->cursor_blinking_scale)), "value",
+@@ -1120,7 +1118,7 @@ cc_ua_panel_init (CcUaPanel *self)
+ 
+   cc_ua_panel_init_status (self);
+   cc_ua_panel_init_seeing (self);
+-  cc_ua_panel_init_hearing (self);
++  //cc_ua_panel_init_hearing (self);
+   cc_ua_panel_init_keyboard (self);
+   cc_ua_panel_init_mouse (self);
+ 
+diff --git a/panels/universal-access/uap.ui b/panels/universal-access/uap.ui
+index f417e9e..046eb9c 100644
+--- a/panels/universal-access/uap.ui
++++ b/panels/universal-access/uap.ui
+@@ -301,7 +301,7 @@
+                                     </child>
+                                   </object>
+                                 </child>
+-                                <child>
++                                <!--<child>
+                                   <object class="GtkListBoxRow" id="row_zoom">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">True</property>
+@@ -346,8 +346,8 @@
+                                       </object>
+                                     </child>
+                                   </object>
+-                                </child>
+-                                <child>
++                                </child>-->
++                                <!--<child>
+                                   <object class="GtkListBoxRow" id="row_screen_reader">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">True</property>
+@@ -392,7 +392,7 @@
+                                       </object>
+                                     </child>
+                                   </object>
+-                                </child>
++                                </child>-->
+                                 <child>
+                                   <object class="GtkListBoxRow" id="row_sound_keys">
+                                     <property name="visible">True</property>
+@@ -458,7 +458,7 @@
+                         <property name="position">1</property>
+                       </packing>
+                     </child>
+-                    <child>
++                    <!--<child>
+                       <object class="GtkBox" id="section_hearing">
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
+@@ -563,7 +563,7 @@
+                         <property name="fill">True</property>
+                         <property name="position">2</property>
+                       </packing>
+-                    </child>
++                    </child>-->
+                     <child>
+                       <object class="GtkBox" id="section_typing">
+                         <property name="visible">True</property>
+@@ -605,7 +605,7 @@
+                                 <accessibility>
+                                   <relation target="heading_typing" type="labelled-by"/>
+                                 </accessibility>
+-                                <child>
++                                <!--<child>
+                                   <object class="GtkListBoxRow" id="row_screen_keyboard">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">True</property>
+@@ -651,7 +651,7 @@
+                                       </object>
+                                     </child>
+                                   </object>
+-                                </child>
++                                </child>-->
+                                 <child>
+                                   <object class="GtkListBoxRow" id="row_repeat_keys">
+                                     <property name="visible">True</property>
+@@ -698,7 +698,7 @@
+                                     </child>
+                                   </object>
+                                 </child>
+-                                <child>
++                                <!--<child>
+                                   <object class="GtkListBoxRow" id="row_cursor_blinking">
+                                     <property name="visible">True</property>
+                                     <property name="can_focus">True</property>
+@@ -743,7 +743,7 @@
+                                       </object>
+                                     </child>
+                                   </object>
+-                                </child>
++                                </child>-->
+                                 <child>
+                                   <object class="GtkListBoxRow" id="row_accessx">
+                                     <property name="visible">True</property>
+@@ -1032,11 +1032,11 @@
+       <widget name="row_highcontrast"/>
+       <widget name="row_large_text"/>
+       <widget name="row_cursor_size"/>
+-      <widget name="row_zoom"/>
+-      <widget name="row_screen_reader"/>
++      <!--<widget name="row_zoom"/>-->
++      <!--<widget name="row_screen_reader"/>-->
+       <widget name="row_sound_keys"/>
+-      <widget name="row_visual_alerts"/>
+-      <widget name="row_screen_keyboard"/>
++      <!--<widget name="row_visual_alerts"/>-->
++      <!--<widget name="row_screen_keyboard"/>-->
+       <widget name="row_accessx"/>
+       <widget name="row_mouse_keys"/>
+       <widget name="row_click_assist"/>
+@@ -1413,9 +1413,9 @@
+         </child>
+       </object>
+     </child>
+-    <action-widgets>
++    <!--<action-widgets>
+       <action-widget response="0">visual_alerts_test_button</action-widget>
+-    </action-widgets>
++    </action-widgets>-->
+   </object>
+   <object class="GtkAdjustment" id="typing_bouncekeys_delay_adjustment">
+     <property name="upper">900</property>
 diff --git a/panels/user-accounts/pw-utils.c b/panels/user-accounts/pw-utils.c
 index 8b2c39f..5425791 100644
 --- a/panels/user-accounts/pw-utils.c
@@ -2768,7 +3259,7 @@ index 43c542b..ce2d45a 100644
  panels/info/cc-info-removable-media-panel.c
  panels/info/gnome-default-apps-panel.desktop.in.in
 diff --git a/po/en.po b/po/en.po
-index b5bf16d..670c773 100644
+index b5bf16d..6b5b421 100644
 --- a/po/en.po
 +++ b/po/en.po
 @@ -1,5 +1,6 @@
@@ -2778,7 +3269,7 @@ index b5bf16d..670c773 100644
  # This file is distributed under the same license as the PACKAGE package.
  # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
  #
-@@ -3193,3 +3194,113 @@ msgstr ""
+@@ -3193,3 +3194,117 @@ msgstr ""
  #: ../shell/shell.ui.h:2
  msgid "_All Settings"
  msgstr ""
@@ -2892,6 +3383,10 @@ index b5bf16d..670c773 100644
 +msgstr ""
 +"Your session needs to be restarted for changes to take effect.\n"
 +"Do you want restart?"
++
++#: ../panels/power/cc-power-panel.c:1842
++msgid "Screen dims when the computer operates on battery power."
++msgstr ""
 diff --git a/po/en_GB.po b/po/en_GB.po
 index 200d00a..0f7c175 100644
 --- a/po/en_GB.po
@@ -3047,7 +3542,7 @@ index 200d00a..0f7c175 100644
 +msgid "Do not enter the same words consecutively."
 +msgstr ""
 diff --git a/po/ko.po b/po/ko.po
-index a891961..cd2ce2c 100644
+index a891961..84fe43f 100644
 --- a/po/ko.po
 +++ b/po/ko.po
 @@ -4,6 +4,7 @@
@@ -3058,7 +3553,7 @@ index a891961..cd2ce2c 100644
  #
  #
  # - 주의: 여러가지 분야의 어려운 용어가 많습니다. 충분히 시간을 두고 실제 의미가
-@@ -7706,3 +7707,141 @@ msgstr[0] "%u개 입력"
+@@ -7706,3 +7707,145 @@ msgstr[0] "%u개 입력"
  #: subprojects/gvc/gvc-mixer-control.c:2738
  msgid "System Sounds"
  msgstr "시스템 사운드"
@@ -3200,6 +3695,10 @@ index a891961..cd2ce2c 100644
 +msgctxt "Password hint"
 +msgid "Do not enter the same words consecutively."
 +msgstr "같은 단어를 연속해서 입력하지 마십시오."
++
++#: ../panels/power/cc-power-panel.c:1842
++msgid "Screen dims when the computer operates on battery power."
++msgstr "컴퓨터가 배터리 전원으로 동작하면 화면이 어두워 집니다."
 diff --git a/shell/cc-application.c b/shell/cc-application.c
 index 8ffb2bd..f61e6ad 100644
 --- a/shell/cc-application.c
@@ -3322,7 +3821,7 @@ index 39a46b4..995743b 100644
     * Since we're not sure that the activated row is in the
     * current view, set the view here.
 diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
-index 6b5c6e3..e0a0567 100644
+index 6b5c6e3..2d28296 100644
 --- a/shell/cc-panel-loader.c
 +++ b/shell/cc-panel-loader.c
 @@ -1,6 +1,7 @@
@@ -3333,6 +3832,15 @@ index 6b5c6e3..e0a0567 100644
   *
   * The Control Center is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by the
+@@ -46,7 +47,7 @@ extern GType cc_mouse_panel_get_type (void);
+ extern GType cc_network_panel_get_type (void);
+ extern GType cc_wifi_panel_get_type (void);
+ #endif /* BUILD_NETWORK */
+-extern GType cc_notifications_panel_get_type (void);
++//extern GType cc_notifications_panel_get_type (void);
+ extern GType cc_goa_panel_get_type (void);
+ extern GType cc_power_panel_get_type (void);
+ extern GType cc_printers_panel_get_type (void);
 @@ -55,6 +56,8 @@ extern GType cc_region_panel_get_type (void);
  extern GType cc_search_panel_get_type (void);
  extern GType cc_sharing_panel_get_type (void);
@@ -3351,7 +3859,20 @@ index 6b5c6e3..e0a0567 100644
    PANEL_TYPE("color",            cc_color_panel_get_type,                NULL),
    PANEL_TYPE("datetime",         cc_date_time_panel_get_type,            NULL),
    PANEL_TYPE("display",          cc_display_panel_get_type,              NULL),
-@@ -172,6 +177,26 @@ parse_categories (GDesktopAppInfo *app)
+@@ -101,9 +106,10 @@ static struct {
+   PANEL_TYPE("mouse",            cc_mouse_panel_get_type,                NULL),
+ #ifdef BUILD_NETWORK
+   PANEL_TYPE("network",          cc_network_panel_get_type,              NULL),
+-  PANEL_TYPE("wifi",             cc_wifi_panel_get_type,                 cc_wifi_panel_static_init_func),
++  //PANEL_TYPE("wifi",             cc_wifi_panel_get_type,                 cc_wifi_panel_static_init_func),
++  PANEL_TYPE("wifi",             cc_wifi_panel_get_type,                 NULL),
+ #endif
+-  PANEL_TYPE("notifications",    cc_notifications_panel_get_type,        NULL),
++//  PANEL_TYPE("notifications",    cc_notifications_panel_get_type,        NULL),
+   PANEL_TYPE("online-accounts",  cc_goa_panel_get_type,                  NULL),
+   PANEL_TYPE("power",            cc_power_panel_get_type,                NULL),
+   PANEL_TYPE("printers",         cc_printers_panel_get_type,             NULL),
+@@ -172,6 +178,26 @@ parse_categories (GDesktopAppInfo *app)
    return retval;
  }
  
@@ -3378,7 +3899,7 @@ index 6b5c6e3..e0a0567 100644
  void
  cc_panel_loader_fill_model (CcShellModel *model)
  {
-@@ -182,6 +207,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -182,6 +208,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
        g_autoptr (GDesktopAppInfo) app;
        g_autofree gchar *desktop_name = NULL;
        gint category;
@@ -3386,7 +3907,7 @@ index 6b5c6e3..e0a0567 100644
  
        desktop_name = g_strconcat ("gnome-", all_panels[i].name, "-panel.desktop", NULL);
        app = g_desktop_app_info_new (desktop_name);
-@@ -200,7 +226,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -200,7 +227,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
        if (!g_desktop_app_info_get_show_in (app, NULL))
          continue;
  
@@ -3395,7 +3916,7 @@ index 6b5c6e3..e0a0567 100644
      }
  
    /* If there's an static init function, execute it after adding all panels to
-@@ -214,6 +240,8 @@ cc_panel_loader_fill_model (CcShellModel *model)
+@@ -214,6 +241,8 @@ cc_panel_loader_fill_model (CcShellModel *model)
          all_panels[i].static_init_func ();
      }
  #endif
@@ -3463,7 +3984,7 @@ index a84de3e..5862020 100644
  cc_shell_model_set_panel_visibility (CcShellModel      *self,
                                       const gchar       *id,
 diff --git a/shell/org.gnome.ControlCenter.gschema.xml b/shell/org.gnome.ControlCenter.gschema.xml
-index 40350bc..e79b247 100644
+index 40350bc..8651b38 100644
 --- a/shell/org.gnome.ControlCenter.gschema.xml
 +++ b/shell/org.gnome.ControlCenter.gschema.xml
 @@ -15,5 +15,10 @@
@@ -3471,7 +3992,7 @@ index 40350bc..e79b247 100644
        </description>
      </key>
 +    <key name="whitelist-panels" type="as">
-+      <default>['bluetooth', 'background', 'notifications', 'search', 'region', 'universal-access', 'font', 'online-accounts', 'privacy', 'sharing', 'sound', 'power', 'network', 'wifi', 'wacom', 'display', 'keyboard', 'printers', 'removable-media', 'thunderbolt', 'color', 'info-overview', 'datetime', 'user-accounts', 'default-apps', 'themes']</default>
++      <default>['bluetooth', 'background', 'search', 'region', 'universal-access', 'font', 'online-accounts', 'privacy', 'sharing', 'sound', 'power', 'network', 'wifi', 'wacom', 'display', 'keyboard', 'printers', 'mouse', 'removable-media', 'thunderbolt', 'color', 'info-overview', 'datetime', 'user-accounts', 'default-apps', 'themes']</default>
 +      <summary>Show settings list</summary>
 +      <description>Show side panel list that matches the User settings values.</description>
 +    </key>
