@@ -1,5 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Source: https://download.gnome.org/sources/gnome-control-center/
+Upstream-Source: https://download.gnome.org/sources/gnome-control-center/
+Source: https://github.com/gooroom/gnome-control-center
 Comment:
  This package was debianized by Jim Pick jim@jimpick.com on
  Sat, 14 Mar 1998 20:12:23 -0800.
@@ -64,7 +65,7 @@ Copyright:
  2017-2018 Georges Basile Stavracas Neto
  2017 Mohammed Sadiq
  Nuno Pires
- 2015-2019 Gooroom
+ 2019 gooroom
 License: GPL-2+
 
 Files:
@@ -107,14 +108,18 @@ Files:
  panels/font/cc-font-*
 Copyright:
  2010 Intel, Inc
- 2015-2019 Gooroom
+ 2019 gooroom
 License: GPL-2+
 
 Files:
  panels/themes/*
 Copyright:
- 2015-2019 Gooroom
+ 2019 gooroom
 License: GPL-2+
+
+Files: debian/*
+Copyright: 2019 gooroom <gooroom@gooroom.kr>
+License: GPL-2.0+
 
 License: GPL-2+
   This program is free software; you can redistribute it and/or modify

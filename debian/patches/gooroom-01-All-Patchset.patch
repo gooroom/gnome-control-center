@@ -21,10 +21,18 @@ index 7ac24d7..6f9b545 100644
                                    <class name="dim-label"/>
                                  </style>
 diff --git a/panels/display/cc-display-panel.c b/panels/display/cc-display-panel.c
-index f4716f7..8b0a419 100644
+index f4716f7..1184021 100644
 --- a/panels/display/cc-display-panel.c
 +++ b/panels/display/cc-display-panel.c
-@@ -1280,6 +1280,7 @@ make_two_output_chooser (CcDisplayPanel *panel)
+@@ -1,6 +1,7 @@
+ /*
+  * Copyright (C) 2007, 2008  Red Hat, Inc.
+  * Copyright (C) 2013 Intel, Inc.
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -1280,6 +1281,7 @@ make_two_output_chooser (CcDisplayPanel *panel)
    GtkWidget *box;
    GtkRadioButton *group;
    GList *outputs, *l;
@@ -32,7 +40,7 @@ index f4716f7..8b0a419 100644
  
    outputs = cc_display_config_get_ui_sorted_monitors (panel->current_config);
  
-@@ -1293,6 +1294,7 @@ make_two_output_chooser (CcDisplayPanel *panel)
+@@ -1293,6 +1295,7 @@ make_two_output_chooser (CcDisplayPanel *panel)
        CcDisplayMonitor *output = l->data;
        GtkWidget *button = gtk_radio_button_new_from_widget (group);
  
@@ -42,13 +50,13 @@ index f4716f7..8b0a419 100644
  
 diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
 new file mode 100644
-index 0000000..ca9dd68
+index 0000000..1d293ae
 --- /dev/null
 +++ b/panels/font/cc-font-panel.c
 @@ -0,0 +1,430 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -478,13 +486,13 @@ index 0000000..ca9dd68
 +}
 diff --git a/panels/font/cc-font-panel.h b/panels/font/cc-font-panel.h
 new file mode 100644
-index 0000000..6108113
+index 0000000..74662ce
 --- /dev/null
 +++ b/panels/font/cc-font-panel.h
 @@ -0,0 +1,32 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -1129,14 +1137,14 @@ index 0000000..36c38d1
 +  c_args: cflags
 +)
 diff --git a/panels/info/cc-info-overview-panel.c b/panels/info/cc-info-overview-panel.c
-index 131106c..3ed6454 100644
+index 131106c..3ba7028 100644
 --- a/panels/info/cc-info-overview-panel.c
 +++ b/panels/info/cc-info-overview-panel.c
 @@ -3,6 +3,7 @@
   * Copyright (C) 2017 Mohammed Sadiq <sadiq@sadiqpk.org>
   * Copyright (C) 2010 Red Hat, Inc
   * Copyright (C) 2008 William Jon McCann <jmccann@redhat.com>
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -1251,14 +1259,14 @@ index 37a3436..bcf684a 100644
  
  if host_is_linux
 diff --git a/panels/network/cc-wifi-panel.c b/panels/network/cc-wifi-panel.c
-index 09e16ba..797867a 100644
+index 09e16ba..72eabfa 100644
 --- a/panels/network/cc-wifi-panel.c
 +++ b/panels/network/cc-wifi-panel.c
 @@ -1,6 +1,7 @@
  /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*-
   *
   * Copyright (C) 2017 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -1272,14 +1280,14 @@ index 09e16ba..797867a 100644
    g_debug ("Wi-Fi panel visible: %s", visible ? "yes" : "no");
  }
 diff --git a/panels/network/connection-editor/ce-page-ethernet.c b/panels/network/connection-editor/ce-page-ethernet.c
-index 7b8f5b5..8911fad 100644
+index 7b8f5b5..41f559a 100644
 --- a/panels/network/connection-editor/ce-page-ethernet.c
 +++ b/panels/network/connection-editor/ce-page-ethernet.c
 @@ -1,6 +1,7 @@
  /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
   *
   * Copyright (C) 2012 Red Hat, Inc
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * Licensed under the GNU General Public License Version 2
   *
@@ -1599,14 +1607,14 @@ index eb1bfb0..f195ee3 100644
 +  </object>
  </interface>
 diff --git a/panels/network/net-device-ethernet.c b/panels/network/net-device-ethernet.c
-index afb5443..5fce464 100644
+index afb5443..64c661c 100644
 --- a/panels/network/net-device-ethernet.c
 +++ b/panels/network/net-device-ethernet.c
 @@ -1,6 +1,7 @@
  /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
   *
   * Copyright (C) 2011-2012 Richard Hughes <richard@hughsie.com>
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * Licensed under the GNU General Public License Version 2
   *
@@ -1708,14 +1716,14 @@ index afb5443..5fce464 100644
          g_signal_connect (device, "notify::title", G_CALLBACK (device_title_changed), NULL);
  }
 diff --git a/panels/network/net-device-ethernet.h b/panels/network/net-device-ethernet.h
-index 0d92fd1..bea685c 100644
+index 0d92fd1..86d8fe4 100644
 --- a/panels/network/net-device-ethernet.h
 +++ b/panels/network/net-device-ethernet.h
 @@ -1,6 +1,7 @@
  /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
   *
   * Copyright (C) 2012 Red Hat, Inc.
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * Licensed under the GNU General Public License Version 2
   *
@@ -1728,10 +1736,18 @@ index 0d92fd1..bea685c 100644
          GHashTable *connections;
  };
 diff --git a/panels/power/cc-power-panel.c b/panels/power/cc-power-panel.c
-index ecf046b..67ceed5 100644
+index ecf046b..e0aecf5 100644
 --- a/panels/power/cc-power-panel.c
 +++ b/panels/power/cc-power-panel.c
-@@ -1823,14 +1823,26 @@ add_power_saving_section (CcPowerPanel *self)
+@@ -3,6 +3,7 @@
+  * Copyright (C) 2010 Red Hat, Inc
+  * Copyright (C) 2008 William Jon McCann <jmccann@redhat.com>
+  * Copyright (C) 2010,2015 Richard Hughes <richard@hughsie.com>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -1823,14 +1824,26 @@ add_power_saving_section (CcPowerPanel *self)
    box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 50);
    gtk_container_add (GTK_CONTAINER (row), box);
  
@@ -1763,7 +1779,7 @@ index ecf046b..67ceed5 100644
  
    sw = gtk_switch_new ();
    g_settings_bind (self->gsd_settings, "idle-dim",
-@@ -1843,6 +1855,8 @@ add_power_saving_section (CcPowerPanel *self)
+@@ -1843,6 +1856,8 @@ add_power_saving_section (CcPowerPanel *self)
    gtk_label_set_mnemonic_widget (GTK_LABEL (label), sw);
    gtk_container_add (GTK_CONTAINER (widget), row);
    gtk_size_group_add_widget (self->row_sizegroup, row);
@@ -1773,13 +1789,13 @@ index ecf046b..67ceed5 100644
    row = no_prelight_row_new ();
    box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 50);
 diff --git a/panels/printers/cc-printers-panel.c b/panels/printers/cc-printers-panel.c
-index f05a3ec..36874d9 100644
+index f05a3ec..66fd400 100644
 --- a/panels/printers/cc-printers-panel.c
 +++ b/panels/printers/cc-printers-panel.c
 @@ -1,5 +1,6 @@
  /*
   * Copyright (C) 2010 Red Hat, Inc
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -1919,13 +1935,13 @@ index 2894b7e..4051776 100644
          <property name="name">_lock</property>
 diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
 new file mode 100644
-index 0000000..da56d77
+index 0000000..e0b6c7f
 --- /dev/null
 +++ b/panels/themes/cc-themes-panel.c
 @@ -0,0 +1,487 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -2412,13 +2428,13 @@ index 0000000..da56d77
 +}
 diff --git a/panels/themes/cc-themes-panel.h b/panels/themes/cc-themes-panel.h
 new file mode 100644
-index 0000000..18537d7
+index 0000000..1a28cb9
 --- /dev/null
 +++ b/panels/themes/cc-themes-panel.h
 @@ -0,0 +1,32 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -2753,10 +2769,18 @@ index 226353c..68d340a 100644
                    </object>
                  </child>
 diff --git a/panels/universal-access/cc-ua-panel.c b/panels/universal-access/cc-ua-panel.c
-index ee4665d..60bbeb1 100644
+index ee4665d..63c4cae 100644
 --- a/panels/universal-access/cc-ua-panel.c
 +++ b/panels/universal-access/cc-ua-panel.c
-@@ -31,7 +31,7 @@
+@@ -2,6 +2,7 @@
+  *
+  * Copyright (C) 2010 Intel, Inc
+  * Copyright (C) 2008 William Jon McCann <jmccann@redhat.com>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -31,7 +32,7 @@
  #include "cc-ua-panel.h"
  #include "cc-ua-resources.h"
  
@@ -2765,7 +2789,7 @@ index ee4665d..60bbeb1 100644
  
  #define DPI_FACTOR_LARGE 1.25
  #define DPI_FACTOR_NORMAL 1.0
-@@ -128,15 +128,15 @@ struct _CcUaPanel
+@@ -128,15 +129,15 @@ struct _CcUaPanel
    GtkWidget *repeat_keys_switch;
    GtkWidget *row_accessx;
    GtkWidget *row_click_assist;
@@ -2784,7 +2808,7 @@ index ee4665d..60bbeb1 100644
    GtkWidget *screen_reader_dialog;
    GtkWidget *screen_reader_switch;
    GtkWidget *section_status;
-@@ -166,11 +166,11 @@ struct _CcUaPanel
+@@ -166,11 +167,11 @@ struct _CcUaPanel
    GtkWidget *value_highcontrast;
    GtkWidget *value_large_text;
    GtkWidget *value_repeat_keys;
@@ -2798,7 +2822,7 @@ index ee4665d..60bbeb1 100644
    GtkWidget *visual_alerts_dialog;
    GtkWidget *visual_alerts_screen_radio;
    GtkWidget *visual_alerts_switch;
-@@ -186,7 +186,7 @@ struct _CcUaPanel
+@@ -186,7 +187,7 @@ struct _CcUaPanel
    GSettings *application_settings;
    GSettings *gsd_mouse_settings;
  
@@ -2807,7 +2831,7 @@ index ee4665d..60bbeb1 100644
  
    GtkAdjustment *focus_adjustment;
  
-@@ -215,7 +215,7 @@ cc_ua_panel_dispose (GObject *object)
+@@ -215,7 +216,7 @@ cc_ua_panel_dispose (GObject *object)
    g_clear_object (&self->application_settings);
    g_clear_object (&self->gsd_mouse_settings);
  
@@ -2816,7 +2840,7 @@ index ee4665d..60bbeb1 100644
  
    g_clear_pointer (&self->sections, g_list_free);
    g_clear_pointer (&self->sections_reverse, g_list_free);
-@@ -247,7 +247,7 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
+@@ -247,7 +248,7 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, cursor_blinking_switch);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, cursor_size_dialog);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, cursor_size_grid);
@@ -2825,7 +2849,7 @@ index ee4665d..60bbeb1 100644
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_pointing);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_seeing);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, list_typing);
-@@ -269,17 +269,16 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
+@@ -269,17 +270,16 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, repeat_keys_switch);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_accessx);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, row_click_assist);
@@ -2848,7 +2872,7 @@ index ee4665d..60bbeb1 100644
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, section_status);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, sound_keys_dialog);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, sound_keys_switch);
-@@ -307,30 +306,29 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
+@@ -307,30 +307,29 @@ cc_ua_panel_class_init (CcUaPanelClass *klass)
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_highcontrast);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_large_text);
    gtk_widget_class_bind_template_child (widget_class, CcUaPanel, value_repeat_keys);
@@ -2894,7 +2918,7 @@ index ee4665d..60bbeb1 100644
  
  /* cursor size dialog */
  static void
-@@ -620,11 +618,11 @@ activate_row (CcUaPanel *self, GtkListBoxRow *row)
+@@ -620,11 +619,11 @@ activate_row (CcUaPanel *self, GtkListBoxRow *row)
            toggle_switch (self->value_large_text);
            return;
          }
@@ -2911,7 +2935,7 @@ index ee4665d..60bbeb1 100644
        if (!g_strcmp0 (widget_name, "row_mouse_keys"))
          {
            toggle_switch (self->mouse_keys_switch);
-@@ -633,12 +631,12 @@ activate_row (CcUaPanel *self, GtkListBoxRow *row)
+@@ -633,12 +632,12 @@ activate_row (CcUaPanel *self, GtkListBoxRow *row)
      }
  
    /* Check dialog to open */
@@ -2930,7 +2954,7 @@ index ee4665d..60bbeb1 100644
  
    dialog = (GtkWidget *)g_object_get_data (G_OBJECT (row), "dialog");
    if (dialog == NULL)
-@@ -695,29 +693,29 @@ cc_ua_panel_init_seeing (CcUaPanel *self)
+@@ -695,29 +694,29 @@ cc_ua_panel_init_seeing (CcUaPanel *self)
  
    /* zoom */
  
@@ -2975,7 +2999,7 @@ index ee4665d..60bbeb1 100644
    g_signal_connect (self->screen_reader_dialog, "delete-event",
                      G_CALLBACK (gtk_widget_hide_on_delete), NULL);
  
-@@ -844,15 +842,15 @@ on_repeat_keys_toggled (GSettings *settings, const gchar *key, CcUaPanel *self)
+@@ -844,15 +843,15 @@ on_repeat_keys_toggled (GSettings *settings, const gchar *key, CcUaPanel *self)
    gtk_widget_set_sensitive (self->repeat_keys_speed_grid, on);
  }
  
@@ -3000,7 +3024,7 @@ index ee4665d..60bbeb1 100644
  
  static void
  update_accessx_label (GSettings *settings, const gchar *key, CcUaPanel *self)
-@@ -882,9 +880,9 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
+@@ -882,9 +881,9 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
                              G_CALLBACK (activate_row), self);
  
    /* on-screen keyboard */
@@ -3013,7 +3037,7 @@ index ee4665d..60bbeb1 100644
  
    /* Repeat keys */
    g_signal_connect (self->kb_desktop_settings, "changed",
-@@ -911,12 +909,12 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
+@@ -911,12 +910,12 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
                     G_SETTINGS_BIND_DEFAULT);
  
    /* Cursor Blinking */
@@ -3029,7 +3053,7 @@ index ee4665d..60bbeb1 100644
  
    g_signal_connect (self->cursor_blinking_dialog, "delete-event",
                      G_CALLBACK (gtk_widget_hide_on_delete), NULL);
-@@ -925,7 +923,7 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
+@@ -925,7 +924,7 @@ cc_ua_panel_init_keyboard (CcUaPanel *self)
    g_settings_bind (self->interface_settings, KEY_CURSOR_BLINKING,
                     sw, "active",
                     G_SETTINGS_BIND_DEFAULT);
@@ -3038,7 +3062,7 @@ index ee4665d..60bbeb1 100644
  
    g_settings_bind (self->interface_settings, KEY_CURSOR_BLINKING_TIME,
                     gtk_range_get_adjustment (GTK_RANGE (self->cursor_blinking_scale)), "value",
-@@ -1120,7 +1118,7 @@ cc_ua_panel_init (CcUaPanel *self)
+@@ -1120,7 +1119,7 @@ cc_ua_panel_init (CcUaPanel *self)
  
    cc_ua_panel_init_status (self);
    cc_ua_panel_init_seeing (self);
@@ -3163,10 +3187,18 @@ index f417e9e..046eb9c 100644
    <object class="GtkAdjustment" id="typing_bouncekeys_delay_adjustment">
      <property name="upper">900</property>
 diff --git a/panels/user-accounts/pw-utils.c b/panels/user-accounts/pw-utils.c
-index 8b2c39f..5425791 100644
+index 8b2c39f..510fd36 100644
 --- a/panels/user-accounts/pw-utils.c
 +++ b/panels/user-accounts/pw-utils.c
-@@ -94,7 +94,8 @@ pw_error_hint (gint error)
+@@ -1,6 +1,7 @@
+ /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
+  *
+  * Copyright 2012  Red Hat, Inc,
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.k>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -94,7 +95,8 @@ pw_error_hint (gint error)
          case PWQ_ERROR_CRACKLIB_CHECK:
                  return C_("Password hint", "Try to avoid common words.");
          case PWQ_ERROR_PALINDROME:
@@ -3177,10 +3209,18 @@ index 8b2c39f..5425791 100644
                  return C_("Password hint", "Try to use more numbers.");
          case PWQ_ERROR_MIN_UPPERS:
 diff --git a/panels/user-accounts/um-user-panel.c b/panels/user-accounts/um-user-panel.c
-index eaa77bd..0546f5f 100644
+index eaa77bd..10bb86c 100644
 --- a/panels/user-accounts/um-user-panel.c
 +++ b/panels/user-accounts/um-user-panel.c
-@@ -966,6 +966,19 @@ restart_now (CcUserPanel *self)
+@@ -1,6 +1,7 @@
+ /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
+  *
+  * Copyright 2009-2010  Red Hat, Inc,
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -966,6 +967,19 @@ restart_now (CcUserPanel *self)
          g_object_unref (bus);
  }
  
@@ -3200,7 +3240,7 @@ index eaa77bd..0546f5f 100644
  static void
  show_restart_notification (CcUserPanel *self, const gchar *locale)
  {
-@@ -976,7 +989,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
+@@ -976,7 +990,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
                  setlocale (LC_MESSAGES, locale);
          }
  
@@ -3222,13 +3262,13 @@ index eaa77bd..0546f5f 100644
          if (locale) {
                  setlocale (LC_MESSAGES, current_locale);
 diff --git a/panels/wacom/cc-wacom-panel.c b/panels/wacom/cc-wacom-panel.c
-index 0cb2f42..4db5823 100644
+index 0cb2f42..896032a 100644
 --- a/panels/wacom/cc-wacom-panel.c
 +++ b/panels/wacom/cc-wacom-panel.c
 @@ -1,5 +1,6 @@
  /*
   * Copyright © 2011 Red Hat, Inc.
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -3259,13 +3299,13 @@ index 43c542b..ce2d45a 100644
  panels/info/cc-info-removable-media-panel.c
  panels/info/gnome-default-apps-panel.desktop.in.in
 diff --git a/po/en.po b/po/en.po
-index b5bf16d..6b5b421 100644
+index b5bf16d..bec80d9 100644
 --- a/po/en.po
 +++ b/po/en.po
 @@ -1,5 +1,6 @@
  # SOME DESCRIPTIVE TITLE.
  # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-+# Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++# Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
  # This file is distributed under the same license as the PACKAGE package.
  # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
  #
@@ -3388,14 +3428,14 @@ index b5bf16d..6b5b421 100644
 +msgid "Screen dims when the computer operates on battery power."
 +msgstr ""
 diff --git a/po/en_GB.po b/po/en_GB.po
-index 200d00a..0f7c175 100644
+index 200d00a..f3b5bf8 100644
 --- a/po/en_GB.po
 +++ b/po/en_GB.po
 @@ -5,6 +5,7 @@
  # Philip Withnall <philip@tecnocode.co.uk>, 2010, 2013.
  # Chris Leonard <cjl@laptop.org>, 2012.
  # Bruce Cowan <bruce@bcowan.eu>, 2009, 2010, 2011, 2012, 2013, 2016, 2017, 2018.
-+# Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++# Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
  #
  msgid ""
  msgstr ""
@@ -3542,14 +3582,14 @@ index 200d00a..0f7c175 100644
 +msgid "Do not enter the same words consecutively."
 +msgstr ""
 diff --git a/po/ko.po b/po/ko.po
-index a891961..84fe43f 100644
+index a891961..b4564c9 100644
 --- a/po/ko.po
 +++ b/po/ko.po
 @@ -4,6 +4,7 @@
  # Young-Ho Cha <ganadist@chollian.net>, 2002, 2006.
  # Seong-ho Cho <darkcircle.0426@gmail.com>, 2011, 2012.
  # Changwoo Ryu <cwryu@debian.org>, 2002-2018.
-+# Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++# Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
  #
  #
  # - 주의: 여러가지 분야의 어려운 용어가 많습니다. 충분히 시간을 두고 실제 의미가
@@ -3700,13 +3740,13 @@ index a891961..84fe43f 100644
 +msgid "Screen dims when the computer operates on battery power."
 +msgstr "컴퓨터가 배터리 전원으로 동작하면 화면이 어두워 집니다."
 diff --git a/shell/cc-application.c b/shell/cc-application.c
-index 8ffb2bd..f61e6ad 100644
+index 8ffb2bd..fb15a64 100644
 --- a/shell/cc-application.c
 +++ b/shell/cc-application.c
 @@ -1,5 +1,6 @@
  /*
   * Copyright © 2013 Red Hat, Inc.
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * This program is free software; you can redistribute it and/or
   * modify it under the terms of the GNU General Public License
@@ -3755,14 +3795,14 @@ index 8ffb2bd..f61e6ad 100644
    self->model = cc_shell_model_new ();
    self->window = cc_window_new (GTK_APPLICATION (application), self->model);
 diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
-index 39a46b4..995743b 100644
+index 39a46b4..d625cec 100644
 --- a/shell/cc-panel-list.c
 +++ b/shell/cc-panel-list.c
 @@ -1,6 +1,7 @@
  /* cc-panel-list.c
   *
   * Copyright (C) 2016 Endless, Inc
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * This program is free software: you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -3821,14 +3861,14 @@ index 39a46b4..995743b 100644
     * Since we're not sure that the activated row is in the
     * current view, set the view here.
 diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
-index 6b5c6e3..2d28296 100644
+index 6b5c6e3..426af1c 100644
 --- a/shell/cc-panel-loader.c
 +++ b/shell/cc-panel-loader.c
 @@ -1,6 +1,7 @@
  /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
  /*
   * Copyright (c) 2012 Giovanni Campagna <scampa.giovanni@gmail.com>
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * The Control Center is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by the
@@ -3926,14 +3966,14 @@ index 6b5c6e3..2d28296 100644
  
  #ifndef CC_PANEL_LOADER_NO_GTYPES
 diff --git a/shell/cc-shell-model.c b/shell/cc-shell-model.c
-index a84de3e..5862020 100644
+index a84de3e..1826db1 100644
 --- a/shell/cc-shell-model.c
 +++ b/shell/cc-shell-model.c
 @@ -1,6 +1,7 @@
  /*
   * Copyright (c) 2009, 2010 Intel, Inc.
   * Copyright (c) 2010 Red Hat, Inc.
-+ * Copyright (C) 2015-2019 Gooroom <gooroom@gooroom.kr>
++ * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
   *
   * The Control Center is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by the
