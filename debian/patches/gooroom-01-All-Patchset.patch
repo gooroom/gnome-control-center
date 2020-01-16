@@ -1,3 +1,25 @@
+diff --git a/panels/color/color.ui b/panels/color/color.ui
+index 5798d7c..f7cce5d 100644
+--- a/panels/color/color.ui
++++ b/panels/color/color.ui
+@@ -828,7 +828,7 @@
+                         <property name="position">1</property>
+                       </packing>
+                     </child>
+-                    <child>
++                    <!--<child>
+                       <object class="GtkLinkButton" id="linkbutton_help">
+                         <property name="label" translatable="yes">Learn more</property>
+                         <property name="visible">True</property>
+@@ -848,7 +848,7 @@
+                         <property name="fill">True</property>
+                         <property name="position">2</property>
+                       </packing>
+-                    </child>
++                    </child>-->
+                   </object>
+                   <packing>
+                     <property name="expand">False</property>
 diff --git a/panels/datetime/cc-datetime-panel.c b/panels/datetime/cc-datetime-panel.c
 index 880490a..51d5fc8 100644
 --- a/panels/datetime/cc-datetime-panel.c
