@@ -87,6 +87,105 @@ index f4716f7..1184021 100644
        gtk_button_set_label (GTK_BUTTON (button), cc_display_monitor_get_ui_name (output));
        gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
  
+diff --git a/panels/display/cc-night-light-dialog.c b/panels/display/cc-night-light-dialog.c
+index 834dced..3a43593 100644
+--- a/panels/display/cc-night-light-dialog.c
++++ b/panels/display/cc-night-light-dialog.c
+@@ -42,8 +42,8 @@ struct _CcNightLightDialog {
+   GtkStack            *stack_from;
+   GtkStack            *stack_to;
+   GtkWidget           *switch_enable;
+-  GtkWidget           *togglebutton_automatic;
+-  GtkWidget           *togglebutton_manual;
++  //GtkWidget           *togglebutton_automatic;
++  //GtkWidget           *togglebutton_manual;
+ 
+   GtkAdjustment       *adjustment_from_hours;
+   GtkAdjustment       *adjustment_from_minutes;
+@@ -145,12 +145,12 @@ dialog_update_state (CcNightLightDialog *self)
+   automatic = g_settings_get_boolean (self->settings_display, "night-light-schedule-automatic");
+ 
+   gtk_widget_set_sensitive (self->night_light_widget, enabled);
+-  gtk_widget_set_sensitive (self->togglebutton_automatic, enabled);
+-  gtk_widget_set_sensitive (self->togglebutton_manual, enabled);
++  //gtk_widget_set_sensitive (self->togglebutton_automatic, enabled);
++  //gtk_widget_set_sensitive (self->togglebutton_manual, enabled);
+ 
+   self->ignore_value_changed = TRUE;
+-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self->togglebutton_automatic), automatic);
+-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self->togglebutton_manual), !automatic);
++  //gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self->togglebutton_automatic), automatic);
++  //gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self->togglebutton_manual), !automatic);
+   self->ignore_value_changed = FALSE;
+ 
+   gtk_widget_set_sensitive (self->box_manual, enabled && !automatic);
+@@ -563,8 +563,8 @@ cc_night_light_dialog_class_init (CcNightLightDialogClass *klass)
+   gtk_widget_class_bind_template_child (widget_class, CcNightLightDialog, stack_from);
+   gtk_widget_class_bind_template_child (widget_class, CcNightLightDialog, stack_to);
+   gtk_widget_class_bind_template_child (widget_class, CcNightLightDialog, switch_enable);
+-  gtk_widget_class_bind_template_child (widget_class, CcNightLightDialog, togglebutton_automatic);
+-  gtk_widget_class_bind_template_child (widget_class, CcNightLightDialog, togglebutton_manual);
++  //gtk_widget_class_bind_template_child (widget_class, CcNightLightDialog, togglebutton_automatic);
++  //gtk_widget_class_bind_template_child (widget_class, CcNightLightDialog, togglebutton_manual);
+ 
+   gtk_widget_class_bind_template_callback (widget_class, dialog_am_pm_from_button_clicked_cb);
+   gtk_widget_class_bind_template_callback (widget_class, dialog_am_pm_to_button_clicked_cb);
+diff --git a/panels/display/cc-night-light-dialog.ui b/panels/display/cc-night-light-dialog.ui
+index 5ec19dd..f390bbe 100644
+--- a/panels/display/cc-night-light-dialog.ui
++++ b/panels/display/cc-night-light-dialog.ui
+@@ -124,7 +124,7 @@
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
+                         <property name="halign">start</property>
+-                        <property name="hexpand">True</property>
++                        <property name="hexpand">False</property>
+                         <property name="label" translatable="yes">Night Light</property>
+                         <attributes>
+                           <attribute name="weight" value="bold"/>
+@@ -135,7 +135,7 @@
+                         <property name="top_attach">0</property>
+                       </packing>
+                     </child>
+-                    <child>
++                    <!--<child>
+                       <object class="GtkLabel">
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
+@@ -150,7 +150,7 @@
+                         <property name="left_attach">0</property>
+                         <property name="top_attach">1</property>
+                       </packing>
+-                    </child>
++                    </child>-->
+                     <child>
+                       <object class="GtkSwitch" id="switch_enable">
+                         <property name="visible">True</property>
+@@ -163,7 +163,7 @@
+                         <property name="top_attach">0</property>
+                       </packing>
+                     </child>
+-                    <child>
++                    <!--<child>
+                       <object class="GtkButtonBox">
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
+@@ -205,7 +205,7 @@
+                         <property name="left_attach">1</property>
+                         <property name="top_attach">1</property>
+                       </packing>
+-                    </child>
++                    </child>-->
+                   </object>
+                 </child>
+                 <child>
+@@ -492,4 +492,4 @@
+     <property name="page_increment">10</property>
+     <signal name="value-changed" handler="dialog_time_to_value_changed_cb" object="CcNightLightDialog" swapped="no" />
+   </object>
+-</interface>
+\ No newline at end of file
++</interface>
 diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
 new file mode 100644
 index 0000000..1d293ae
