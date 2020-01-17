@@ -188,10 +188,10 @@ index 5ec19dd..f390bbe 100644
 +</interface>
 diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
 new file mode 100644
-index 0000000..1d293ae
+index 0000000..dc61abe
 --- /dev/null
 +++ b/panels/font/cc-font-panel.c
-@@ -0,0 +1,430 @@
+@@ -0,0 +1,421 @@
 +/*
 + * Copyright (C) 2010 Intel, Inc
 + * Copyright (C) 2019 gooroom <gooroom@gooroom.kr>
@@ -266,8 +266,9 @@ index 0000000..1d293ae
 +
 +  GtkWidget         *hinting_cb;
 +  GtkWidget         *antialias_cb;
-+//  GtkWidget         *scale_spin;
-+  GtkWidget         *scale_adjustment;
++
++  // remove feature. by ryong
++  //GtkWidget         *scale_adjustment;
 +
 +  GtkWidget         *font_list;
 +  GtkWidget         *render_list;
@@ -437,15 +438,6 @@ index 0000000..1d293ae
 +  g_settings_set_enum (panel->gsd_settings, "antialiasing", value);
 +}
 +
-+//static void
-+//changed_scale_spin (GtkWidget *widget, CcFontPanel *panel)
-+//{
-+//  gdouble value;
-+//  value = gtk_spin_button_get_value (GTK_SPIN_BUTTON (panel->scale_spin));
-+//
-+//  g_settings_set_double (panel->interface_settings, "text-scaling-factor", value);
-+//}
-+
 +static void
 +cc_font_panel_class_init (CcFontPanelClass *klass)
 +{
@@ -580,12 +572,11 @@ index 0000000..1d293ae
 +
 +  panel->hinting_cb = WID ("hint-combobox");
 +  panel->antialias_cb = WID ("antialiasing-combobox");
-+//  panel->scale_spin = WID ("scale-spin");
 +  panel->font_list = WID ("font-listbox");
 +  panel->render_list = WID ("render-listbox");
 +
-+  panel->scale_adjustment = gtk_adjustment_new (1, 0.5, 3, 0.01, 0, 0);
-+//  gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (panel->scale_spin), panel->scale_adjustment);
++  // remove feature. by ryong
++  //panel->scale_adjustment = gtk_adjustment_new (1, 0.5, 3, 0.01, 0, 0);
 +
 +  // set header separator on listbox row
 +  gtk_list_box_set_header_func (panel->font_list, call_list_box_separator, NULL, NULL);
@@ -603,7 +594,9 @@ index 0000000..1d293ae
 +
 +  // initialize gsd combo box
 +  init_gsd_combo_box_model (panel);
-+  init_scale_buttons (panel);
++
++  // remove feature. by ryong
++  //init_scale_buttons (panel);
 +
 +  button_val = g_settings_get_enum (panel->gsd_settings, "hinting");
 +  set_value_for_combo (GTK_COMBO_BOX (panel->hinting_cb), button_val);
@@ -615,8 +608,6 @@ index 0000000..1d293ae
 +                    G_CALLBACK (changed_hinting_cb), panel);
 +  g_signal_connect (panel->antialias_cb, "changed",
 +                    G_CALLBACK (changed_antialias_cb), panel);
-+//  g_signal_connect (panel->scale_spin, "value-changed",
-+//                    G_CALLBACK (changed_scale_spin), panel);
 +
 +  w = WID ("font-main-scrolled-window");
 +  gtk_container_add (GTK_CONTAINER (panel), w);
@@ -676,7 +667,7 @@ index 0000000..90315d6
 +
 diff --git a/panels/font/font.ui b/panels/font/font.ui
 new file mode 100644
-index 0000000..992b191
+index 0000000..169c75d
 --- /dev/null
 +++ b/panels/font/font.ui
 @@ -0,0 +1,511 @@
@@ -1111,7 +1102,7 @@ index 0000000..992b191
 +                            </child>
 +                          </object>
 +                        </child>
-+                        <child>
++                        <!--<child>
 +                          <object class="GtkListBoxRow" id="scale-listboxrow">
 +                            <property name="height_request">32</property>
 +                            <property name="visible">True</property>
@@ -1165,7 +1156,7 @@ index 0000000..992b191
 +                              </object>
 +                            </child>
 +                          </object>
-+                        </child>
++                        </child>-->
 +                      </object>
 +                    </child>
 +                  </object>
