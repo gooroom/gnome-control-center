@@ -1,3 +1,72 @@
+From b1317ef549c76c0bd2eb6cc362ec39e0789d03eb Mon Sep 17 00:00:00 2001
+From: donghun <donghun@gooroom.kr>
+Date: Wed, 29 Jan 2020 18:47:08 +0900
+Subject: [PATCH] gooroom
+
+Change-Id: I49b9e0c431ee3c334bdffd99593eabd284ba5246
+---
+ panels/color/color.ui                         |   4 +-
+ panels/datetime/cc-datetime-panel.c           |   6 +-
+ panels/datetime/datetime.ui                   |   4 +-
+ panels/display/cc-display-panel.c             |   3 +
+ panels/display/cc-night-light-dialog.c        |  16 +-
+ panels/display/cc-night-light-dialog.ui       |  12 +-
+ panels/font/cc-font-panel.c                   | 421 ++++++++
+ panels/font/cc-font-panel.h                   |  32 +
+ panels/font/font.gresource.xml                |   8 +
+ panels/font/font.ui                           | 511 ++++++++++
+ panels/font/gnome-font-panel.desktop.in.in    |  14 +
+ panels/font/meson.build                       |  57 ++
+ panels/info/cc-info-overview-panel.c          |   8 +-
+ panels/info/cc-info-overview-panel.c.orig     | 942 ++++++++++++++++++
+ panels/info/info-overview.ui                  |  32 -
+ panels/meson.build                            |   6 +-
+ panels/network/cc-wifi-panel.c                |   3 +-
+ .../connection-editor/ce-page-ethernet.c      |   7 +-
+ .../connection-editor/ethernet-page.ui        | 173 ++--
+ panels/network/net-device-ethernet.c          |  62 +-
+ panels/network/net-device-ethernet.h          |   2 +
+ panels/power/cc-power-panel.c                 |  25 +-
+ panels/printers/cc-printers-panel.c           |  56 +-
+ panels/printers/printers.ui                   |   5 +
+ panels/privacy/privacy.ui                     |   4 -
+ panels/themes/cc-themes-panel.c               | 487 +++++++++
+ panels/themes/cc-themes-panel.h               |  32 +
+ .../themes/gnome-themes-panel.desktop.in.in   |  14 +
+ panels/themes/meson.build                     |  52 +
+ panels/themes/themes.gresource.xml            |   7 +
+ panels/themes/themes.ui                       | 180 ++++
+ panels/thunderbolt/cc-bolt-panel.ui           |  16 +
+ panels/universal-access/cc-ua-panel.c         | 147 ++-
+ panels/universal-access/uap.ui                |  32 +-
+ panels/user-accounts/meson.build              |   3 +-
+ panels/user-accounts/pw-utils.c               |   4 +-
+ panels/user-accounts/um-user-panel.c          |  56 +-
+ panels/wacom/cc-wacom-panel.c                 |   3 +-
+ po/POTFILES.in                                |   6 +
+ po/en.po                                      | 115 +++
+ po/en_GB.po                                   | 125 ++-
+ po/ko.po                                      | 143 +++
+ shell/cc-application.c                        |  27 +-
+ shell/cc-panel-list.c                         |  27 +
+ shell/cc-panel-loader.c                       |  37 +-
+ shell/cc-shell-model.c                        |  33 +-
+ shell/org.gnome.ControlCenter.gschema.xml     |   5 +
+ 47 files changed, 3668 insertions(+), 296 deletions(-)
+ create mode 100644 panels/font/cc-font-panel.c
+ create mode 100644 panels/font/cc-font-panel.h
+ create mode 100644 panels/font/font.gresource.xml
+ create mode 100644 panels/font/font.ui
+ create mode 100644 panels/font/gnome-font-panel.desktop.in.in
+ create mode 100644 panels/font/meson.build
+ create mode 100644 panels/info/cc-info-overview-panel.c.orig
+ create mode 100644 panels/themes/cc-themes-panel.c
+ create mode 100644 panels/themes/cc-themes-panel.h
+ create mode 100644 panels/themes/gnome-themes-panel.desktop.in.in
+ create mode 100644 panels/themes/meson.build
+ create mode 100644 panels/themes/themes.gresource.xml
+ create mode 100644 panels/themes/themes.ui
+
 diff --git a/panels/color/color.ui b/panels/color/color.ui
 index 5798d7c..f7cce5d 100644
 --- a/panels/color/color.ui
@@ -4278,6 +4347,20 @@ index f417e9e..046eb9c 100644
    </object>
    <object class="GtkAdjustment" id="typing_bouncekeys_delay_adjustment">
      <property name="upper">900</property>
+diff --git a/panels/user-accounts/meson.build b/panels/user-accounts/meson.build
+index 0b0a4fe..7b750df 100644
+--- a/panels/user-accounts/meson.build
++++ b/panels/user-accounts/meson.build
+@@ -178,7 +178,8 @@ endif
+ cflags += [
+   '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir),
+   '-DHAVE_LIBPWQUALITY',
+-  '-DUM_PIXMAP_DIR="@0@"'.format(join_paths(control_center_pkgdatadir, 'pixmaps'))
++  '-DUM_PIXMAP_DIR="@0@"'.format(join_paths(control_center_pkgdatadir, 'pixmaps')),
++  '-DECRYPTFS_DIR="/home/.ecryptfs"'
+ ]
+ 
+ panels_libs += static_library(
 diff --git a/panels/user-accounts/pw-utils.c b/panels/user-accounts/pw-utils.c
 index 8b2c39f..510fd36 100644
 --- a/panels/user-accounts/pw-utils.c
@@ -4301,7 +4384,7 @@ index 8b2c39f..510fd36 100644
                  return C_("Password hint", "Try to use more numbers.");
          case PWQ_ERROR_MIN_UPPERS:
 diff --git a/panels/user-accounts/um-user-panel.c b/panels/user-accounts/um-user-panel.c
-index eaa77bd..10bb86c 100644
+index eaa77bd..47785a0 100644
 --- a/panels/user-accounts/um-user-panel.c
 +++ b/panels/user-accounts/um-user-panel.c
 @@ -1,6 +1,7 @@
@@ -4312,7 +4395,49 @@ index eaa77bd..10bb86c 100644
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
-@@ -966,6 +967,19 @@ restart_now (CcUserPanel *self)
+@@ -789,6 +790,28 @@ get_autologin_possible (ActUser *user)
+         return !(locked || set_password_at_login);
+ }
+ 
++static gboolean
++is_ecryptfs_user (const gchar *user)
++{
++    const gchar *fn;
++    g_autoptr (GDir) dir = NULL;
++    g_autofree gchar *path = NULL;
++
++    path = g_strdup (ECRYPTFS_DIR);
++    dir = g_dir_open (path, 0, NULL);
++
++    if (dir == NULL)
++        return FALSE;
++
++    while ((fn = g_dir_read_name (dir)) != NULL)
++    {
++        if (g_strcmp0 (fn, user) == 0)
++            return TRUE;
++    }
++
++    return FALSE;
++}
++
+ static void on_permission_changed (GPermission *permission, GParamSpec *pspec, gpointer data);
+ 
+ static void
+@@ -862,9 +885,9 @@ show_user (ActUser *user, CcUserPanel *self)
+         /* Autologin: show when local account */
+         widget = get_widget (self, "autologin-box");
+         label = get_widget (self, "autologin-label");
+-        show = act_user_is_local_account (user);
+-        gtk_widget_set_visible (widget, show);
+-        gtk_widget_set_visible (label, show);
++        show = is_ecryptfs_user (act_user_get_user_name (user));//act_user_is_local_account (user);
++        gtk_widget_set_visible (widget, !show);
++        gtk_widget_set_visible (label, !show);
+ 
+         /* Language: do not show for current user */
+         widget = get_widget (self, "account-language-button");
+@@ -966,6 +989,19 @@ restart_now (CcUserPanel *self)
          g_object_unref (bus);
  }
  
@@ -4332,7 +4457,7 @@ index eaa77bd..10bb86c 100644
  static void
  show_restart_notification (CcUserPanel *self, const gchar *locale)
  {
-@@ -976,7 +990,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
+@@ -976,7 +1012,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
                  setlocale (LC_MESSAGES, locale);
          }
  
@@ -5130,3 +5255,6 @@ index 40350bc..8651b38 100644
 +    </key>
    </schema>
  </schemalist>
+-- 
+2.20.1
+
