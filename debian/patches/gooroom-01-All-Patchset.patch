@@ -1,9 +1,9 @@
-From b1317ef549c76c0bd2eb6cc362ec39e0789d03eb Mon Sep 17 00:00:00 2001
-From: donghun <donghun@gooroom.kr>
-Date: Wed, 29 Jan 2020 18:47:08 +0900
-Subject: [PATCH] gooroom
+From 85c43d60908d9b9721a8de2d3aaf48c09dfb00f9 Mon Sep 17 00:00:00 2001
+From: HaeRyong Jeong <jeong89@gooroom.kr>
+Date: Tue, 4 Feb 2020 15:23:56 +0900
+Subject: [PATCH] [Bug:1930] Fixed popup message when user permissions changed.
 
-Change-Id: I49b9e0c431ee3c334bdffd99593eabd284ba5246
+Change-Id: I771e81cf7b383d3376501a43808ec30b48536687
 ---
  panels/color/color.ui                         |   4 +-
  panels/datetime/cc-datetime-panel.c           |   6 +-
@@ -41,18 +41,18 @@ Change-Id: I49b9e0c431ee3c334bdffd99593eabd284ba5246
  panels/universal-access/uap.ui                |  32 +-
  panels/user-accounts/meson.build              |   3 +-
  panels/user-accounts/pw-utils.c               |   4 +-
- panels/user-accounts/um-user-panel.c          |  56 +-
+ panels/user-accounts/um-user-panel.c          |  28 +-
  panels/wacom/cc-wacom-panel.c                 |   3 +-
  po/POTFILES.in                                |   6 +
- po/en.po                                      | 115 +++
- po/en_GB.po                                   | 125 ++-
- po/ko.po                                      | 143 +++
+ po/en.po                                      | 133 +++
+ po/en_GB.po                                   | 144 ++-
+ po/ko.po                                      | 161 +++
  shell/cc-application.c                        |  27 +-
  shell/cc-panel-list.c                         |  27 +
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 47 files changed, 3668 insertions(+), 296 deletions(-)
+ 47 files changed, 3698 insertions(+), 293 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -4384,7 +4384,7 @@ index 8b2c39f..510fd36 100644
                  return C_("Password hint", "Try to use more numbers.");
          case PWQ_ERROR_MIN_UPPERS:
 diff --git a/panels/user-accounts/um-user-panel.c b/panels/user-accounts/um-user-panel.c
-index eaa77bd..47785a0 100644
+index eaa77bd..7d25221 100644
 --- a/panels/user-accounts/um-user-panel.c
 +++ b/panels/user-accounts/um-user-panel.c
 @@ -1,6 +1,7 @@
@@ -4395,49 +4395,7 @@ index eaa77bd..47785a0 100644
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
-@@ -789,6 +790,28 @@ get_autologin_possible (ActUser *user)
-         return !(locked || set_password_at_login);
- }
- 
-+static gboolean
-+is_ecryptfs_user (const gchar *user)
-+{
-+    const gchar *fn;
-+    g_autoptr (GDir) dir = NULL;
-+    g_autofree gchar *path = NULL;
-+
-+    path = g_strdup (ECRYPTFS_DIR);
-+    dir = g_dir_open (path, 0, NULL);
-+
-+    if (dir == NULL)
-+        return FALSE;
-+
-+    while ((fn = g_dir_read_name (dir)) != NULL)
-+    {
-+        if (g_strcmp0 (fn, user) == 0)
-+            return TRUE;
-+    }
-+
-+    return FALSE;
-+}
-+
- static void on_permission_changed (GPermission *permission, GParamSpec *pspec, gpointer data);
- 
- static void
-@@ -862,9 +885,9 @@ show_user (ActUser *user, CcUserPanel *self)
-         /* Autologin: show when local account */
-         widget = get_widget (self, "autologin-box");
-         label = get_widget (self, "autologin-label");
--        show = act_user_is_local_account (user);
--        gtk_widget_set_visible (widget, show);
--        gtk_widget_set_visible (label, show);
-+        show = is_ecryptfs_user (act_user_get_user_name (user));//act_user_is_local_account (user);
-+        gtk_widget_set_visible (widget, !show);
-+        gtk_widget_set_visible (label, !show);
- 
-         /* Language: do not show for current user */
-         widget = get_widget (self, "account-language-button");
-@@ -966,6 +989,19 @@ restart_now (CcUserPanel *self)
+@@ -966,6 +967,19 @@ restart_now (CcUserPanel *self)
          g_object_unref (bus);
  }
  
@@ -4457,7 +4415,7 @@ index eaa77bd..47785a0 100644
  static void
  show_restart_notification (CcUserPanel *self, const gchar *locale)
  {
-@@ -976,7 +1012,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
+@@ -976,7 +990,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
                  setlocale (LC_MESSAGES, locale);
          }
  
@@ -4467,7 +4425,7 @@ index eaa77bd..47785a0 100644
 +                                                            0,
 +                                                            GTK_MESSAGE_INFO,
 +                                                            GTK_BUTTONS_YES_NO,
-+                                                            _("Your session needs to be restarted for changes to take effect.\nDo you want restart?"));
++                                                            _("User infomations has changed.\nChanges take effect after your session needs to be restarted.\nDo you want restart?"));
 +
 +        g_signal_connect (restart_dialog,
 +                          "response",
@@ -4516,7 +4474,7 @@ index 43c542b..ce2d45a 100644
  panels/info/cc-info-removable-media-panel.c
  panels/info/gnome-default-apps-panel.desktop.in.in
 diff --git a/po/en.po b/po/en.po
-index b5bf16d..bec80d9 100644
+index b5bf16d..8a8f356 100644
 --- a/po/en.po
 +++ b/po/en.po
 @@ -1,5 +1,6 @@
@@ -4526,7 +4484,7 @@ index b5bf16d..bec80d9 100644
  # This file is distributed under the same license as the PACKAGE package.
  # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
  #
-@@ -3193,3 +3194,117 @@ msgstr ""
+@@ -3193,3 +3194,135 @@ msgstr ""
  #: ../shell/shell.ui.h:2
  msgid "_All Settings"
  msgstr ""
@@ -4644,8 +4602,26 @@ index b5bf16d..bec80d9 100644
 +#: ../panels/power/cc-power-panel.c:1842
 +msgid "Screen dims when the computer operates on battery power."
 +msgstr ""
++
++#: ../panels/printers/cc-printer-panel.c:1136
++msgid ""
++"Media control access not permission.\n"
++"To use, change access permission to \"allow\""
++msgstr "Media control access not permission."
++"To use, change access permission to \"allow\""
++
++#: ../panels/user-accounts/um-user-panel.c:997
++msgid ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++msgstr ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++
 diff --git a/po/en_GB.po b/po/en_GB.po
-index 200d00a..f3b5bf8 100644
+index 200d00a..941a474 100644
 --- a/po/en_GB.po
 +++ b/po/en_GB.po
 @@ -5,6 +5,7 @@
@@ -4736,7 +4712,7 @@ index 200d00a..f3b5bf8 100644
  #~ msgid "Description"
  #~ msgstr "Description"
  
-@@ -13309,3 +13370,61 @@ msgstr "System Sounds"
+@@ -13309,3 +13370,80 @@ msgstr "System Sounds"
  
  #~ msgid "The typing monitor is already running."
  #~ msgstr "The typing monitor is already running."
@@ -4798,8 +4774,27 @@ index 200d00a..f3b5bf8 100644
 +msgctxt "Password hint"
 +msgid "Do not enter the same words consecutively."
 +msgstr ""
++
++#: ../panels/printers/cc-printer-panel.c:1136
++msgid ""
++"Media control access not permission.\n"
++"To use, change access permission to \"allow\""
++msgstr ""
++"Media control access not permission."
++"To use, change access permission to \"allow\""
++
++#: ../panels/user-accounts/um-user-panel.c:997
++msgid ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++msgstr ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++
 diff --git a/po/ko.po b/po/ko.po
-index a891961..b4564c9 100644
+index a891961..0ff0d97 100644
 --- a/po/ko.po
 +++ b/po/ko.po
 @@ -4,6 +4,7 @@
@@ -4810,7 +4805,7 @@ index a891961..b4564c9 100644
  #
  #
  # - 주의: 여러가지 분야의 어려운 용어가 많습니다. 충분히 시간을 두고 실제 의미가
-@@ -7706,3 +7707,145 @@ msgstr[0] "%u개 입력"
+@@ -7706,3 +7707,163 @@ msgstr[0] "%u개 입력"
  #: subprojects/gvc/gvc-mixer-control.c:2738
  msgid "System Sounds"
  msgstr "시스템 사운드"
@@ -4934,7 +4929,7 @@ index a891961..b4564c9 100644
 +"대화창이 잠겼습니다.\n"
 +"바꾸려면 누르십시오"
 +
-+#: ../panels/user-accounts/um-user-panel.c:997
++#: ../panels/user-accounts/um-user-panel.c:998
 +msgid ""
 +"Your session needs to be restarted for changes to take effect.\n"
 +"Do you want restart?"
@@ -4947,7 +4942,6 @@ index a891961..b4564c9 100644
 +msgid "Apply network time when connecting to the Internet"
 +msgstr "인터넷 연결 시 네트워크 시간 적용"
 +
-+
 +#: panels/user-accounts/pw-utils.c:97
 +msgctxt "Password hint"
 +msgid "Do not enter the same words consecutively."
@@ -4956,6 +4950,25 @@ index a891961..b4564c9 100644
 +#: ../panels/power/cc-power-panel.c:1842
 +msgid "Screen dims when the computer operates on battery power."
 +msgstr "컴퓨터가 배터리 전원으로 동작하면 화면이 어두워 집니다."
++
++#: ../panels/printers/cc-printer-panel.c:1136
++msgid ""
++"Media control access not permission.\n"
++"To use, change access permission to \"allow\""
++msgstr ""
++"매체제어 접근 권한이 없습니다.\n"
++"사용하시려면 접근 권한을 \"allow\"로 변경하십시오."
++
++#: ../panels/user-accounts/um-user-panel.c:997
++msgid ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++msgstr ""
++"사용자 정보가 변경되었습니다.\n"
++"세션을 다시 시작해야 변경 사항이 적용됩니다.\n"
++"다시 시작하시겠습니까?"
++
 diff --git a/shell/cc-application.c b/shell/cc-application.c
 index 8ffb2bd..fb15a64 100644
 --- a/shell/cc-application.c
