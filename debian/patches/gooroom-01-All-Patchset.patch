@@ -1,4 +1,4 @@
-From ecddea074cafacf1695da5d13f5c2671530c5d74 Mon Sep 17 00:00:00 2001
+From 87c5925dd10624b58a993d1eb76d676908f68a9e Mon Sep 17 00:00:00 2001
 From: HaeRyong Jeong <jeong89@gooroom.kr>
 Date: Wed, 5 Feb 2020 19:13:18 +0900
 Subject: [PATCH] gooroom
@@ -29,7 +29,6 @@ Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
  panels/power/cc-power-panel.c                 |  25 +-
  panels/printers/cc-printers-panel.c           |  56 +-
  panels/printers/printers.ui                   |   5 +
- panels/privacy/privacy.ui                     |   4 -
  panels/search/cc-search-locations-dialog.c    |  50 +-
  panels/themes/cc-themes-panel.c               | 487 +++++++++
  panels/themes/cc-themes-panel.h               |  32 +
@@ -53,7 +52,7 @@ Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 48 files changed, 3717 insertions(+), 297 deletions(-)
+ 47 files changed, 3717 insertions(+), 293 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -3080,21 +3079,6 @@ index 2894b7e..4051776 100644
        </object>
        <packing>
          <property name="name">_lock</property>
-diff --git a/panels/privacy/privacy.ui b/panels/privacy/privacy.ui
-index c15b653..388fd00 100644
---- a/panels/privacy/privacy.ui
-+++ b/panels/privacy/privacy.ui
-@@ -52,10 +52,6 @@
-       <column type="guint"/>
-     </columns>
-     <data>
--      <row>
--        <col id="0" translatable="yes">1 hour</col>
--        <col id="1">0</col>
--      </row>
-       <row>
-         <col id="0" translatable="yes">1 day</col>
-         <col id="1">1</col>
 diff --git a/panels/search/cc-search-locations-dialog.c b/panels/search/cc-search-locations-dialog.c
 index 7afbe0e..75949e5 100644
 --- a/panels/search/cc-search-locations-dialog.c
