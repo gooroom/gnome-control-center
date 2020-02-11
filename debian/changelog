@@ -1,3 +1,24 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u3) gooroom-2.0; urgency=medium
+
+  [ HaeRyong Jeong ]
+  * [34ec2096] [Bug: 1486] Fixed Datetime disabled if that not permission
+  * [2d2d8bd9] [Bug: 1377] Added libraries in control.in
+  * [033ea5f7] [Bug: 1795] Removed guide (yelp) feature in color panel
+  * [31f7b026] [Bug: 1711] Removed sunset/sunrise feature of night shift
+  * [dcc49724] [Bug:1707] Removed Font scale feature
+  * [d9fdb547] [Bug: 1396] Removed only one hour from the trash auto empty feature
+  * [5f7c54db] [Bug:1930] Fixed popup message when user permissions changed.
+  * [bfe0915a] [Bug:1808] Removed ibus relatived to input source features in region panel
+  * [8a9f247f] [Bug:1905] Fixed authoer tab toggle feature in search panel
+  * [dcfb16f7] [Bug:1396] Fixed trash auto remove feature
+
+  [ donghun ]
+  * [44ffee7b] [Bug:1800] Removed local user auto login
+
+  [ Gooroom Autobuilder ]
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Tue, 11 Feb 2020 09:20:54 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u2) gooroom-2.0; urgency=medium
 
   [ HaeRyong Jeong ]
