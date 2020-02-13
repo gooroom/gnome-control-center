@@ -1,3 +1,12 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u4) gooroom-2.0; urgency=medium
+
+  [ HaeRyong Jeong ]
+  * [e7622943] Fixed it default option for picture background to scaled
+
+  [ Gooroom Autobuilder ]
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Thu, 13 Feb 2020 14:21:25 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u3) gooroom-2.0; urgency=medium
 
   [ HaeRyong Jeong ]
