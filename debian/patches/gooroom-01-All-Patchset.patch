@@ -1,10 +1,11 @@
-From 87c5925dd10624b58a993d1eb76d676908f68a9e Mon Sep 17 00:00:00 2001
+From 75b6cfdb4d2f0e86c81e7510a9bcaeac15fe4a66 Mon Sep 17 00:00:00 2001
 From: HaeRyong Jeong <jeong89@gooroom.kr>
 Date: Wed, 5 Feb 2020 19:13:18 +0900
 Subject: [PATCH] gooroom
 
 Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
 ---
+ panels/background/bg-pictures-source.c        |   2 +-
  panels/color/color.ui                         |   4 +-
  panels/datetime/cc-datetime-panel.c           |   6 +-
  panels/datetime/datetime.ui                   |   4 +-
@@ -52,7 +53,7 @@ Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 47 files changed, 3717 insertions(+), 293 deletions(-)
+ 48 files changed, 3718 insertions(+), 294 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -67,6 +68,19 @@ Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
  create mode 100644 panels/themes/themes.gresource.xml
  create mode 100644 panels/themes/themes.ui
 
+diff --git a/panels/background/bg-pictures-source.c b/panels/background/bg-pictures-source.c
+index a37682d..8a558c6 100644
+--- a/panels/background/bg-pictures-source.c
++++ b/panels/background/bg-pictures-source.c
+@@ -491,7 +491,7 @@ add_single_file (BgPicturesSource     *bg_source,
+   g_object_set (G_OBJECT (item),
+ 		"flags", flags,
+ 		"shading", G_DESKTOP_BACKGROUND_SHADING_SOLID,
+-		"placement", G_DESKTOP_BACKGROUND_STYLE_ZOOM,
++		"placement", G_DESKTOP_BACKGROUND_STYLE_SCALED,
+                 "modified", mtime,
+                 "needs-download", needs_download,
+                 "source-url", source_uri,
 diff --git a/panels/color/color.ui b/panels/color/color.ui
 index 5798d7c..f7cce5d 100644
 --- a/panels/color/color.ui
