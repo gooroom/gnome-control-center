@@ -1,9 +1,9 @@
-From 75b6cfdb4d2f0e86c81e7510a9bcaeac15fe4a66 Mon Sep 17 00:00:00 2001
-From: HaeRyong Jeong <jeong89@gooroom.kr>
-Date: Wed, 5 Feb 2020 19:13:18 +0900
+From 623ff8c2af526eb884e3a958c643f0122a3730fc Mon Sep 17 00:00:00 2001
+From: JeongHaeRyong <jeong89@gooroom.kr>
+Date: Mon, 17 Feb 2020 15:48:58 +0900
 Subject: [PATCH] gooroom
 
-Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
+Change-Id: Icb9a45f1ae866506835c187515319de2dde73f75
 ---
  panels/background/bg-pictures-source.c        |   2 +-
  panels/color/color.ui                         |   4 +-
@@ -30,6 +30,9 @@ Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
  panels/power/cc-power-panel.c                 |  25 +-
  panels/printers/cc-printers-panel.c           |  56 +-
  panels/printers/printers.ui                   |   5 +
+ panels/region/cc-region-panel.c               | 829 ---------------
+ panels/region/meson.build                     |   9 -
+ panels/region/region.ui                       | 321 ------
  panels/search/cc-search-locations-dialog.c    |  50 +-
  panels/themes/cc-themes-panel.c               | 487 +++++++++
  panels/themes/cc-themes-panel.h               |  32 +
@@ -42,18 +45,18 @@ Change-Id: I0347c3f21bf6b3acc414f805d43953450531736f
  panels/universal-access/uap.ui                |  32 +-
  panels/user-accounts/meson.build              |   3 +-
  panels/user-accounts/pw-utils.c               |   4 +-
- panels/user-accounts/um-user-panel.c          |  56 +-
+ panels/user-accounts/um-user-panel.c          |  28 +-
  panels/wacom/cc-wacom-panel.c                 |   3 +-
  po/POTFILES.in                                |   6 +
- po/en.po                                      | 115 +++
- po/en_GB.po                                   | 125 ++-
- po/ko.po                                      | 143 +++
+ po/en.po                                      | 133 +++
+ po/en_GB.po                                   | 144 ++-
+ po/ko.po                                      | 161 +++
  shell/cc-application.c                        |  27 +-
  shell/cc-panel-list.c                         |  27 +
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 48 files changed, 3718 insertions(+), 294 deletions(-)
+ 51 files changed, 3748 insertions(+), 1450 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -3093,6 +3096,1310 @@ index 2894b7e..4051776 100644
        </object>
        <packing>
          <property name="name">_lock</property>
+diff --git a/panels/region/cc-region-panel.c b/panels/region/cc-region-panel.c
+index 1061466..5060b98 100644
+--- a/panels/region/cc-region-panel.c
++++ b/panels/region/cc-region-panel.c
+@@ -40,11 +40,6 @@
+ #include <libgnome-desktop/gnome-languages.h>
+ #include <libgnome-desktop/gnome-xkb-info.h>
+ 
+-#ifdef HAVE_IBUS
+-#include <ibus.h>
+-#include "cc-ibus-utils.h"
+-#endif
+-
+ #include <act/act.h>
+ 
+ #define GNOME_DESKTOP_INPUT_SOURCES_DIR "org.gnome.desktop.input-sources"
+@@ -97,24 +92,9 @@ struct _CcRegionPanel {
+         gchar *system_language;
+         gchar *system_region;
+ 
+-        GtkWidget *input_section;
+-        GtkWidget *options_button;
+-        GtkWidget *input_list;
+-        GtkWidget *add_input;
+-        GtkWidget *remove_input;
+-        GtkWidget *move_up_input;
+-        GtkWidget *move_down_input;
+-        GtkWidget *show_config;
+-        GtkWidget *show_layout;
+         GtkWidget *restart_button;
+         GtkWidget *language_list;
+ 
+-        GSettings *input_settings;
+-        GnomeXkbInfo *xkb_info;
+-#ifdef HAVE_IBUS
+-        IBusBus *ibus;
+-        GHashTable *ibus_engines;
+-#endif
+ };
+ 
+ CC_PANEL_REGISTER (CcRegionPanel, cc_region_panel)
+@@ -142,12 +122,6 @@ cc_region_panel_finalize (GObject *object)
+         g_clear_object (&self->localed);
+         g_clear_object (&self->session);
+         g_clear_object (&self->locale_settings);
+-        g_clear_object (&self->input_settings);
+-        g_clear_object (&self->xkb_info);
+-#ifdef HAVE_IBUS
+-        g_clear_object (&self->ibus);
+-        g_clear_pointer (&self->ibus_engines, g_hash_table_destroy);
+-#endif
+         g_free (self->language);
+         g_free (self->region);
+         g_free (self->system_language);
+@@ -468,11 +442,6 @@ show_region_chooser (CcRegionPanel *self)
+         gtk_window_present (GTK_WINDOW (chooser));
+ }
+ 
+-static void show_input_chooser (CcRegionPanel *self);
+-static void remove_selected_input (CcRegionPanel *self);
+-static void move_selected_input (CcRegionPanel *self,
+-                                 SystemOp       op);
+-
+ static void
+ permission_acquired (GObject      *source,
+                      GAsyncResult *res,
+@@ -497,16 +466,6 @@ permission_acquired (GObject      *source,
+                 case CHOOSE_REGION:
+                         show_region_chooser (self);
+                         break;
+-                case ADD_INPUT:
+-                        show_input_chooser (self);
+-                        break;
+-                case REMOVE_INPUT:
+-                        remove_selected_input (self);
+-                        break;
+-                case MOVE_UP_INPUT:
+-                case MOVE_DOWN_INPUT:
+-                        move_selected_input (self, self->op);
+-                        break;
+                 default:
+                         g_warning ("Unknown privileged operation: %d\n", self->op);
+                         break;
+@@ -623,262 +582,6 @@ setup_language_section (CcRegionPanel *self)
+         update_region_from_setting (self);
+ }
+ 
+-#ifdef HAVE_IBUS
+-static void
+-update_ibus_active_sources (CcRegionPanel *self)
+-{
+-        g_autoptr(GList) rows = NULL;
+-        GList *l;
+-        GtkWidget *row;
+-        const gchar *type;
+-        const gchar *id;
+-        IBusEngineDesc *engine_desc;
+-        GtkWidget *label;
+-
+-        rows = gtk_container_get_children (GTK_CONTAINER (self->input_list));
+-        for (l = rows; l; l = l->next) {
+-                row = l->data;
+-                type = g_object_get_data (G_OBJECT (row), "type");
+-                id = g_object_get_data (G_OBJECT (row), "id");
+-                if (g_strcmp0 (type, INPUT_SOURCE_TYPE_IBUS) != 0)
+-                        continue;
+-
+-                engine_desc = g_hash_table_lookup (self->ibus_engines, id);
+-                if (engine_desc) {
+-                        g_autofree gchar *display_name = engine_get_display_name (engine_desc);
+-                        label = GTK_WIDGET (g_object_get_data (G_OBJECT (row), "label"));
+-                        gtk_label_set_text (GTK_LABEL (label), display_name);
+-                }
+-        }
+-}
+-
+-static void
+-update_input_chooser (CcRegionPanel *self)
+-{
+-        GtkWidget *chooser;
+-
+-        chooser = g_object_get_data (G_OBJECT (self), "input-chooser");
+-        if (!chooser)
+-                return;
+-
+-        cc_input_chooser_set_ibus_engines (chooser, self->ibus_engines);
+-}
+-
+-static void
+-fetch_ibus_engines_result (GObject       *object,
+-                           GAsyncResult  *result,
+-                           CcRegionPanel *self)
+-{
+-        g_autoptr(GList) list = NULL;
+-        GList *l;
+-        g_autoptr(GError) error = NULL;
+-
+-        list = ibus_bus_list_engines_async_finish (IBUS_BUS (object), result, &error);
+-        if (!list && error) {
+-                if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+-                        g_warning ("Couldn't finish IBus request: %s", error->message);
+-                return;
+-        }
+-
+-        /* Maps engine ids to engine description objects */
+-        self->ibus_engines = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
+-
+-        for (l = list; l; l = l->next) {
+-                IBusEngineDesc *engine = l->data;
+-                const gchar *engine_id = ibus_engine_desc_get_name (engine);
+-
+-                if (g_str_has_prefix (engine_id, "xkb:"))
+-                        g_object_unref (engine);
+-                else
+-                        g_hash_table_replace (self->ibus_engines, (gpointer)engine_id, engine);
+-        }
+-
+-        update_ibus_active_sources (self);
+-        update_input_chooser (self);
+-}
+-
+-static void
+-fetch_ibus_engines (CcRegionPanel *self)
+-{
+-        ibus_bus_list_engines_async (self->ibus,
+-                                     -1,
+-                                     self->cancellable,
+-                                     (GAsyncReadyCallback)fetch_ibus_engines_result,
+-                                     self);
+-
+-  /* We've got everything we needed, don't want to be called again. */
+-  g_signal_handlers_disconnect_by_func (self->ibus, fetch_ibus_engines, self);
+-}
+-
+-static void
+-maybe_start_ibus (void)
+-{
+-        /* IBus doesn't export API in the session bus. The only thing
+-         * we have there is a well known name which we can use as a
+-         * sure-fire way to activate it.
+-         */
+-        g_bus_unwatch_name (g_bus_watch_name (G_BUS_TYPE_SESSION,
+-                                              IBUS_SERVICE_IBUS,
+-                                              G_BUS_NAME_WATCHER_FLAGS_AUTO_START,
+-                                              NULL,
+-                                              NULL,
+-                                              NULL,
+-                                              NULL));
+-}
+-
+-static GDesktopAppInfo *
+-setup_app_info_for_id (const gchar *id)
+-{
+-        g_autofree gchar *desktop_file_name = NULL;
+-        g_auto(GStrv) strv = NULL;
+-
+-        strv = g_strsplit (id, ":", 2);
+-        desktop_file_name = g_strdup_printf ("ibus-setup-%s.desktop", strv[0]);
+-
+-        return g_desktop_app_info_new (desktop_file_name);
+-}
+-#endif
+-
+-static void
+-remove_no_input_row (GtkContainer *list)
+-{
+-        g_autoptr(GList) l = NULL;
+-
+-        l = gtk_container_get_children (list);
+-        if (!l)
+-                return;
+-        if (l->next != NULL)
+-                return;
+-        if (g_strcmp0 (g_object_get_data (G_OBJECT (l->data), "type"), "none") == 0)
+-                gtk_container_remove (list, GTK_WIDGET (l->data));
+-}
+-
+-static GtkWidget *
+-add_input_row (CcRegionPanel   *self,
+-               const gchar     *type,
+-               const gchar     *id,
+-               const gchar     *name,
+-               GDesktopAppInfo *app_info)
+-{
+-        GtkWidget *row;
+-        GtkWidget *box;
+-        GtkWidget *label;
+-        GtkWidget *image;
+-
+-        remove_no_input_row (GTK_CONTAINER (self->input_list));
+-
+-        row = gtk_list_box_row_new ();
+-        box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+-        gtk_container_add (GTK_CONTAINER (row), box);
+-        label = gtk_label_new (name);
+-        gtk_widget_set_halign (label, GTK_ALIGN_START);
+-        gtk_widget_set_margin_start (label, 20);
+-        gtk_widget_set_margin_end (label, 20);
+-        gtk_widget_set_margin_top (label, 18);
+-        gtk_widget_set_margin_bottom (label, 18);
+-        gtk_box_pack_start (GTK_BOX (box), label, TRUE, TRUE, 0);
+-
+-        if (strcmp (type, INPUT_SOURCE_TYPE_IBUS) == 0) {
+-                image = gtk_image_new_from_icon_name ("system-run-symbolic", GTK_ICON_SIZE_BUTTON);
+-                gtk_widget_set_margin_start (image, 20);
+-                gtk_widget_set_margin_end (image, 20);
+-                gtk_widget_set_margin_top (image, 6);
+-                gtk_widget_set_margin_bottom (image, 6);
+-                gtk_style_context_add_class (gtk_widget_get_style_context (image), "dim-label");
+-                gtk_box_pack_start (GTK_BOX (box), image, FALSE, TRUE, 0);
+-        }
+-
+-        gtk_widget_show_all (row);
+-        gtk_container_add (GTK_CONTAINER (self->input_list), row);
+-
+-        g_object_set_data (G_OBJECT (row), "label", label);
+-        g_object_set_data (G_OBJECT (row), "type", (gpointer)type);
+-        g_object_set_data_full (G_OBJECT (row), "id", g_strdup (id), g_free);
+-        if (app_info) {
+-                g_object_set_data_full (G_OBJECT (row), "app-info", g_object_ref (app_info), g_object_unref);
+-        }
+-
+-        cc_list_box_adjust_scrolling (GTK_LIST_BOX (self->input_list));
+-
+-        return row;
+-}
+-
+-static void
+-add_no_input_row (CcRegionPanel *self)
+-{
+-        add_input_row (self, "none", "none", _("No input source selected"), NULL);
+-}
+-
+-static void
+-add_input_sources (CcRegionPanel *self,
+-                   GVariant      *sources)
+-{
+-        GVariantIter iter;
+-        const gchar *type, *id;
+-
+-        if (g_variant_n_children (sources) < 1) {
+-                add_no_input_row (self);
+-                return;
+-        }
+-
+-        g_variant_iter_init (&iter, sources);
+-        while (g_variant_iter_next (&iter, "(&s&s)", &type, &id)) {
+-                g_autoptr(GDesktopAppInfo) app_info = NULL;
+-                g_autofree gchar *display_name = NULL;
+-
+-                if (g_str_equal (type, INPUT_SOURCE_TYPE_XKB)) {
+-                        const gchar *name;
+-
+-                        gnome_xkb_info_get_layout_info (self->xkb_info, id, &name, NULL, NULL, NULL);
+-                        if (!name) {
+-                                g_warning ("Couldn't find XKB input source '%s'", id);
+-                                continue;
+-                        }
+-                        display_name = g_strdup (name);
+-                        type = INPUT_SOURCE_TYPE_XKB;
+-#ifdef HAVE_IBUS
+-                } else if (g_str_equal (type, INPUT_SOURCE_TYPE_IBUS)) {
+-                        IBusEngineDesc *engine_desc = NULL;
+-
+-                        if (self->ibus_engines)
+-                                engine_desc = g_hash_table_lookup (self->ibus_engines, id);
+-                        if (engine_desc)
+-                                display_name = engine_get_display_name (engine_desc);
+-
+-                        app_info = setup_app_info_for_id (id);
+-                        type = INPUT_SOURCE_TYPE_IBUS;
+-#endif
+-                } else {
+-                        g_warning ("Unhandled input source type '%s'", type);
+-                        continue;
+-                }
+-
+-                add_input_row (self, type, id, display_name ? display_name : id, app_info);
+-        }
+-}
+-
+-static void
+-add_input_sources_from_settings (CcRegionPanel *self)
+-{
+-        g_autoptr(GVariant) sources = NULL;
+-        sources = g_settings_get_value (self->input_settings, "sources");
+-        add_input_sources (self, sources);
+-}
+-
+-static void
+-clear_input_sources (CcRegionPanel *self)
+-{
+-        g_autoptr(GList) list = NULL;
+-        GList *l;
+-
+-        list = gtk_container_get_children (GTK_CONTAINER (self->input_list));
+-        for (l = list; l; l = l->next) {
+-                gtk_container_remove (GTK_CONTAINER (self->input_list), GTK_WIDGET (l->data));
+-        }
+-
+-        cc_list_box_adjust_scrolling (GTK_LIST_BOX (self->input_list));
+-}
+-
+ static void
+ select_by_id (GtkWidget   *row,
+               gpointer     data)
+@@ -891,190 +594,6 @@ select_by_id (GtkWidget   *row,
+                 gtk_list_box_select_row (GTK_LIST_BOX (gtk_widget_get_parent (row)), GTK_LIST_BOX_ROW (row));
+ }
+ 
+-static void
+-select_input (CcRegionPanel *self,
+-              const gchar   *id)
+-{
+-        gtk_container_foreach (GTK_CONTAINER (self->input_list),
+-                               select_by_id, (gpointer)id);
+-}
+-
+-static void
+-input_sources_changed (GSettings     *settings,
+-                       const gchar   *key,
+-                       CcRegionPanel *self)
+-{
+-        GtkListBoxRow *selected;
+-        g_autofree gchar *id = NULL;
+-
+-        selected = gtk_list_box_get_selected_row (GTK_LIST_BOX (self->input_list));
+-        if (selected)
+-                id = g_strdup (g_object_get_data (G_OBJECT (selected), "id"));
+-        clear_input_sources (self);
+-        add_input_sources_from_settings (self);
+-        if (id)
+-                select_input (self, id);
+-}
+-
+-
+-static void
+-update_buttons (CcRegionPanel *self)
+-{
+-        GtkListBoxRow *selected;
+-        g_autoptr(GList) children = NULL;
+-        guint n_rows;
+-
+-        children = gtk_container_get_children (GTK_CONTAINER (self->input_list));
+-        n_rows = g_list_length (children);
+-
+-        selected = gtk_list_box_get_selected_row (GTK_LIST_BOX (self->input_list));
+-        if (selected == NULL) {
+-                gtk_widget_set_visible (self->show_config, FALSE);
+-                gtk_widget_set_sensitive (self->remove_input, FALSE);
+-                gtk_widget_set_sensitive (self->show_layout, FALSE);
+-                gtk_widget_set_sensitive (self->move_up_input, FALSE);
+-                gtk_widget_set_sensitive (self->move_down_input, FALSE);
+-        } else {
+-                GDesktopAppInfo *app_info;
+-
+-                app_info = (GDesktopAppInfo *)g_object_get_data (G_OBJECT (selected), "app-info");
+-
+-                gtk_widget_set_visible (self->show_config, app_info != NULL);
+-                gtk_widget_set_sensitive (self->show_layout, TRUE);
+-                gtk_widget_set_sensitive (self->remove_input, n_rows > 1);
+-                gtk_widget_set_sensitive (self->move_up_input, gtk_list_box_row_get_index (selected) > 0);
+-                gtk_widget_set_sensitive (self->move_down_input, gtk_list_box_row_get_index (selected) < n_rows - 1);
+-        }
+-
+-        gtk_widget_set_visible (self->options_button,
+-                                n_rows > 1 && !self->login);
+-}
+-
+-static void
+-set_input_settings (CcRegionPanel *self)
+-{
+-        const gchar *type;
+-        const gchar *id;
+-        GVariantBuilder builder;
+-        g_autoptr(GList) list = NULL;
+-        GList *l;
+-
+-        g_variant_builder_init (&builder, G_VARIANT_TYPE ("a(ss)"));
+-        list = gtk_container_get_children (GTK_CONTAINER (self->input_list));
+-        for (l = list; l; l = l->next) {
+-                type = (const gchar *)g_object_get_data (G_OBJECT (l->data), "type");
+-                id = (const gchar *)g_object_get_data (G_OBJECT (l->data), "id");
+-                g_variant_builder_add (&builder, "(ss)", type, id);
+-        }
+-
+-        g_settings_set_value (self->input_settings, KEY_INPUT_SOURCES, g_variant_builder_end (&builder));
+-        g_settings_apply (self->input_settings);
+-}
+-
+-static void set_localed_input (CcRegionPanel *self);
+-
+-static void
+-update_input (CcRegionPanel *self)
+-{
+-        if (self->login) {
+-                set_localed_input (self);
+-        } else {
+-                set_input_settings (self);
+-                if (self->login_auto_apply)
+-                        set_localed_input (self);
+-        }
+-}
+-
+-static gboolean
+-input_source_already_added (CcRegionPanel *self,
+-                            const gchar   *id)
+-{
+-        g_autoptr(GList) list = NULL;
+-        GList *l;
+-
+-        list = gtk_container_get_children (GTK_CONTAINER (self->input_list));
+-        for (l = list; l; l = l->next)
+-                if (g_str_equal (id, (const gchar *) g_object_get_data (G_OBJECT (l->data), "id"))) {
+-                        return TRUE;
+-                }
+-
+-        return FALSE;
+-}
+-
+-static void
+-run_input_chooser (CcRegionPanel *self, GtkWidget *chooser)
+-{
+-        if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_OK) {
+-                g_autofree gchar *type = NULL;
+-                g_autofree gchar *id = NULL;
+-                g_autofree gchar *name = NULL;
+-
+-                if (cc_input_chooser_get_selected (chooser, &type, &id, &name) &&
+-                    !input_source_already_added (self, id)) {
+-                        g_autoptr(GDesktopAppInfo) app_info = NULL;
+-
+-                        if (g_str_equal (type, INPUT_SOURCE_TYPE_IBUS)) {
+-#ifdef HAVE_IBUS
+-                                app_info = setup_app_info_for_id (id);
+-#endif
+-                        } else {
+-                                g_free (type);
+-                                type = g_strdup (INPUT_SOURCE_TYPE_XKB);
+-                        }
+-
+-                        add_input_row (self, type, id, name, app_info);
+-                        update_buttons (self);
+-                        update_input (self);
+-                }
+-        }
+-        gtk_widget_hide(chooser);
+-}
+-
+-static void
+-show_input_chooser (CcRegionPanel *self)
+-{
+-        GtkWidget *chooser;
+-        GtkWidget *toplevel;
+-
+-        chooser = g_object_get_data (G_OBJECT (self), "input-chooser");
+-
+-        if (!chooser) {
+-                toplevel = gtk_widget_get_toplevel (GTK_WIDGET (self));
+-                chooser = cc_input_chooser_new (GTK_WINDOW (toplevel),
+-                                                self->login,
+-                                                self->xkb_info,
+-#ifdef HAVE_IBUS
+-                                                self->ibus_engines
+-#else
+-                                                NULL
+-#endif
+-                                                );
+-                g_object_ref (chooser);
+-                g_object_set_data_full (G_OBJECT (self), "input-chooser",
+-                                        chooser, g_object_unref);
+-        } else {
+-                cc_input_chooser_reset (chooser);
+-        }
+-
+-        run_input_chooser (self, chooser);
+-}
+-
+-static void
+-add_input (CcRegionPanel *self)
+-{
+-        if (!self->login) {
+-                show_input_chooser (self);
+-        } else if (g_permission_get_allowed (self->permission)) {
+-                show_input_chooser (self);
+-        } else if (g_permission_get_can_acquire (self->permission)) {
+-                self->op = ADD_INPUT;
+-                g_permission_acquire_async (self->permission,
+-                                            self->cancellable,
+-                                            permission_acquired,
+-                                            self);
+-        }
+-}
+-
+ static GtkWidget *
+ find_sibling (GtkContainer *container, GtkWidget *child)
+ {
+@@ -1100,188 +619,6 @@ find_sibling (GtkContainer *container, GtkWidget *child)
+         return NULL;
+ }
+ 
+-static void
+-do_remove_selected_input (CcRegionPanel *self)
+-{
+-        GtkListBoxRow *selected;
+-        GtkWidget *sibling;
+-
+-        selected = gtk_list_box_get_selected_row (GTK_LIST_BOX (self->input_list));
+-        if (selected == NULL)
+-                return;
+-
+-        sibling = find_sibling (GTK_CONTAINER (self->input_list), GTK_WIDGET (selected));
+-        gtk_container_remove (GTK_CONTAINER (self->input_list), GTK_WIDGET (selected));
+-        gtk_list_box_select_row (GTK_LIST_BOX (self->input_list), GTK_LIST_BOX_ROW (sibling));
+-
+-        cc_list_box_adjust_scrolling (GTK_LIST_BOX (self->input_list));
+-
+-        update_buttons (self);
+-        update_input (self);
+-}
+-
+-static void
+-remove_selected_input (CcRegionPanel *self)
+-{
+-        if (!self->login) {
+-                do_remove_selected_input (self);
+-        } else if (g_permission_get_allowed (self->permission)) {
+-                do_remove_selected_input (self);
+-        } else if (g_permission_get_can_acquire (self->permission)) {
+-                self->op = REMOVE_INPUT;
+-                g_permission_acquire_async (self->permission,
+-                                            self->cancellable,
+-                                            permission_acquired,
+-                                            self);
+-        }
+-}
+-
+-static void
+-do_move_selected_input (CcRegionPanel *self,
+-                        SystemOp       op)
+-{
+-        GtkListBoxRow *selected;
+-        gint idx;
+-
+-        g_assert (op == MOVE_UP_INPUT || op == MOVE_DOWN_INPUT);
+-
+-        selected = gtk_list_box_get_selected_row (GTK_LIST_BOX (self->input_list));
+-        g_assert (selected);
+-
+-        idx = gtk_list_box_row_get_index (selected);
+-        if (op == MOVE_UP_INPUT)
+-                idx -= 1;
+-        else
+-                idx += 1;
+-
+-        gtk_list_box_unselect_row (GTK_LIST_BOX (self->input_list), selected);
+-
+-        g_object_ref (selected);
+-        gtk_container_remove (GTK_CONTAINER (self->input_list), GTK_WIDGET (selected));
+-        gtk_list_box_insert (GTK_LIST_BOX (self->input_list), GTK_WIDGET (selected), idx);
+-        g_object_unref (selected);
+-
+-        gtk_list_box_select_row (GTK_LIST_BOX (self->input_list), selected);
+-
+-        cc_list_box_adjust_scrolling (GTK_LIST_BOX (self->input_list));
+-
+-        update_buttons (self);
+-        update_input (self);
+-}
+-
+-static void
+-move_selected_input (CcRegionPanel *self,
+-                     SystemOp       op)
+-{
+-        if (!self->login) {
+-                do_move_selected_input (self, op);
+-        } else if (g_permission_get_allowed (self->permission)) {
+-                do_move_selected_input (self, op);
+-        } else if (g_permission_get_can_acquire (self->permission)) {
+-                self->op = op;
+-                g_permission_acquire_async (self->permission,
+-                                            self->cancellable,
+-                                            permission_acquired,
+-                                            self);
+-        }
+-}
+-
+-static void
+-move_selected_input_up (CcRegionPanel *self)
+-{
+-        move_selected_input (self, MOVE_UP_INPUT);
+-}
+-
+-static void
+-move_selected_input_down (CcRegionPanel *self)
+-{
+-        move_selected_input (self, MOVE_DOWN_INPUT);
+-}
+-
+-static void
+-show_selected_settings (CcRegionPanel *self)
+-{
+-        GtkListBoxRow *selected;
+-        g_autoptr(GdkAppLaunchContext) ctx = NULL;
+-        GDesktopAppInfo *app_info;
+-        const gchar *id;
+-        g_autoptr(GError) error = NULL;
+-
+-        selected = gtk_list_box_get_selected_row (GTK_LIST_BOX (self->input_list));
+-        if (selected == NULL)
+-                return;
+-
+-        app_info = (GDesktopAppInfo *)g_object_get_data (G_OBJECT (selected), "app-info");
+-        if  (app_info == NULL)
+-                return;
+-
+-        ctx = gdk_display_get_app_launch_context (gdk_display_get_default ());
+-        gdk_app_launch_context_set_timestamp (ctx, gtk_get_current_event_time ());
+-
+-        id = (const gchar *)g_object_get_data (G_OBJECT (selected), "id");
+-        g_app_launch_context_setenv (G_APP_LAUNCH_CONTEXT (ctx),
+-                                     "IBUS_ENGINE_NAME", id);
+-
+-        if (!g_app_info_launch (G_APP_INFO (app_info), NULL, G_APP_LAUNCH_CONTEXT (ctx), &error))
+-                g_warning ("Failed to launch input source setup: %s", error->message);
+-}
+-
+-static void
+-show_selected_layout (CcRegionPanel *self)
+-{
+-        GtkListBoxRow *selected;
+-        const gchar *type;
+-        const gchar *id;
+-        const gchar *layout;
+-        const gchar *variant;
+-        g_autofree gchar *commandline = NULL;
+-
+-        selected = gtk_list_box_get_selected_row (GTK_LIST_BOX (self->input_list));
+-        if (selected == NULL)
+-                return;
+-
+-        type = (const gchar *)g_object_get_data (G_OBJECT (selected), "type");
+-        id = (const gchar *)g_object_get_data (G_OBJECT (selected), "id");
+-
+-        if (g_str_equal (type, INPUT_SOURCE_TYPE_XKB)) {
+-                gnome_xkb_info_get_layout_info (self->xkb_info,
+-                                                id, NULL, NULL,
+-                                                &layout, &variant);
+-
+-                if (!layout || !layout[0]) {
+-                        g_warning ("Couldn't find XKB input source '%s'", id);
+-                        return;
+-                }
+-#ifdef HAVE_IBUS
+-        } else if (g_str_equal (type, INPUT_SOURCE_TYPE_IBUS)) {
+-                IBusEngineDesc *engine_desc = NULL;
+-
+-                if (self->ibus_engines)
+-                        engine_desc = g_hash_table_lookup (self->ibus_engines, id);
+-
+-                if (engine_desc) {
+-                        layout = ibus_engine_desc_get_layout (engine_desc);
+-                        variant = ibus_engine_desc_get_layout_variant (engine_desc);
+-                } else {
+-                        g_warning ("Couldn't find IBus input source '%s'", id);
+-                        return;
+-                }
+-#endif
+-        } else {
+-                g_warning ("Unhandled input source type '%s'", type);
+-                return;
+-        }
+-
+-        if (variant && variant[0])
+-                commandline = g_strdup_printf ("gkbd-keyboard-display -l \"%s\t%s\"",
+-                                               layout, variant);
+-        else
+-                commandline = g_strdup_printf ("gkbd-keyboard-display -l %s",
+-                                               layout);
+-
+-        g_spawn_command_line_async (commandline, NULL);
+-}
+-
+ static void
+ options_response (GtkDialog     *options,
+                   gint           response_id,
+@@ -1290,59 +627,6 @@ options_response (GtkDialog     *options,
+         gtk_widget_destroy (GTK_WIDGET (options));
+ }
+ 
+-
+-static void
+-show_input_options (CcRegionPanel *self)
+-{
+-        GtkWidget *toplevel;
+-        GtkWidget *options;
+-
+-        toplevel = gtk_widget_get_toplevel (GTK_WIDGET (self));
+-        options = cc_input_options_new (toplevel);
+-        g_signal_connect (options, "response",
+-                          G_CALLBACK (options_response), self);
+-        gtk_window_present (GTK_WINDOW (options));
+-}
+-
+-static void
+-setup_input_section (CcRegionPanel *self)
+-{
+-        self->input_settings = g_settings_new (GNOME_DESKTOP_INPUT_SOURCES_DIR);
+-        g_settings_delay (self->input_settings);
+-
+-        self->xkb_info = gnome_xkb_info_new ();
+-
+-#ifdef HAVE_IBUS
+-        ibus_init ();
+-        if (!self->ibus) {
+-                self->ibus = ibus_bus_new_async ();
+-                if (ibus_bus_is_connected (self->ibus))
+-                        fetch_ibus_engines (self);
+-                else
+-                        g_signal_connect_object (self->ibus, "connected",
+-                                                 G_CALLBACK (fetch_ibus_engines), self,
+-                                                 G_CONNECT_SWAPPED);
+-        }
+-        maybe_start_ibus ();
+-#endif
+-
+-        cc_list_box_setup_scrolling (GTK_LIST_BOX (self->input_list), 5);
+-
+-        gtk_list_box_set_selection_mode (GTK_LIST_BOX (self->input_list),
+-                                         GTK_SELECTION_SINGLE);
+-        gtk_list_box_set_header_func (GTK_LIST_BOX (self->input_list),
+-                                      cc_list_box_update_header_func,
+-                                      NULL, NULL);
+-        g_signal_connect_object (self->input_list, "row-selected",
+-                                 G_CALLBACK (update_buttons), self, G_CONNECT_SWAPPED);
+-
+-        g_signal_connect (self->input_settings, "changed::" KEY_INPUT_SOURCES,
+-                          G_CALLBACK (input_sources_changed), self);
+-
+-        add_input_sources_from_settings (self);
+-        update_buttons (self);
+-}
+-
+ static void
+ on_localed_properties_changed (GDBusProxy     *proxy,
+                                GVariant       *changed_properties,
+@@ -1385,57 +669,6 @@ on_localed_properties_changed (GDBusProxy     *proxy,
+         }
+ }
+ 
+-static void
+-add_input_sources_from_localed (CcRegionPanel *self)
+-{
+-        g_autoptr(GVariant) layout_property = NULL;
+-        g_autoptr(GVariant) variant_property = NULL;
+-        const gchar *s;
+-        g_auto(GStrv) layouts = NULL;
+-        g_auto(GStrv) variants = NULL;
+-        gint i, n;
+-
+-        if (!self->localed)
+-                return;
+-
+-        layout_property = g_dbus_proxy_get_cached_property (self->localed, "X11Layout");
+-        if (layout_property) {
+-                s = g_variant_get_string (layout_property, NULL);
+-                layouts = g_strsplit (s, ",", -1);
+-        }
+-
+-        variant_property = g_dbus_proxy_get_cached_property (self->localed, "X11Variant");
+-        if (variant_property) {
+-                s = g_variant_get_string (variant_property, NULL);
+-                if (s && *s)
+-                        variants = g_strsplit (s, ",", -1);
+-        }
+-
+-        if (variants && variants[0])
+-                n = MIN (g_strv_length (layouts), g_strv_length (variants));
+-        else if (layouts && layouts[0])
+-                n = g_strv_length (layouts);
+-        else
+-                n = 0;
+-
+-        for (i = 0; i < n && layouts[i][0]; i++) {
+-                const gchar *name;
+-                g_autofree gchar *id = NULL;
+-
+-                if (variants && variants[i] && variants[i][0])
+-                        id = g_strdup_printf ("%s+%s", layouts[i], variants[i]);
+-                else
+-                        id = g_strdup (layouts[i]);
+-
+-                gnome_xkb_info_get_layout_info (self->xkb_info, id, &name, NULL, NULL, NULL);
+-
+-                add_input_row (self, INPUT_SOURCE_TYPE_XKB, id, name ? name : id, NULL);
+-        }
+-        if (n == 0) {
+-                add_no_input_row (self);
+-        }
+-}
+-
+ static void
+ set_localed_locale (CcRegionPanel *self)
+ {
+@@ -1471,43 +704,6 @@ set_localed_locale (CcRegionPanel *self)
+                            -1, NULL, NULL, NULL);
+ }
+ 
+-static void
+-set_localed_input (CcRegionPanel *self)
+-{
+-        g_autoptr(GString) layouts = NULL;
+-        g_autoptr(GString) variants = NULL;
+-        const gchar *type, *id;
+-        g_autoptr(GList) list = NULL;
+-        GList *li;
+-        const gchar *l, *v;
+-
+-        layouts = g_string_new ("");
+-        variants = g_string_new ("");
+-
+-        list = gtk_container_get_children (GTK_CONTAINER (self->input_list));
+-        for (li = list; li; li = li->next) {
+-                type = (const gchar *)g_object_get_data (G_OBJECT (li->data), "type");
+-                id = (const gchar *)g_object_get_data (G_OBJECT (li->data), "id");
+-                if (g_str_equal (type, INPUT_SOURCE_TYPE_IBUS))
+-                        continue;
+-
+-                if (gnome_xkb_info_get_layout_info (self->xkb_info, id, NULL, NULL, &l, &v)) {
+-                        if (layouts->str[0]) {
+-                                g_string_append_c (layouts, ',');
+-                                g_string_append_c (variants, ',');
+-                        }
+-                        g_string_append (layouts, l);
+-                        g_string_append (variants, v);
+-                }
+-        }
+-
+-        g_dbus_proxy_call (self->localed,
+-                           "SetX11Keyboard",
+-                           g_variant_new ("(ssssbb)", layouts->str, "", variants->str, "", TRUE, TRUE),
+-                           G_DBUS_CALL_FLAGS_NONE,
+-                           -1, NULL, NULL, NULL);
+-}
+-
+ static void
+ localed_proxy_ready (GObject      *source,
+                      GAsyncResult *res,
+@@ -1547,16 +743,8 @@ login_changed (CcRegionPanel *self)
+                  g_permission_get_can_acquire (self->permission));
+         /* FIXME: insensitive doesn't look quite right for this */
+         gtk_widget_set_sensitive (self->language_section, !self->login || can_acquire);
+-        gtk_widget_set_sensitive (self->input_section, !self->login || can_acquire);
+-
+-        clear_input_sources (self);
+-        if (self->login)
+-                add_input_sources_from_localed (self);
+-        else
+-                add_input_sources_from_settings (self);
+ 
+         update_language_label (self);
+-        update_buttons (self);
+ }
+ 
+ static void
+@@ -1659,27 +847,11 @@ cc_region_panel_class_init (CcRegionPanelClass * klass)
+         gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, formats_row);
+         gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, formats_label);
+         gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, restart_revealer);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, input_section);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, options_button);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, input_list);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, add_input);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, remove_input);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, move_up_input);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, move_down_input);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, show_config);
+-        gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, show_layout);
+         gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, restart_button);
+         gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, login_label);
+         gtk_widget_class_bind_template_child (widget_class, CcRegionPanel, language_list);
+ 
+         gtk_widget_class_bind_template_callback (widget_class, restart_now);
+-        gtk_widget_class_bind_template_callback (widget_class, show_input_options);
+-        gtk_widget_class_bind_template_callback (widget_class, add_input);
+-        gtk_widget_class_bind_template_callback (widget_class, remove_selected_input);
+-        gtk_widget_class_bind_template_callback (widget_class, move_selected_input_up);
+-        gtk_widget_class_bind_template_callback (widget_class, move_selected_input_down);
+-        gtk_widget_class_bind_template_callback (widget_class, show_selected_settings);
+-        gtk_widget_class_bind_template_callback (widget_class, show_selected_layout);
+ }
+ 
+ static void
+@@ -1707,7 +879,6 @@ cc_region_panel_init (CcRegionPanel *self)
+ 
+         setup_login_button (self);
+         setup_language_section (self);
+-        setup_input_section (self);
+ 
+         needs_restart_file = get_needs_restart_file ();
+         if (g_file_query_exists (needs_restart_file, NULL))
+diff --git a/panels/region/meson.build b/panels/region/meson.build
+index 5c0a6f5..f028829 100644
+--- a/panels/region/meson.build
++++ b/panels/region/meson.build
+@@ -20,15 +20,10 @@ i18n.merge_file(
+ sources = files(
+   'cc-region-panel.c',
+   'cc-format-chooser.c',
+-  'cc-ibus-utils.c',
+-  'cc-input-chooser.c',
+-  'cc-input-options.c'
+ )
+ 
+ resource_data = files(
+   'cc-format-chooser.ui',
+-  'input-chooser.ui',
+-  'input-options.ui',
+   'region.ui'
+ )
+ 
+@@ -47,10 +42,6 @@ deps = common_deps + [
+   polkit_gobject_dep
+ ]
+ 
+-if enable_ibus
+-  deps += ibus_dep
+-endif
+-
+ panels_libs += static_library(
+   cappletname,
+   sources: sources,
+diff --git a/panels/region/region.ui b/panels/region/region.ui
+index 53ebb48..675a2cb 100644
+--- a/panels/region/region.ui
++++ b/panels/region/region.ui
+@@ -211,327 +211,6 @@
+                 <property name="position">0</property>
+               </packing>
+             </child>
+-            <child>
+-              <object class="GtkBox" id="input_section">
+-                <property name="visible">True</property>
+-                <property name="can_focus">False</property>
+-                <property name="orientation">vertical</property>
+-                <property name="hexpand">True</property>
+-                <child>
+-                  <object class="GtkBox" id="input_heading_row">
+-                    <property name="visible">True</property>
+-                    <property name="can_focus">False</property>
+-                    <property name="margin_bottom">12</property>
+-                    <child>
+-                      <object class="GtkLabel" id="input_heading">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="margin_start">2</property>
+-                        <property name="margin_end">2</property>
+-                        <property name="xalign">0</property>
+-                        <property name="label" translatable="yes">Input Sources</property>
+-                        <attributes>
+-                          <attribute name="weight" value="bold"/>
+-                        </attributes>
+-                        <accessibility>
+-                          <relation target="input_list" type="label-for"/>
+-                        </accessibility>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">True</property>
+-                        <property name="fill">True</property>
+-                        <property name="position">0</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkButton" id="options_button">
+-                        <property name="label" translatable="yes">_Options</property>
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">True</property>
+-                        <property name="receives_default">True</property>
+-                        <property name="use_underline">True</property>
+-                        <signal name="clicked" handler="show_input_options" object="CcRegionPanel" swapped="yes"/>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">False</property>
+-                        <property name="fill">True</property>
+-                        <property name="position">1</property>
+-                      </packing>
+-                    </child>
+-                  </object>
+-                  <packing>
+-                    <property name="expand">False</property>
+-                    <property name="fill">True</property>
+-                    <property name="position">0</property>
+-                  </packing>
+-                </child>
+-                <child>
+-                  <object class="GtkFrame" id="input_frame">
+-                    <property name="visible">True</property>
+-                    <property name="can_focus">False</property>
+-                    <property name="label_xalign">0</property>
+-                    <property name="shadow_type">in</property>
+-                    <child>
+-                      <object class="GtkListBox" id="input_list">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">True</property>
+-                        <accessibility>
+-                          <relation target="input_heading" type="labelled-by"/>
+-                        </accessibility>
+-                      </object>
+-                    </child>
+-                  </object>
+-                  <packing>
+-                    <property name="expand">False</property>
+-                    <property name="fill">True</property>
+-                    <property name="position">1</property>
+-                  </packing>
+-                </child>
+-                <child>
+-                  <object class="GtkToolbar" id="input_toolbar">
+-                    <property name="visible">True</property>
+-                    <property name="can_focus">False</property>
+-                    <property name="toolbar_style">icons</property>
+-                    <property name="show_arrow">False</property>
+-                    <property name="icon_size">1</property>
+-                    <style>
+-                      <class name="inline-toolbar"/>
+-                    </style>
+-                    <child>
+-                      <object class="GtkToolItem" id="i_s_ar_item">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <child>
+-                          <object class="GtkBox" id="i_s_ar_box">
+-                            <property name="visible">True</property>
+-                            <property name="can_focus">False</property>
+-                            <child>
+-                              <object class="GtkButton" id="add_input">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">True</property>
+-                                <property name="receives_default">True</property>
+-                                <signal name="clicked" handler="add_input" object="CcRegionPanel" swapped="yes"/>
+-                                <child internal-child="accessible">
+-                                  <object class="AtkObject">
+-                                    <property name="accessible-name" translatable="yes">Add input source</property>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkImage" id="i_s_a_image">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="icon_name">list-add-symbolic</property>
+-                                    <property name="icon-size">1</property>
+-                                  </object>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">0</property>
+-                              </packing>
+-                            </child>
+-                            <child>
+-                              <object class="GtkButton" id="remove_input">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">True</property>
+-                                <property name="receives_default">True</property>
+-                                <signal name="clicked" handler="remove_selected_input" object="CcRegionPanel" swapped="yes"/>
+-                                <child internal-child="accessible">
+-                                  <object class="AtkObject">
+-                                    <property name="accessible-name" translatable="yes">Remove input source</property>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkImage" id="i_s_r_image">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="icon_name">list-remove-symbolic</property>
+-                                    <property name="icon-size">1</property>
+-                                  </object>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">1</property>
+-                              </packing>
+-                            </child>
+-                          </object>
+-                        </child>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">False</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkSeparatorToolItem" id="sep1">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="draw">False</property>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">True</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkToolItem" id="i_s_ud_item">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <child>
+-                          <object class="GtkBox" id="i_s_ud_box">
+-                            <property name="visible">True</property>
+-                            <property name="can_focus">False</property>
+-                            <child>
+-                              <object class="GtkButton" id="move_up_input">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">True</property>
+-                                <property name="receives_default">True</property>
+-                                <signal name="clicked" handler="move_selected_input_up" object="CcRegionPanel" swapped="yes"/>
+-                                <child internal-child="accessible">
+-                                  <object class="AtkObject">
+-                                    <property name="accessible-name" translatable="yes">Move input source up</property>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkImage" id="i_s_up_image">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="icon_name">go-up-symbolic</property>
+-                                    <property name="icon-size">1</property>
+-                                  </object>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">0</property>
+-                              </packing>
+-                            </child>
+-                            <child>
+-                              <object class="GtkButton" id="move_down_input">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">True</property>
+-                                <property name="receives_default">True</property>
+-                                <signal name="clicked" handler="move_selected_input_down" object="CcRegionPanel" swapped="yes"/>
+-                                <child internal-child="accessible">
+-                                  <object class="AtkObject">
+-                                    <property name="accessible-name" translatable="yes">Move input source down</property>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkImage" id="i_s_down_image">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="icon_name">go-down-symbolic</property>
+-                                    <property name="icon-size">1</property>
+-                                  </object>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">1</property>
+-                              </packing>
+-                            </child>
+-                          </object>
+-                        </child>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">False</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkSeparatorToolItem" id="sep2">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="draw">False</property>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">True</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkToolItem" id="i_s_sc_item">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <child>
+-                          <object class="GtkBox" id="i_s_sc_box">
+-                            <property name="visible">True</property>
+-                            <property name="can_focus">False</property>
+-                            <child>
+-                              <object class="GtkButton" id="show_config">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">True</property>
+-                                <property name="receives_default">True</property>
+-                                <signal name="clicked" handler="show_selected_settings" object="CcRegionPanel" swapped="yes"/>
+-                                <child internal-child="accessible">
+-                                  <object class="AtkObject">
+-                                    <property name="accessible-name" translatable="yes">Configure input source</property>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkImage" id="i_s_sc_image">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="icon_name">emblem-system-symbolic</property>
+-                                    <property name="icon-size">1</property>
+-                                  </object>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">0</property>
+-                              </packing>
+-                            </child>
+-                            <child>
+-                              <object class="GtkButton" id="show_layout">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">True</property>
+-                                <property name="receives_default">True</property>
+-                                <signal name="clicked" handler="show_selected_layout" object="CcRegionPanel" swapped="yes"/>
+-                                <child internal-child="accessible">
+-                                  <object class="AtkObject">
+-                                    <property name="accessible-name" translatable="yes">Show input source keyboard layout</property>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkImage" id="i_s_sl_image">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="icon_name">input-keyboard-symbolic</property>
+-                                    <property name="icon-size">1</property>
+-                                  </object>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">1</property>
+-                              </packing>
+-                            </child>
+-                          </object>
+-                        </child>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">False</property>
+-                      </packing>
+-                    </child>
+-                  </object>
+-                  <packing>
+-                    <property name="expand">False</property>
+-                    <property name="fill">True</property>
+-                    <property name="position">2</property>
+-                  </packing>
+-                </child>
+-              </object>
+-              <packing>
+-                <property name="expand">False</property>
+-                <property name="fill">True</property>
+-                <property name="position">1</property>
+-              </packing>
+-            </child>
+             <child>
+               <object class="GtkLabel" id="login_label">
+                <property name="valign">end</property>
 diff --git a/panels/search/cc-search-locations-dialog.c b/panels/search/cc-search-locations-dialog.c
 index 7afbe0e..75949e5 100644
 --- a/panels/search/cc-search-locations-dialog.c
@@ -4479,7 +5786,7 @@ index 8b2c39f..510fd36 100644
                  return C_("Password hint", "Try to use more numbers.");
          case PWQ_ERROR_MIN_UPPERS:
 diff --git a/panels/user-accounts/um-user-panel.c b/panels/user-accounts/um-user-panel.c
-index eaa77bd..47785a0 100644
+index eaa77bd..7d25221 100644
 --- a/panels/user-accounts/um-user-panel.c
 +++ b/panels/user-accounts/um-user-panel.c
 @@ -1,6 +1,7 @@
@@ -4490,49 +5797,7 @@ index eaa77bd..47785a0 100644
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
-@@ -789,6 +790,28 @@ get_autologin_possible (ActUser *user)
-         return !(locked || set_password_at_login);
- }
- 
-+static gboolean
-+is_ecryptfs_user (const gchar *user)
-+{
-+    const gchar *fn;
-+    g_autoptr (GDir) dir = NULL;
-+    g_autofree gchar *path = NULL;
-+
-+    path = g_strdup (ECRYPTFS_DIR);
-+    dir = g_dir_open (path, 0, NULL);
-+
-+    if (dir == NULL)
-+        return FALSE;
-+
-+    while ((fn = g_dir_read_name (dir)) != NULL)
-+    {
-+        if (g_strcmp0 (fn, user) == 0)
-+            return TRUE;
-+    }
-+
-+    return FALSE;
-+}
-+
- static void on_permission_changed (GPermission *permission, GParamSpec *pspec, gpointer data);
- 
- static void
-@@ -862,9 +885,9 @@ show_user (ActUser *user, CcUserPanel *self)
-         /* Autologin: show when local account */
-         widget = get_widget (self, "autologin-box");
-         label = get_widget (self, "autologin-label");
--        show = act_user_is_local_account (user);
--        gtk_widget_set_visible (widget, show);
--        gtk_widget_set_visible (label, show);
-+        show = is_ecryptfs_user (act_user_get_user_name (user));//act_user_is_local_account (user);
-+        gtk_widget_set_visible (widget, !show);
-+        gtk_widget_set_visible (label, !show);
- 
-         /* Language: do not show for current user */
-         widget = get_widget (self, "account-language-button");
-@@ -966,6 +989,19 @@ restart_now (CcUserPanel *self)
+@@ -966,6 +967,19 @@ restart_now (CcUserPanel *self)
          g_object_unref (bus);
  }
  
@@ -4552,7 +5817,7 @@ index eaa77bd..47785a0 100644
  static void
  show_restart_notification (CcUserPanel *self, const gchar *locale)
  {
-@@ -976,7 +1012,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
+@@ -976,7 +990,19 @@ show_restart_notification (CcUserPanel *self, const gchar *locale)
                  setlocale (LC_MESSAGES, locale);
          }
  
@@ -4562,7 +5827,7 @@ index eaa77bd..47785a0 100644
 +                                                            0,
 +                                                            GTK_MESSAGE_INFO,
 +                                                            GTK_BUTTONS_YES_NO,
-+                                                            _("Your session needs to be restarted for changes to take effect.\nDo you want restart?"));
++                                                            _("User infomations has changed.\nChanges take effect after your session needs to be restarted.\nDo you want restart?"));
 +
 +        g_signal_connect (restart_dialog,
 +                          "response",
@@ -4611,7 +5876,7 @@ index 43c542b..ce2d45a 100644
  panels/info/cc-info-removable-media-panel.c
  panels/info/gnome-default-apps-panel.desktop.in.in
 diff --git a/po/en.po b/po/en.po
-index b5bf16d..bec80d9 100644
+index b5bf16d..8a8f356 100644
 --- a/po/en.po
 +++ b/po/en.po
 @@ -1,5 +1,6 @@
@@ -4621,7 +5886,7 @@ index b5bf16d..bec80d9 100644
  # This file is distributed under the same license as the PACKAGE package.
  # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
  #
-@@ -3193,3 +3194,117 @@ msgstr ""
+@@ -3193,3 +3194,135 @@ msgstr ""
  #: ../shell/shell.ui.h:2
  msgid "_All Settings"
  msgstr ""
@@ -4739,8 +6004,26 @@ index b5bf16d..bec80d9 100644
 +#: ../panels/power/cc-power-panel.c:1842
 +msgid "Screen dims when the computer operates on battery power."
 +msgstr ""
++
++#: ../panels/printers/cc-printer-panel.c:1136
++msgid ""
++"Media control access not permission.\n"
++"To use, change access permission to \"allow\""
++msgstr "Media control access not permission."
++"To use, change access permission to \"allow\""
++
++#: ../panels/user-accounts/um-user-panel.c:997
++msgid ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++msgstr ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++
 diff --git a/po/en_GB.po b/po/en_GB.po
-index 200d00a..f3b5bf8 100644
+index 200d00a..941a474 100644
 --- a/po/en_GB.po
 +++ b/po/en_GB.po
 @@ -5,6 +5,7 @@
@@ -4831,7 +6114,7 @@ index 200d00a..f3b5bf8 100644
  #~ msgid "Description"
  #~ msgstr "Description"
  
-@@ -13309,3 +13370,61 @@ msgstr "System Sounds"
+@@ -13309,3 +13370,80 @@ msgstr "System Sounds"
  
  #~ msgid "The typing monitor is already running."
  #~ msgstr "The typing monitor is already running."
@@ -4893,8 +6176,27 @@ index 200d00a..f3b5bf8 100644
 +msgctxt "Password hint"
 +msgid "Do not enter the same words consecutively."
 +msgstr ""
++
++#: ../panels/printers/cc-printer-panel.c:1136
++msgid ""
++"Media control access not permission.\n"
++"To use, change access permission to \"allow\""
++msgstr ""
++"Media control access not permission."
++"To use, change access permission to \"allow\""
++
++#: ../panels/user-accounts/um-user-panel.c:997
++msgid ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++msgstr ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++
 diff --git a/po/ko.po b/po/ko.po
-index a891961..b4564c9 100644
+index a891961..0ff0d97 100644
 --- a/po/ko.po
 +++ b/po/ko.po
 @@ -4,6 +4,7 @@
@@ -4905,7 +6207,7 @@ index a891961..b4564c9 100644
  #
  #
  # - 주의: 여러가지 분야의 어려운 용어가 많습니다. 충분히 시간을 두고 실제 의미가
-@@ -7706,3 +7707,145 @@ msgstr[0] "%u개 입력"
+@@ -7706,3 +7707,163 @@ msgstr[0] "%u개 입력"
  #: subprojects/gvc/gvc-mixer-control.c:2738
  msgid "System Sounds"
  msgstr "시스템 사운드"
@@ -5029,7 +6331,7 @@ index a891961..b4564c9 100644
 +"대화창이 잠겼습니다.\n"
 +"바꾸려면 누르십시오"
 +
-+#: ../panels/user-accounts/um-user-panel.c:997
++#: ../panels/user-accounts/um-user-panel.c:998
 +msgid ""
 +"Your session needs to be restarted for changes to take effect.\n"
 +"Do you want restart?"
@@ -5042,7 +6344,6 @@ index a891961..b4564c9 100644
 +msgid "Apply network time when connecting to the Internet"
 +msgstr "인터넷 연결 시 네트워크 시간 적용"
 +
-+
 +#: panels/user-accounts/pw-utils.c:97
 +msgctxt "Password hint"
 +msgid "Do not enter the same words consecutively."
@@ -5051,6 +6352,25 @@ index a891961..b4564c9 100644
 +#: ../panels/power/cc-power-panel.c:1842
 +msgid "Screen dims when the computer operates on battery power."
 +msgstr "컴퓨터가 배터리 전원으로 동작하면 화면이 어두워 집니다."
++
++#: ../panels/printers/cc-printer-panel.c:1136
++msgid ""
++"Media control access not permission.\n"
++"To use, change access permission to \"allow\""
++msgstr ""
++"매체제어 접근 권한이 없습니다.\n"
++"사용하시려면 접근 권한을 \"allow\"로 변경하십시오."
++
++#: ../panels/user-accounts/um-user-panel.c:997
++msgid ""
++"User infomations has changed.\n"
++"Changes take effect after your session needs to be restarted.\n"
++"Do you want restart?"
++msgstr ""
++"사용자 정보가 변경되었습니다.\n"
++"세션을 다시 시작해야 변경 사항이 적용됩니다.\n"
++"다시 시작하시겠습니까?"
++
 diff --git a/shell/cc-application.c b/shell/cc-application.c
 index 8ffb2bd..fb15a64 100644
 --- a/shell/cc-application.c
