@@ -1,11 +1,10 @@
-From 623ff8c2af526eb884e3a958c643f0122a3730fc Mon Sep 17 00:00:00 2001
+From 4cd05a1b7362f1744f4a62a65cbd5c1bb926abb8 Mon Sep 17 00:00:00 2001
 From: JeongHaeRyong <jeong89@gooroom.kr>
-Date: Mon, 17 Feb 2020 15:48:58 +0900
+Date: Tue, 25 Feb 2020 12:50:03 +0900
 Subject: [PATCH] gooroom
 
-Change-Id: Icb9a45f1ae866506835c187515319de2dde73f75
+Change-Id: Ifc488151189401f1ddf52997ef7d4f56df738757
 ---
- panels/background/bg-pictures-source.c        |   2 +-
  panels/color/color.ui                         |   4 +-
  panels/datetime/cc-datetime-panel.c           |   6 +-
  panels/datetime/datetime.ui                   |   4 +-
@@ -56,7 +55,7 @@ Change-Id: Icb9a45f1ae866506835c187515319de2dde73f75
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 51 files changed, 3748 insertions(+), 1450 deletions(-)
+ 50 files changed, 3747 insertions(+), 1449 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -71,19 +70,6 @@ Change-Id: Icb9a45f1ae866506835c187515319de2dde73f75
  create mode 100644 panels/themes/themes.gresource.xml
  create mode 100644 panels/themes/themes.ui
 
-diff --git a/panels/background/bg-pictures-source.c b/panels/background/bg-pictures-source.c
-index a37682d..8a558c6 100644
---- a/panels/background/bg-pictures-source.c
-+++ b/panels/background/bg-pictures-source.c
-@@ -491,7 +491,7 @@ add_single_file (BgPicturesSource     *bg_source,
-   g_object_set (G_OBJECT (item),
- 		"flags", flags,
- 		"shading", G_DESKTOP_BACKGROUND_SHADING_SOLID,
--		"placement", G_DESKTOP_BACKGROUND_STYLE_ZOOM,
-+		"placement", G_DESKTOP_BACKGROUND_STYLE_SCALED,
-                 "modified", mtime,
-                 "needs-download", needs_download,
-                 "source-url", source_uri,
 diff --git a/panels/color/color.ui b/panels/color/color.ui
 index 5798d7c..f7cce5d 100644
 --- a/panels/color/color.ui
