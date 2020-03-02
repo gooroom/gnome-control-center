@@ -1,4 +1,4 @@
-From 8d2a746d3e9d536c15e44f76d134530d3162862b Mon Sep 17 00:00:00 2001
+From 8b03345270669ba854b66a95b268610856fc18f8 Mon Sep 17 00:00:00 2001
 From: JeongHaeRyong <jeong89@gooroom.kr>
 Date: Fri, 28 Feb 2020 17:42:35 +0900
 Subject: [PATCH] gooroom
@@ -26,13 +26,16 @@ Change-Id: If888b62bf92ebabaa11f5a207664df847dffdd61
  .../connection-editor/ethernet-page.ui        | 173 ++--
  panels/network/net-device-ethernet.c          |  62 +-
  panels/network/net-device-ethernet.h          |   2 +
- panels/power/cc-power-panel.c                 |  25 +-
+ panels/power/cc-power-panel.c                 | 140 ++-
+ panels/power/power.ui                         |   4 +
  panels/printers/cc-printers-panel.c           |  56 +-
  panels/printers/printers.ui                   |   5 +
  panels/region/cc-region-panel.c               | 829 ---------------
  panels/region/meson.build                     |   9 -
  panels/region/region.ui                       | 321 ------
  panels/search/cc-search-locations-dialog.c    |  50 +-
+ panels/sound/gvc-channel-bar.c                |  20 +-
+ panels/sound/gvc-mixer-dialog.c               |   4 -
  panels/themes/cc-themes-panel.c               | 487 +++++++++
  panels/themes/cc-themes-panel.h               |  32 +
  .../themes/gnome-themes-panel.desktop.in.in   |  14 +
@@ -55,7 +58,7 @@ Change-Id: If888b62bf92ebabaa11f5a207664df847dffdd61
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 50 files changed, 3762 insertions(+), 1453 deletions(-)
+ 53 files changed, 3848 insertions(+), 1510 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -2885,7 +2888,7 @@ index 0d92fd1..86d8fe4 100644
          GHashTable *connections;
  };
 diff --git a/panels/power/cc-power-panel.c b/panels/power/cc-power-panel.c
-index ecf046b..e0aecf5 100644
+index ecf046b..6e283f9 100644
 --- a/panels/power/cc-power-panel.c
 +++ b/panels/power/cc-power-panel.c
 @@ -3,6 +3,7 @@
@@ -2896,7 +2899,116 @@ index ecf046b..e0aecf5 100644
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
-@@ -1823,14 +1824,26 @@ add_power_saving_section (CcPowerPanel *self)
+@@ -1017,7 +1018,7 @@ sync_screen_brightness (CcPowerPanel *self)
+   if (visible)
+     {
+       range = GTK_RANGE (self->brightness_scale);
+-      gtk_range_set_range (range, 0, 100);
++      gtk_range_set_range (range, 1, 100);
+       gtk_range_set_increments (range, 1, 10);
+       self->setting_brightness = TRUE;
+       gtk_range_set_value (range, brightness);
+@@ -1600,29 +1601,51 @@ keynav_failed (GtkWidget *list, GtkDirectionType direction, CcPowerPanel *self)
+   return FALSE;
+ }
+ 
++// disable blank screen combo box
++//static void
++//combo_idle_delay_changed_cb (GtkWidget *widget, CcPowerPanel *self)
++//{
++//  GtkTreeIter iter;
++//  GtkTreeModel *model;
++//  gint value;
++//  gboolean ret;
++//
++//  /* no selection */
++//  ret = gtk_combo_box_get_active_iter (GTK_COMBO_BOX(widget), &iter);
++//  if (!ret)
++//    return;
++//
++//  /* get entry */
++//  model = gtk_combo_box_get_model (GTK_COMBO_BOX(widget));
++//  gtk_tree_model_get (model, &iter,
++//                      1, &value,
++//                      -1);
++//
++//  /* set both keys */
++//  g_settings_set_uint (self->session_settings, "idle-delay", value);
++//}
++
+ static void
+-combo_idle_delay_changed_cb (GtkWidget *widget, CcPowerPanel *self)
++scale_idle_delay_changed_cb (GtkRange *range, CcPowerPanel *self)
+ {
+-  GtkTreeIter iter;
+-  GtkTreeModel *model;
+-  gint value;
++  guint value;
+   gboolean ret;
+ 
+-  /* no selection */
+-  ret = gtk_combo_box_get_active_iter (GTK_COMBO_BOX(widget), &iter);
+-  if (!ret)
+-    return;
++  value = (guint) gtk_range_get_value (range);
++  value *= 60;
+ 
+-  /* get entry */
+-  model = gtk_combo_box_get_model (GTK_COMBO_BOX(widget));
+-  gtk_tree_model_get (model, &iter,
+-                      1, &value,
+-                      -1);
+-
+-  /* set both keys */
+   g_settings_set_uint (self->session_settings, "idle-delay", value);
+ }
+ 
++static gchar*
++format_idle_delay_value_cb (GtkScale *scale, gdouble value, gpointer data)
++{
++  if ((gint)value <= 0)
++    return g_strdup (_("Never"));
++
++  return g_strdup_printf (_("%d minute"), (int)value);
++}
++
+ static void
+ combo_power_button_changed_cb (GtkWidget *widget, CcPowerPanel *self)
+ {
+@@ -1668,16 +1691,19 @@ add_brightness_row (CcPowerPanel  *self,
+   gtk_size_group_add_widget (self->battery_sizegroup, label);
+   box2 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+   w = gtk_label_new ("");
+-  gtk_box_pack_start (GTK_BOX (box2), w, FALSE, TRUE, 0);
++  gtk_box_pack_start (GTK_BOX (box2), w, FALSE, FALSE, 0);
+   gtk_size_group_add_widget (self->charge_sizegroup, w);
+ 
+-  *brightness_scale = scale = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0, 100, 1);
+-  gtk_label_set_mnemonic_widget (GTK_LABEL (label), scale);
+-  gtk_scale_set_draw_value (GTK_SCALE (scale), FALSE);
++  *brightness_scale = scale = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 1, 100, 1);
++  //gtk_label_set_mnemonic_widget (GTK_LABEL (label), scale);
++  gtk_scale_set_draw_value (GTK_SCALE (scale), TRUE);
++  gtk_scale_set_value_pos (GTK_SCALE (scale), GTK_POS_BOTTOM);
+   gtk_widget_set_margin_start (scale, 20);
+   gtk_widget_set_margin_end (scale, 20);
+-  gtk_box_pack_start (GTK_BOX (box2), scale, TRUE, TRUE, 0);
++  gtk_widget_set_size_request (scale, 350, -1);
++  gtk_box_pack_end (GTK_BOX (box2), scale, FALSE, TRUE, 0);
+   gtk_size_group_add_widget (self->level_sizegroup, scale);
++
+   g_signal_connect (scale, "value-changed",
+                     G_CALLBACK (brightness_slider_value_changed_cb), self);
+ 
+@@ -1738,6 +1764,7 @@ add_power_saving_section (CcPowerPanel *self)
+ {
+   GtkWidget *widget, *box, *label, *row;
+   GtkWidget *combo;
++  GtkWidget *scale;
+   GtkWidget *box2;
+   GtkWidget *sw;
+   GtkWidget *w;
+@@ -1823,14 +1850,26 @@ add_power_saving_section (CcPowerPanel *self)
    box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 50);
    gtk_container_add (GTK_CONTAINER (row), box);
  
@@ -2928,7 +3040,7 @@ index ecf046b..e0aecf5 100644
  
    sw = gtk_switch_new ();
    g_settings_bind (self->gsd_settings, "idle-dim",
-@@ -1843,6 +1856,8 @@ add_power_saving_section (CcPowerPanel *self)
+@@ -1843,6 +1882,8 @@ add_power_saving_section (CcPowerPanel *self)
    gtk_label_set_mnemonic_widget (GTK_LABEL (label), sw);
    gtk_container_add (GTK_CONTAINER (widget), row);
    gtk_size_group_add_widget (self->row_sizegroup, row);
@@ -2937,6 +3049,76 @@ index ecf046b..e0aecf5 100644
  
    row = no_prelight_row_new ();
    box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 50);
+@@ -1855,21 +1896,40 @@ add_power_saving_section (CcPowerPanel *self)
+   gtk_widget_set_margin_end (label, 20);
+   gtk_widget_set_margin_top (label, 6);
+   gtk_widget_set_margin_bottom (label, 6);
+-  gtk_box_pack_start (GTK_BOX (box), label, TRUE, TRUE, 0);
+-
+-  combo = gtk_combo_box_text_new ();
+-  gtk_combo_box_set_entry_text_column (GTK_COMBO_BOX (combo), 0);
+-  gtk_combo_box_set_model (GTK_COMBO_BOX (combo),
+-                           GTK_TREE_MODEL (self->liststore_idle_time));
++  gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 0);
++
++  //combo = gtk_combo_box_text_new ();
++  //gtk_combo_box_set_entry_text_column (GTK_COMBO_BOX (combo), 0);
++  //gtk_combo_box_set_model (GTK_COMBO_BOX (combo),
++  //                         GTK_TREE_MODEL (self->liststore_idle_time));
++  //value = g_settings_get_uint (self->session_settings, "idle-delay");
++  //set_value_for_combo (GTK_COMBO_BOX (combo), value);
++  //g_signal_connect (combo, "changed",
++  //                  G_CALLBACK (combo_idle_delay_changed_cb), self);
++  //gtk_widget_set_margin_start (combo, 20);
++  //gtk_widget_set_margin_end (combo, 20);
++  //gtk_widget_set_valign (combo, GTK_ALIGN_CENTER);
++  //gtk_box_pack_start (GTK_BOX (box), combo, FALSE, TRUE, 0);
++  //gtk_label_set_mnemonic_widget (GTK_LABEL (label), combo);
++  //gtk_container_add (GTK_CONTAINER (widget), row);
++  //gtk_size_group_add_widget (self->row_sizegroup, row);
++
++  scale = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0, 60, 1);
+   value = g_settings_get_uint (self->session_settings, "idle-delay");
+-  set_value_for_combo (GTK_COMBO_BOX (combo), value);
+-  g_signal_connect (combo, "changed",
+-                    G_CALLBACK (combo_idle_delay_changed_cb), self);
+-  gtk_widget_set_margin_start (combo, 20);
+-  gtk_widget_set_margin_end (combo, 20);
+-  gtk_widget_set_valign (combo, GTK_ALIGN_CENTER);
+-  gtk_box_pack_start (GTK_BOX (box), combo, FALSE, TRUE, 0);
+-  gtk_label_set_mnemonic_widget (GTK_LABEL (label), combo);
++  gtk_range_set_value (GTK_RANGE (scale), value / 60);
++  g_signal_connect (G_OBJECT (scale), "format-value",
++                    G_CALLBACK (format_idle_delay_value_cb), NULL);
++  g_signal_connect (scale, "value-changed",
++                    G_CALLBACK (scale_idle_delay_changed_cb), self);
++
++  gtk_scale_set_draw_value (GTK_SCALE (scale), TRUE);
++  gtk_scale_set_value_pos (GTK_SCALE (scale), GTK_POS_BOTTOM);
++  gtk_widget_set_margin_start (scale, 20);
++  gtk_widget_set_margin_end (scale, 20);
++  gtk_widget_set_margin_top (scale, 6);
++  gtk_widget_set_margin_bottom (scale, 6);
++  gtk_widget_set_size_request (scale, 350, -1);
++  gtk_box_pack_end (GTK_BOX (box), scale, FALSE, TRUE, 0);
+   gtk_container_add (GTK_CONTAINER (widget), row);
+   gtk_size_group_add_widget (self->row_sizegroup, row);
+ 
+diff --git a/panels/power/power.ui b/panels/power/power.ui
+index f6a2b09..7ee3146 100644
+--- a/panels/power/power.ui
++++ b/panels/power/power.ui
+@@ -95,6 +95,10 @@
+         <col id="0" translatable="yes">15 minutes</col>
+         <col id="1">900</col>
+       </row>
++      <row>
++        <col id="0" translatable="yes">30 minutes</col>
++        <col id="1">1800</col>
++      </row>
+       <row>
+         <col id="0" translatable="yes">Never</col>
+         <col id="1">0</col>
 diff --git a/panels/printers/cc-printers-panel.c b/panels/printers/cc-printers-panel.c
 index f05a3ec..66fd400 100644
 --- a/panels/printers/cc-printers-panel.c
@@ -4482,6 +4664,74 @@ index 7afbe0e..75949e5 100644
    g_settings_set_strv (tracker_preferences, place->settings_key, (const gchar **) new_values->pdata);
  
    gtk_widget_destroy (GTK_WIDGET (widget));
+diff --git a/panels/sound/gvc-channel-bar.c b/panels/sound/gvc-channel-bar.c
+index dd6f47d..a2d6dac 100644
+--- a/panels/sound/gvc-channel-bar.c
++++ b/panels/sound/gvc-channel-bar.c
+@@ -398,10 +398,6 @@ on_scale_button_release_event (GtkWidget      *widget,
+ 
+         value = gtk_adjustment_get_value (adj);
+ 
+-        /* this means the adjustment moved away from zero and
+-         * therefore we should unmute and set the volume. */
+-        gvc_channel_bar_set_is_muted (bar, (value == 0.0));
+-
+         /* Play a sound! */
+         ca_gtk_play_for_widget (GTK_WIDGET (bar), 0,
+                                 CA_PROP_EVENT_ID, "audio-volume-change",
+@@ -482,7 +478,6 @@ gvc_channel_bar_scroll (GvcChannelBar *bar, GdkEventScroll *event)
+                         value = value + dy * SCROLLSTEP;
+         }
+ 
+-        gvc_channel_bar_set_is_muted (bar, (value == 0.0));
+         adj = gtk_range_get_adjustment (GTK_RANGE (bar->scale));
+         gtk_adjustment_set_value (adj, value);
+ 
+@@ -509,13 +504,6 @@ on_zero_adjustment_value_changed (GtkAdjustment *adjustment,
+ 
+         value = gtk_adjustment_get_value (bar->zero_adjustment);
+         gtk_adjustment_set_value (bar->adjustment, value);
+-
+-
+-        if (bar->show_mute == FALSE) {
+-                /* this means the adjustment moved away from zero and
+-                 * therefore we should unmute and set the volume. */
+-                gvc_channel_bar_set_is_muted (bar, value > 0.0);
+-        }
+ }
+ 
+ static void
+@@ -540,13 +528,9 @@ update_mute_switch (GvcChannelBar *bar)
+                 g_signal_handlers_unblock_by_func (bar->zero_adjustment,
+                                                    on_zero_adjustment_value_changed,
+                                                    bar);
+-                gtk_range_set_adjustment (GTK_RANGE (bar->scale),
+-                                          bar->zero_adjustment);
++                gtk_widget_set_sensitive (bar->scale, FALSE);
+         } else {
+-                /* no longer muted so restore the original adjustment
+-                 * and tell the front-end that the value changed */
+-                gtk_range_set_adjustment (GTK_RANGE (bar->scale),
+-                                          bar->adjustment);
++                gtk_widget_set_sensitive (bar->scale, TRUE);
+                 gtk_adjustment_value_changed (bar->adjustment);
+         }
+ }
+diff --git a/panels/sound/gvc-mixer-dialog.c b/panels/sound/gvc-mixer-dialog.c
+index e3e1efc..5e6085f 100644
+--- a/panels/sound/gvc-mixer-dialog.c
++++ b/panels/sound/gvc-mixer-dialog.c
+@@ -644,10 +644,6 @@ on_adjustment_value_changed (GtkAdjustment  *adjustment,
+                 g_object_get (bar, "name", &name, NULL);
+                 g_debug ("Setting stream volume %lf (rounded: %lf) for bar '%s'", volume, rounded, name);
+ 
+-                /* FIXME would need to do that in the balance bar really... */
+-                /* Make sure we do not unmute muted streams, there's a button for that */
+-                if (volume == 0.0)
+-                        gvc_mixer_stream_set_is_muted (stream, TRUE);
+                 /* Only push the volume if it's actually changed */
+                 if (gvc_mixer_stream_set_volume (stream, (pa_volume_t) rounded) != FALSE)
+                         gvc_mixer_stream_push_volume (stream);
 diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
 new file mode 100644
 index 0000000..e0b6c7f
