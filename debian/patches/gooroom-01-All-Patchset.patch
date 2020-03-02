@@ -1,9 +1,9 @@
-From 4cd05a1b7362f1744f4a62a65cbd5c1bb926abb8 Mon Sep 17 00:00:00 2001
+From 8d2a746d3e9d536c15e44f76d134530d3162862b Mon Sep 17 00:00:00 2001
 From: JeongHaeRyong <jeong89@gooroom.kr>
-Date: Tue, 25 Feb 2020 12:50:03 +0900
+Date: Fri, 28 Feb 2020 17:42:35 +0900
 Subject: [PATCH] gooroom
 
-Change-Id: Ifc488151189401f1ddf52997ef7d4f56df738757
+Change-Id: If888b62bf92ebabaa11f5a207664df847dffdd61
 ---
  panels/color/color.ui                         |   4 +-
  panels/datetime/cc-datetime-panel.c           |   6 +-
@@ -51,11 +51,11 @@ Change-Id: Ifc488151189401f1ddf52997ef7d4f56df738757
  po/en_GB.po                                   | 144 ++-
  po/ko.po                                      | 161 +++
  shell/cc-application.c                        |  27 +-
- shell/cc-panel-list.c                         |  27 +
+ shell/cc-panel-list.c                         |  46 +-
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 50 files changed, 3747 insertions(+), 1449 deletions(-)
+ 50 files changed, 3762 insertions(+), 1453 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -6413,7 +6413,7 @@ index 8ffb2bd..fb15a64 100644
    self->model = cc_shell_model_new ();
    self->window = cc_window_new (GTK_APPLICATION (application), self->model);
 diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
-index 39a46b4..d625cec 100644
+index 39a46b4..bb4661f 100644
 --- a/shell/cc-panel-list.c
 +++ b/shell/cc-panel-list.c
 @@ -1,6 +1,7 @@
@@ -6478,6 +6478,32 @@ index 39a46b4..d625cec 100644
    /*
     * Since we're not sure that the activated row is in the
     * current view, set the view here.
+@@ -829,10 +856,21 @@ cc_panel_list_activate (CcPanelList *self)
+ 
+   listbox = get_listbox_from_view (self, self->view);
+ 
+-  /* Select the first visible row */
+-  do
+-    row = gtk_list_box_get_row_at_index (GTK_LIST_BOX (listbox), i++);
+-  while (row && !gtk_widget_get_visible (GTK_WIDGET (row)));
++  /* 패널 검색에서 텍스트를 입력 후 Enter 또는 뒤로 가기를 한 경우
++     무조건 privacy패널을 선택하는 오류가 있어서 주석처리함... */
++//  /* Select the first visible row */
++//  do
++//    row = gtk_list_box_get_row_at_index (GTK_LIST_BOX (listbox), i++);
++//  while (row && !gtk_widget_get_visible (GTK_WIDGET (row)));
++
++  if (self->view == CC_PANEL_LIST_SEARCH)
++    row = gtk_list_box_get_row_at_y (GTK_LIST_BOX (listbox), 0);
++  else   
++    {  
++      row = gtk_list_box_get_selected_row (GTK_LIST_BOX (listbox));
++      if (!row)
++        row = gtk_list_box_get_row_at_index (GTK_LIST_BOX (listbox), 0);
++    }
+ 
+   /* If the row is valid, activate it */
+   if (row)
 diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
 index 6b5c6e3..426af1c 100644
 --- a/shell/cc-panel-loader.c
