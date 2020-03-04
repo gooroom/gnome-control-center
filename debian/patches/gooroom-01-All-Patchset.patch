@@ -1,9 +1,9 @@
-From 8b03345270669ba854b66a95b268610856fc18f8 Mon Sep 17 00:00:00 2001
-From: JeongHaeRyong <jeong89@gooroom.kr>
-Date: Fri, 28 Feb 2020 17:42:35 +0900
-Subject: [PATCH] gooroom
+From 374754f3020f5e8ad98c00acbc479b28f44ab290 Mon Sep 17 00:00:00 2001
+From: donghun <donghun@gooroom.kr>
+Date: Wed, 4 Mar 2020 12:01:52 +0900
+Subject: [PATCH] gooroom-patches
 
-Change-Id: If888b62bf92ebabaa11f5a207664df847dffdd61
+Change-Id: Ic65e48a926c2348cbdfae59937bd435ab62126b5
 ---
  panels/color/color.ui                         |   4 +-
  panels/datetime/cc-datetime-panel.c           |   6 +-
@@ -28,7 +28,9 @@ Change-Id: If888b62bf92ebabaa11f5a207664df847dffdd61
  panels/network/net-device-ethernet.h          |   2 +
  panels/power/cc-power-panel.c                 | 140 ++-
  panels/power/power.ui                         |   4 +
- panels/printers/cc-printers-panel.c           |  56 +-
+ panels/printers/cc-printers-panel.c           |  84 +-
+ panels/printers/pp-printer-entry.c            |   6 +
+ panels/printers/pp-printer-entry.h            |   2 +
  panels/printers/printers.ui                   |   5 +
  panels/region/cc-region-panel.c               | 829 ---------------
  panels/region/meson.build                     |   9 -
@@ -58,7 +60,7 @@ Change-Id: If888b62bf92ebabaa11f5a207664df847dffdd61
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 53 files changed, 3848 insertions(+), 1510 deletions(-)
+ 55 files changed, 3880 insertions(+), 1514 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -3120,7 +3122,7 @@ index f6a2b09..7ee3146 100644
          <col id="0" translatable="yes">Never</col>
          <col id="1">0</col>
 diff --git a/panels/printers/cc-printers-panel.c b/panels/printers/cc-printers-panel.c
-index f05a3ec..66fd400 100644
+index f05a3ec..c6936da 100644
 --- a/panels/printers/cc-printers-panel.c
 +++ b/panels/printers/cc-printers-panel.c
 @@ -1,5 +1,6 @@
@@ -3148,7 +3150,78 @@ index f05a3ec..66fd400 100644
  
    widget = (GtkWidget*)
      gtk_builder_get_object (priv->builder, "search-button");
-@@ -1081,6 +1084,44 @@ new_printer_dialog_response_cb (PpNewPrinterDialog *dialog,
+@@ -848,15 +851,21 @@ on_printer_changed (PpPrinterEntry *printer_entry,
+ 
+ static void
+ add_printer_entry (CcPrintersPanel *self,
+-                   cups_dest_t      printer)
++                   cups_dest_t      printer,
++				   gint             index)
+ {
+   CcPrintersPanelPrivate *priv;
+   PpPrinterEntry         *printer_entry;
++  PpPrinterEntry         *printer_entry_tmp;
+   GtkWidget              *content;
+   GSList                 *widgets, *l;
+ 
+   priv = PRINTERS_PANEL_PRIVATE (self);
+ 
++  printer_entry_tmp = PP_PRINTER_ENTRY (g_hash_table_lookup (priv->printer_entries, printer.name));
++  if (printer_entry_tmp && pp_printer_entry_is_activate_jobs_dialog (printer_entry_tmp))
++      return;
++
+   content = (GtkWidget*) gtk_builder_get_object (priv->builder, "content");
+ 
+   printer_entry = pp_printer_entry_new (printer, priv->is_authorized);
+@@ -879,7 +888,7 @@ add_printer_entry (CcPrintersPanel *self,
+                     G_CALLBACK (on_printer_renamed),
+                     self);
+ 
+-  gtk_list_box_insert (GTK_LIST_BOX (content), GTK_WIDGET (printer_entry), -1);
++  gtk_list_box_insert (GTK_LIST_BOX (content), GTK_WIDGET (printer_entry), index);
+   gtk_widget_show_all (content);
+ 
+   g_hash_table_insert (priv->printer_entries, g_strdup (printer.name), printer_entry);
+@@ -910,6 +919,20 @@ set_current_page (GObject      *source_object,
+   update_sensitivity (user_data);
+ }
+ 
++static void
++gtk_widget_destroy_cb (GtkWidget *widget, gpointer data)
++{
++  PpPrinterEntry         *printer_entry;
++  printer_entry = PP_PRINTER_ENTRY (widget);
++
++  if (printer_entry && pp_printer_entry_is_activate_jobs_dialog (printer_entry))
++  {
++      return;
++  }
++
++  gtk_widget_destroy (widget);
++}
++
+ static void
+ actualize_printers_list_cb (GObject      *source_object,
+                             GAsyncResult *result,
+@@ -952,7 +975,7 @@ actualize_printers_list_cb (GObject      *source_object,
+     gtk_stack_set_visible_child_name (GTK_STACK (widget), "printers-list");
+ 
+   widget = (GtkWidget*) gtk_builder_get_object (priv->builder, "content");
+-  gtk_container_foreach (GTK_CONTAINER (widget), (GtkCallback) gtk_widget_destroy, NULL);
++  gtk_container_foreach (GTK_CONTAINER (widget), (GtkCallback) gtk_widget_destroy_cb, NULL);
+ 
+   for (i = 0; i < priv->num_dests; i++)
+     {
+@@ -969,7 +992,7 @@ actualize_printers_list_cb (GObject      *source_object,
+       if (new_printer_available && g_strcmp0 (priv->dests[i].name, priv->old_printer_name) == 0)
+           continue;
+ 
+-      add_printer_entry (self, priv->dests[i]);
++      add_printer_entry (self, priv->dests[i], i);
+     }
+ 
+   if (!priv->entries_filled)
+@@ -1081,6 +1104,44 @@ new_printer_dialog_response_cb (PpNewPrinterDialog *dialog,
                              allocation.y - gtk_widget_get_margin_top (printer_entry));
  }
  
@@ -3193,7 +3266,7 @@ index f05a3ec..66fd400 100644
  static void
  printer_add_cb (GtkToolButton *toolbutton,
                  gpointer       user_data)
-@@ -1105,6 +1146,7 @@ printer_add_cb (GtkToolButton *toolbutton,
+@@ -1105,6 +1166,7 @@ printer_add_cb (GtkToolButton *toolbutton,
                      "response",
                      G_CALLBACK (new_printer_dialog_response_cb),
                      self);
@@ -3201,7 +3274,7 @@ index f05a3ec..66fd400 100644
  }
  
  static void
-@@ -1116,6 +1158,7 @@ update_sensitivity (gpointer user_data)
+@@ -1116,6 +1178,7 @@ update_sensitivity (gpointer user_data)
    GtkWidget               *widget;
    gboolean                 local_server = TRUE;
    gboolean                 no_cups = FALSE;
@@ -3209,7 +3282,7 @@ index f05a3ec..66fd400 100644
  
    priv = PRINTERS_PANEL_PRIVATE (self);
  
-@@ -1129,6 +1172,7 @@ update_sensitivity (gpointer user_data)
+@@ -1129,6 +1192,7 @@ update_sensitivity (gpointer user_data)
      priv->is_authorized ? PAGE_ADDPRINTER : PAGE_LOCK);
  
    widget = (GtkWidget*) gtk_builder_get_object (priv->builder, "main-vbox");
@@ -3217,7 +3290,7 @@ index f05a3ec..66fd400 100644
    if (g_strcmp0 (gtk_stack_get_visible_child_name (GTK_STACK (widget)), "no-cups-page") == 0)
      no_cups = TRUE;
  
-@@ -1384,6 +1428,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
+@@ -1384,6 +1448,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
    priv->actualize_printers_list_cancellable = g_cancellable_new ();
    priv->cups_status_check_cancellable = g_cancellable_new ();
  
@@ -3226,7 +3299,7 @@ index f05a3ec..66fd400 100644
    builder_result = gtk_builder_add_objects_from_resource (priv->builder,
                                                            "/org/gnome/control-center/printers/printers.ui",
                                                            objects, &error);
-@@ -1400,6 +1446,10 @@ cc_printers_panel_init (CcPrintersPanel *self)
+@@ -1400,6 +1466,10 @@ cc_printers_panel_init (CcPrintersPanel *self)
      gtk_builder_get_object (priv->builder, "headerbar-buttons");
    priv->headerbar_buttons = widget;
  
@@ -3237,7 +3310,7 @@ index f05a3ec..66fd400 100644
    priv->notification = (GtkRevealer*)
      gtk_builder_get_object (priv->builder, "notification");
  
-@@ -1457,8 +1507,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
+@@ -1457,8 +1527,8 @@ cc_printers_panel_init (CcPrintersPanel *self)
      }
    else
      g_warning ("Your system does not have the cups-pk-helper's policy \
@@ -3248,6 +3321,34 @@ index f05a3ec..66fd400 100644
  
    priv->subscription_renew_cancellable = g_cancellable_new ();
  
+diff --git a/panels/printers/pp-printer-entry.c b/panels/printers/pp-printer-entry.c
+index 8907ca9..c124788 100644
+--- a/panels/printers/pp-printer-entry.c
++++ b/panels/printers/pp-printer-entry.c
+@@ -676,6 +676,12 @@ printer_jobs_dialog_free_cb (GtkDialog *dialog,
+   pp_jobs_dialog_free ((PpJobsDialog *) user_data);
+ }
+ 
++gboolean
++pp_printer_entry_is_activate_jobs_dialog (PpPrinterEntry *self)
++{
++    return self->pp_jobs_dialog == NULL ? FALSE : TRUE;
++}
++
+ void
+ pp_printer_entry_show_jobs_dialog (PpPrinterEntry *self)
+ {
+diff --git a/panels/printers/pp-printer-entry.h b/panels/printers/pp-printer-entry.h
+index d56424f..557301f 100644
+--- a/panels/printers/pp-printer-entry.h
++++ b/panels/printers/pp-printer-entry.h
+@@ -42,4 +42,6 @@ void            pp_printer_entry_show_jobs_dialog (PpPrinterEntry *self);
+ 
+ void            pp_printer_entry_authenticate_jobs (PpPrinterEntry *self);
+ 
++gboolean        pp_printer_entry_is_activate_jobs_dialog (PpPrinterEntry *self);
++
+ #endif /* PP_PRINTER_ENTRY_H */
 diff --git a/panels/printers/printers.ui b/panels/printers/printers.ui
 index 2894b7e..4051776 100644
 --- a/panels/printers/printers.ui
