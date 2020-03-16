@@ -1,9 +1,8 @@
-From 374754f3020f5e8ad98c00acbc479b28f44ab290 Mon Sep 17 00:00:00 2001
-From: donghun <donghun@gooroom.kr>
-Date: Wed, 4 Mar 2020 12:01:52 +0900
-Subject: [PATCH] gooroom-patches
+From 02273e810e6c17de72bbd64e65c19ef3c130f7d6 Mon Sep 17 00:00:00 2001
+From: JeongHaeRyong <jeong89@gooroom.kr>
+Date: Mon, 16 Mar 2020 18:02:54 +0900
+Subject: [PATCH] gooroom
 
-Change-Id: Ic65e48a926c2348cbdfae59937bd435ab62126b5
 ---
  panels/color/color.ui                         |   4 +-
  panels/datetime/cc-datetime-panel.c           |   6 +-
@@ -20,6 +19,7 @@ Change-Id: Ic65e48a926c2348cbdfae59937bd435ab62126b5
  panels/info/cc-info-overview-panel.c          |   8 +-
  panels/info/cc-info-overview-panel.c.orig     | 942 ++++++++++++++++++
  panels/info/info-overview.ui                  |  32 -
+ panels/keyboard/cc-keyboard-shortcut-editor.c |  83 +-
  panels/meson.build                            |   6 +-
  panels/network/cc-wifi-panel.c                |   3 +-
  .../connection-editor/ce-page-ethernet.c      |   7 +-
@@ -54,13 +54,13 @@ Change-Id: Ic65e48a926c2348cbdfae59937bd435ab62126b5
  po/POTFILES.in                                |   6 +
  po/en.po                                      | 133 +++
  po/en_GB.po                                   | 144 ++-
- po/ko.po                                      | 161 +++
+ po/ko.po                                      | 163 ++-
  shell/cc-application.c                        |  27 +-
  shell/cc-panel-list.c                         |  46 +-
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 55 files changed, 3880 insertions(+), 1514 deletions(-)
+ 56 files changed, 3936 insertions(+), 1543 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -2388,6 +2388,178 @@ index ace1747..a837649 100644
          <child>
            <object class="GtkGrid" id="grid1">
              <property name="visible">True</property>
+diff --git a/panels/keyboard/cc-keyboard-shortcut-editor.c b/panels/keyboard/cc-keyboard-shortcut-editor.c
+index 499260d..ee84f4f 100644
+--- a/panels/keyboard/cc-keyboard-shortcut-editor.c
++++ b/panels/keyboard/cc-keyboard-shortcut-editor.c
+@@ -51,7 +51,6 @@ struct _CcKeyboardShortcutEditor
+ 
+   CcKeyboardManager  *manager;
+   CcKeyboardItem     *item;
+-  GBinding           *reset_item_binding;
+ 
+   CcKeyboardItem     *collision_item;
+ 
+@@ -295,14 +294,15 @@ set_header_mode (CcKeyboardShortcutEditor *self,
+ {
+   gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (self->headerbar), mode == HEADER_MODE_CUSTOM_EDIT);
+ 
+-  gtk_widget_set_visible (self->add_button, mode == HEADER_MODE_ADD);
+   gtk_widget_set_visible (self->cancel_button, mode != HEADER_MODE_NONE &&
+                                                mode != HEADER_MODE_CUSTOM_EDIT);
++  gtk_widget_set_visible (self->add_button, mode == HEADER_MODE_ADD);
+   gtk_widget_set_visible (self->replace_button, mode == HEADER_MODE_REPLACE);
+   gtk_widget_set_visible (self->set_button, mode == HEADER_MODE_SET);
+   gtk_widget_set_visible (self->remove_button, mode == HEADER_MODE_CUSTOM_EDIT);
+ 
+   /* By setting the default response, the action button gets the 'suggested-action' applied */
++
+   switch (mode)
+     {
+     case HEADER_MODE_SET:
+@@ -322,6 +322,39 @@ set_header_mode (CcKeyboardShortcutEditor *self,
+     }
+ }
+ 
++static gboolean
++is_value_default (CcKeyboardShortcutEditor *self)
++{
++  GList *list;
++  CcKeyCombo *default_combo;
++  char *default_binding;
++  char *custom_binding;
++  gboolean value_default = FALSE;
++
++  custom_binding = gtk_accelerator_name_with_keycode (NULL,
++                                                      self->custom_combo->keyval,
++                                                      self->custom_combo->keycode,
++                                                      self->custom_combo->mask);
++
++  list = cc_keyboard_item_get_default_combos (self->item);
++  if (list != NULL)
++  {
++    default_combo = list->data;
++    default_binding = gtk_accelerator_name_with_keycode (NULL,
++                                                         default_combo->keyval,
++                                                         default_combo->keycode,
++                                                         default_combo->mask);
++
++    value_default = (g_strcmp0 (default_binding, custom_binding) == 0);
++  }
++  else
++  {
++    value_default = (g_strcmp0 ("0x00", custom_binding) == 0);
++  }
++
++  return !value_default;
++}
++
+ static void
+ setup_custom_shortcut (CcKeyboardShortcutEditor *self)
+ {
+@@ -385,12 +418,12 @@ setup_custom_shortcut (CcKeyboardShortcutEditor *self)
+ 
+   accel = gtk_accelerator_name (self->custom_combo->keyval, self->custom_combo->mask);
+ 
+-
+   /* Setup the accelerator label */
+   gtk_shortcut_label_set_accelerator (shortcut_label, accel);
+ 
+   self->edited = TRUE;
+ 
++  gtk_widget_set_visible (GTK_WIDGET (self->reset_button), is_value_default (self));
+   release_grab (self);
+ 
+   /*
+@@ -533,23 +566,32 @@ reset_custom_clicked_cb (CcKeyboardShortcutEditor *self)
+ static void
+ reset_item_clicked_cb (CcKeyboardShortcutEditor *self)
+ {
+-  CcKeyCombo *combo;
+-  gchar *accel;
++  CcKeyCombo *default_combo;
++  GList *list;
+ 
+-  /* Reset first, then update the shortcut */
+-  cc_keyboard_manager_reset_shortcut (self->manager, self->item);
++  self->edited = TRUE;
++  self->custom_is_modifier = FALSE;
++  memset (self->custom_combo, 0, sizeof (CcKeyCombo));
+ 
+-  combo = cc_keyboard_item_get_primary_combo (self->item);
+-  accel = gtk_accelerator_name (combo->keyval, combo->mask);
+-  gtk_shortcut_label_set_accelerator (GTK_SHORTCUT_LABEL (self->shortcut_accel_label), accel);
++  list = cc_keyboard_item_get_default_combos (self->item);
++  if (list != NULL)
++  {
++    default_combo = list->data;
++    self->custom_combo->keycode = default_combo->keycode;
++    self->custom_combo->keyval = default_combo->keyval;
++    self->custom_combo->mask = default_combo->mask;
++  }
+ 
+-  g_free (accel);
++  self->edited = FALSE;
++  setup_custom_shortcut (self);
+ }
+ 
+ static void
+ set_button_clicked_cb (CcKeyboardShortcutEditor *self)
+ {
++  release_grab (self);
+   update_shortcut (self);
++
+   gtk_widget_hide (GTK_WIDGET (self));
+ }
+ 
+@@ -592,15 +634,8 @@ setup_keyboard_item (CcKeyboardShortcutEditor *self,
+   gtk_label_set_markup (GTK_LABEL (self->top_info_label), text);
+ 
+   /* Accelerator labels */
+-  gtk_shortcut_label_set_accelerator (GTK_SHORTCUT_LABEL (self->shortcut_accel_label), accel);
+-  gtk_shortcut_label_set_accelerator (GTK_SHORTCUT_LABEL (self->custom_shortcut_accel_label), accel);
+-
+-  g_clear_pointer (&self->reset_item_binding, g_binding_unbind);
+-  self->reset_item_binding = g_object_bind_property (item,
+-                                                     "is-value-default",
+-                                                     self->reset_button,
+-                                                     "visible",
+-                                                     G_BINDING_DEFAULT | G_BINDING_INVERT_BOOLEAN | G_BINDING_SYNC_CREATE);
++  //gtk_shortcut_label_set_accelerator (GTK_SHORTCUT_LABEL (self->shortcut_accel_label), accel);
++  //gtk_shortcut_label_set_accelerator (GTK_SHORTCUT_LABEL (self->custom_shortcut_accel_label), accel);
+ 
+   /* Setup the custom entries */
+   if (is_custom)
+@@ -646,7 +681,6 @@ cc_keyboard_shortcut_editor_finalize (GObject *object)
+   g_clear_object (&self->manager);
+ 
+   g_clear_pointer (&self->custom_combo, g_free);
+-  g_clear_pointer (&self->reset_item_binding, g_binding_unbind);
+ 
+   G_OBJECT_CLASS (cc_keyboard_shortcut_editor_parent_class)->finalize (object);
+ }
+@@ -754,13 +788,7 @@ cc_keyboard_shortcut_editor_key_press_event (GtkWidget   *widget,
+       self->custom_is_modifier = FALSE;
+       memset (self->custom_combo, 0, sizeof (CcKeyCombo));
+ 
+-      gtk_shortcut_label_set_accelerator (GTK_SHORTCUT_LABEL (self->custom_shortcut_accel_label), "");
+-      gtk_shortcut_label_set_accelerator (GTK_SHORTCUT_LABEL (self->shortcut_accel_label), "");
+-
+-      release_grab (self);
+-
+       self->edited = FALSE;
+-
+       setup_custom_shortcut (self);
+ 
+       return GDK_EVENT_STOP;
+@@ -773,7 +801,6 @@ cc_keyboard_shortcut_editor_key_press_event (GtkWidget   *widget,
+ 
+   /* CapsLock isn't supported as a keybinding modifier, so keep it from confusing us */
+   self->custom_combo->mask &= ~GDK_LOCK_MASK;
+-
+   setup_custom_shortcut (self);
+ 
+   return GDK_EVENT_STOP;
 diff --git a/panels/meson.build b/panels/meson.build
 index 37a3436..bcf684a 100644
 --- a/panels/meson.build
@@ -6533,7 +6705,7 @@ index 200d00a..941a474 100644
 +"Do you want restart?"
 +
 diff --git a/po/ko.po b/po/ko.po
-index a891961..0ff0d97 100644
+index a891961..d25e147 100644
 --- a/po/ko.po
 +++ b/po/ko.po
 @@ -4,6 +4,7 @@
@@ -6544,6 +6716,15 @@ index a891961..0ff0d97 100644
  #
  #
  # - 주의: 여러가지 분야의 어려운 용어가 많습니다. 충분히 시간을 두고 실제 의미가
+@@ -1959,7 +1960,7 @@ msgstr "다르게 검색해 보십시오"
+ #: panels/keyboard/shortcut-editor.ui:68 panels/keyboard/shortcut-editor.ui:318
+ msgid "Press Esc to cancel or Backspace to reset the keyboard shortcut."
+ msgstr ""
+-"키보드 바로 가기 입력에서 Esc를 누르면 취소하고, 백스페이스를 누르면 초기화합"
++"키보드 바로 가기 입력에서 Esc를 누르면 취소하고, 백스페이스를 누르면 사용하지 않습"
+ "니다."
+ 
+ #: panels/keyboard/shortcut-editor.ui:156 panels/printers/details-dialog.ui:38
 @@ -7706,3 +7707,163 @@ msgstr[0] "%u개 입력"
  #: subprojects/gvc/gvc-mixer-control.c:2738
  msgid "System Sounds"
