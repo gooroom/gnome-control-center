@@ -1,4 +1,4 @@
-From e297b3f174ec1321beb313e2f30d2cb4df64a4c4 Mon Sep 17 00:00:00 2001
+From 2a570f0a6df368e4b0047113957d1c9d033e7ccd Mon Sep 17 00:00:00 2001
 From: JeongHaeRyong <jeong89@gooroom.kr>
 Date: Mon, 16 Mar 2020 18:02:54 +0900
 Subject: [PATCH] gooroom
@@ -44,7 +44,7 @@ Subject: [PATCH] gooroom
  panels/themes/meson.build                     |  52 +
  panels/themes/themes.gresource.xml            |   7 +
  panels/themes/themes.ui                       | 165 +++
- panels/thunderbolt/cc-bolt-panel.ui           |  16 +
+ panels/thunderbolt/cc-bolt-panel.ui           |  18 +-
  panels/universal-access/cc-ua-panel.c         | 147 ++-
  panels/universal-access/uap.ui                |  32 +-
  panels/user-accounts/meson.build              |   3 +-
@@ -54,13 +54,13 @@ Subject: [PATCH] gooroom
  po/POTFILES.in                                |   6 +
  po/en.po                                      | 136 +++
  po/en_GB.po                                   | 147 ++-
- po/ko.po                                      | 172 +++-
+ po/ko.po                                      | 174 +++-
  shell/cc-application.c                        |  27 +-
  shell/cc-panel-list.c                         |  46 +-
  shell/cc-panel-loader.c                       |  37 +-
  shell/cc-shell-model.c                        |  33 +-
  shell/org.gnome.ControlCenter.gschema.xml     |   5 +
- 56 files changed, 3839 insertions(+), 1546 deletions(-)
+ 56 files changed, 3841 insertions(+), 1548 deletions(-)
  create mode 100644 panels/font/cc-font-panel.c
  create mode 100644 panels/font/cc-font-panel.h
  create mode 100644 panels/font/font.gresource.xml
@@ -5705,9 +5705,18 @@ index 0000000..086d6f0
 +  </object>
 +</interface>
 diff --git a/panels/thunderbolt/cc-bolt-panel.ui b/panels/thunderbolt/cc-bolt-panel.ui
-index 226353c..68d340a 100644
+index 226353c..afacac3 100644
 --- a/panels/thunderbolt/cc-bolt-panel.ui
 +++ b/panels/thunderbolt/cc-bolt-panel.ui
+@@ -138,7 +138,7 @@
+                       <object class="GtkLabel" id="notb_caption">
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
+-                        <property name="wrap">True</property>
++                        <property name="wrap">False</property>
+                         <property name="xalign">0</property>
+                         <property name="label" translatable="yes">No Thunderbolt support</property>
+                         <attributes>
 @@ -171,6 +171,22 @@
                          <property name="top_attach">1</property>
                        </packing>
@@ -6602,7 +6611,7 @@ index 200d00a..122426f 100644
 +msgid "This theme is not listed."
 +msgstr "This theme is not listed."
 diff --git a/po/ko.po b/po/ko.po
-index a891961..139a141 100644
+index a891961..ab4390b 100644
 --- a/po/ko.po
 +++ b/po/ko.po
 @@ -4,6 +4,7 @@
@@ -6622,6 +6631,15 @@ index a891961..139a141 100644
  "니다."
  
  #: panels/keyboard/shortcut-editor.ui:156 panels/printers/details-dialog.ui:38
+@@ -2549,7 +2550,7 @@ msgstr "링크 로컬만"
+ #: panels/network/connection-editor/ip4-page.ui:83
+ #: panels/network/connection-editor/ip6-page.ui:97
+ msgid "Disable"
+-msgstr "사용 않기"
++msgstr "사용안함"
+ 
+ #: panels/network/connection-editor/ip4-page.ui:111
+ #: panels/network/connection-editor/ip6-page.ui:125
 @@ -6295,11 +6296,11 @@ msgstr "누르기 도움"
  
  #: panels/universal-access/uap.ui:2493
