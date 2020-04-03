@@ -1,0 +1,126 @@
+From b1e90c0c33c18678ef950c132026bc6af1527e3b Mon Sep 17 00:00:00 2001
+From: JeongHaeRyong <jeong89@gooroom.kr>
+Date: Fri, 3 Apr 2020 11:02:07 +0900
+Subject: [PATCH] gooroom 06 fixed wifi panel title bar
+
+Change-Id: If203bf71da7743e8c9371382f7486bba5d409510
+---
+ panels/network/cc-wifi-panel.c  | 17 ++++++++++++++---
+ panels/network/cc-wifi-panel.ui | 17 +++++++++++++++++
+ shell/cc-panel-loader.c         |  2 +-
+ 3 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/panels/network/cc-wifi-panel.c b/panels/network/cc-wifi-panel.c
+index 72eabfa..ab061a5 100644
+--- a/panels/network/cc-wifi-panel.c
++++ b/panels/network/cc-wifi-panel.c
+@@ -55,6 +55,7 @@ struct _CcWifiPanel
+   GtkStack           *main_stack;
+   GtkSizeGroup       *sizegroup;
+   GtkStack           *stack;
++  GtkWidget          *empty_center_box;
+ 
+   NMClient           *client;
+ 
+@@ -146,7 +147,7 @@ cc_wifi_panel_static_init_func (void)
+ 
+ /* Auxiliary methods */
+ 
+-static void
++static gboolean
+ add_wifi_device (CcWifiPanel *self,
+                  NMDevice    *device)
+ {
+@@ -155,7 +156,7 @@ add_wifi_device (CcWifiPanel *self,
+ 
+   /* Only manage Wi-Fi devices */
+   if (!NM_IS_DEVICE_WIFI (device) || !nm_device_get_managed (device))
+-    return;
++    return FALSE;
+ 
+   /* Create the NetDevice */
+   net_device = g_object_new (NET_TYPE_DEVICE_WIFI,
+@@ -178,6 +179,8 @@ add_wifi_device (CcWifiPanel *self,
+   g_ptr_array_add (self->devices, net_device);
+ 
+   update_devices_names (self);
++
++  return TRUE;
+ }
+ 
+ static void
+@@ -206,6 +209,7 @@ load_wifi_devices (CcWifiPanel *self)
+ {
+   const GPtrArray *devices;
+   guint i;
++  gboolean isAdded = FALSE;
+ 
+   devices = nm_client_get_devices (self->client);
+ 
+@@ -213,7 +217,13 @@ load_wifi_devices (CcWifiPanel *self)
+   if (devices)
+     {
+       for (i = 0; i < devices->len; i++)
+-        add_wifi_device (self, g_ptr_array_index (devices, i));
++        isAdded = add_wifi_device (self, g_ptr_array_index (devices, i));
++    }
++
++  if (!isAdded)
++    {
++      gtk_stack_add_named (self->center_stack, self->empty_center_box, "none");
++      gtk_stack_set_visible_child_name (self->center_stack, "none");
+     }
+ 
+   check_main_stack_page (self);
+@@ -688,6 +698,7 @@ cc_wifi_panel_class_init (CcWifiPanelClass *klass)
+   gtk_widget_class_bind_template_child (widget_class, CcWifiPanel, rfkill_widget);
+   gtk_widget_class_bind_template_child (widget_class, CcWifiPanel, sizegroup);
+   gtk_widget_class_bind_template_child (widget_class, CcWifiPanel, stack);
++  gtk_widget_class_bind_template_child (widget_class, CcWifiPanel, empty_center_box);
+ 
+   gtk_widget_class_bind_template_callback (widget_class, rfkill_switch_notify_activate_cb);
+ 
+diff --git a/panels/network/cc-wifi-panel.ui b/panels/network/cc-wifi-panel.ui
+index ffc034a..859b6db 100644
+--- a/panels/network/cc-wifi-panel.ui
++++ b/panels/network/cc-wifi-panel.ui
+@@ -372,6 +372,23 @@
+       </packing>
+     </child>
+   </object>
++  <object class="GtkBox" id="empty_center_box">
++    <property name="visible">True</property>
++    <property name="can_focus">False</property>
++    <property name="orientation">vertical</property>
++    <child>
++      <object class="GtkLabel">
++        <property name="visible">True</property>
++        <property name="can_focus">False</property>
++        <property name="label" translatable="yes">Wi-Fi</property>
++      </object>
++      <packing>
++        <property name="expand">False</property>
++        <property name="fill">True</property>
++        <property name="position">0</property>
++      </packing>
++    </child>
++  </object>
+ 
+   <object class="GtkSizeGroup" id="sizegroup" />
+ </interface>
+diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
+index 426af1c..7e16890 100644
+--- a/shell/cc-panel-loader.c
++++ b/shell/cc-panel-loader.c
+@@ -188,7 +188,7 @@ cc_panel_loader_visible_from_schema (CcShellModel *model)
+ 
+   for (gint i = 0; i < G_N_ELEMENTS (all_panels); i++)
+   {
+-    for (int j = 0; j < whiteList[j] != NULL; j++)
++    for (int j = 0; whiteList[j] != NULL; j++)
+     {
+       if (g_strcmp0(all_panels[i].name, whiteList[j]) == 0)
+         cc_shell_model_set_panel_visibility (model, all_panels[i].name, CC_PANEL_VISIBLE);
+-- 
+2.20.1
+
