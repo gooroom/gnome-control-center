@@ -29,3 +29,4 @@ gooroom-05-cutomize-font-chooser-from-gtk.patch
 gooroom-06-fixed-wifi-panel-title-bar.patch
 gooroom-07-removed-always-show-universial-access-menu.patch
 gooroom-08-Add-disconnected-title-in-wifi-panel.patch
+gooroom-09-Hidden-search-sharing-online-accounts.patch
