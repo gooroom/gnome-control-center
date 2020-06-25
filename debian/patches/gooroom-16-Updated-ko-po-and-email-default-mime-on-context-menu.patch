@@ -1,0 +1,39 @@
+From 5a19cb29e9f4a7960f1480cee6fe0431bb4c4871 Mon Sep 17 00:00:00 2001
+From: HaeRyong Jeong <jeong89@gooroom.kr>
+Date: Thu, 25 Jun 2020 17:54:38 +0900
+Subject: [PATCH] Updated ko.po and email default mime on context menu
+
+---
+ panels/info/cc-info-default-apps-panel.c | 2 +-
+ po/ko.po                                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/panels/info/cc-info-default-apps-panel.c b/panels/info/cc-info-default-apps-panel.c
+index fd45115..cbe8078 100644
+--- a/panels/info/cc-info-default-apps-panel.c
++++ b/panels/info/cc-info-default-apps-panel.c
+@@ -158,7 +158,7 @@ static DefaultAppData preferred_app_infos[] = {
+      hence the "*" pattern
+   */
+   { "x-scheme-handler/http", OFFSET (web_label), "*" },
+-  { "x-scheme-handler/mailto", OFFSET (mail_label), NULL },
++  { "x-scheme-handler/mailto", OFFSET (mail_label), "message/*" },
+   { "text/calendar", OFFSET (calendar_label), NULL },
+   { "audio/x-vorbis+ogg", OFFSET (music_label), "audio/*" },
+   { "video/x-ogm+ogg", OFFSET (video_label), "video/*" },
+diff --git a/po/ko.po b/po/ko.po
+index 6fb73bd..96be321 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -1838,7 +1838,7 @@ msgstr "사용자 설정 바로 가기"
+ #: panels/user-accounts/um-fingerprint-dialog.c:211
+ #: subprojects/gvc/gvc-mixer-control.c:1866
+ msgid "Disabled"
+-msgstr "사용 않음"
++msgstr "사용 안함"
+ 
+ #. Translators: This key is also known as 'third level
+ #. * chooser'. AltGr is often used for this purpose. See
+-- 
+2.20.1
+

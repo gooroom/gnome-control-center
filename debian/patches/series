@@ -36,3 +36,4 @@ gooroom-12-Fixed-universal-access-panel.patch
 gooroom-13-Update-po.ko-Disabled-high-contrast-and-scale-display.patch
 gooroom-14-Updated-translation-ko-file-and-change-xml-file.patch
 gooroom-15-Fixed-search-entry-completion-in-datetime.patch
+gooroom-16-Updated-ko-po-and-email-default-mime-on-context-menu.patch
