@@ -1,0 +1,117 @@
+From 81e53f91b819e93554b3091370f5d5b0730a43be Mon Sep 17 00:00:00 2001
+From: HaeRyong Jeong <jeong89@gooroom.kr>
+Date: Fri, 26 Jun 2020 12:04:45 +0900
+Subject: [PATCH] Removed clean head printer
+
+---
+ panels/printers/pp-printer-entry.c | 36 +++++++++++++++---------------
+ panels/printers/printer-entry.ui   |  4 ++--
+ 2 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/panels/printers/pp-printer-entry.c b/panels/printers/pp-printer-entry.c
+index c124788..b0e8d90 100644
+--- a/panels/printers/pp-printer-entry.c
++++ b/panels/printers/pp-printer-entry.c
+@@ -73,7 +73,7 @@ struct _PpPrinterEntry
+   GtkFrame       *supply_frame;
+   GtkDrawingArea *supply_drawing_area;
+   GtkWidget      *show_jobs_dialog_button;
+-  GtkWidget      *clean_heads_menuitem;
++  //GtkWidget      *clean_heads_menuitem;
+   GtkCheckButton *printer_default_checkbutton;
+   GtkModelButton *remove_printer_menuitem;
+   GtkBox         *printer_error;
+@@ -517,11 +517,11 @@ check_clean_heads_maintenance_command_cb (GObject      *source_object,
+       goto out;
+     }
+ 
+-  if (is_supported)
+-    {
+-      PpPrinterEntry *self = PP_PRINTER_ENTRY (user_data);
+-      gtk_widget_show (GTK_WIDGET (self->clean_heads_menuitem));
+-    }
++//  if (is_supported)
++//    {
++//      PpPrinterEntry *self = PP_PRINTER_ENTRY (user_data);
++//      gtk_widget_show (GTK_WIDGET (self->clean_heads_menuitem));
++//    }
+ 
+  out:
+   g_object_unref (source_object);
+@@ -951,12 +951,12 @@ pp_printer_entry_new (cups_dest_t  printer,
+ 
+   self->printer_hostname = printer_get_hostname (printer_type, self->printer_uri, printer_uri);
+ 
+-  self->clean_command = pp_maintenance_command_new (self->printer_name,
+-                                                    "Clean",
+-                                                    "all",
+-                                                    /* Translators: Name of job which makes printer to clean its heads */
+-                                                    _("Clean print heads"));
+-  check_clean_heads_maintenance_command (self);
++//  self->clean_command = pp_maintenance_command_new (self->printer_name,
++//                                                    "Clean",
++//                                                    "all",
++//                                                    /* Translators: Name of job which makes printer to clean its heads */
++//                                                    _("Clean print heads"));
++//  check_clean_heads_maintenance_command (self);
+ 
+   gtk_image_set_from_icon_name (self->printer_icon, printer_icon_name, GTK_ICON_SIZE_DIALOG);
+   gtk_label_set_text (self->printer_status, printer_status);
+@@ -1031,10 +1031,10 @@ pp_printer_entry_dispose (GObject *object)
+   g_cancellable_cancel (self->get_jobs_cancellable);
+   g_clear_object (&self->get_jobs_cancellable);
+ 
+-  g_cancellable_cancel (self->check_clean_heads_cancellable);
+-  g_clear_object (&self->check_clean_heads_cancellable);
+-
+-  g_clear_object (&self->clean_command);
++//  g_cancellable_cancel (self->check_clean_heads_cancellable);
++//  g_clear_object (&self->check_clean_heads_cancellable);
++//
++//  g_clear_object (&self->clean_command);
+ 
+   G_OBJECT_CLASS (pp_printer_entry_parent_class)->dispose (object);
+ }
+@@ -1059,7 +1059,7 @@ pp_printer_entry_class_init (PpPrinterEntryClass *klass)
+   gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, supply_drawing_area);
+   gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, printer_default_checkbutton);
+   gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, show_jobs_dialog_button);
+-  gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, clean_heads_menuitem);
++  //gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, clean_heads_menuitem);
+   gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, remove_printer_menuitem);
+   gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, error_status);
+   gtk_widget_class_bind_template_child (widget_class, PpPrinterEntry, printer_error);
+@@ -1067,7 +1067,7 @@ pp_printer_entry_class_init (PpPrinterEntryClass *klass)
+   gtk_widget_class_bind_template_callback (widget_class, on_show_printer_details_dialog);
+   gtk_widget_class_bind_template_callback (widget_class, on_show_printer_options_dialog);
+   gtk_widget_class_bind_template_callback (widget_class, set_as_default_printer);
+-  gtk_widget_class_bind_template_callback (widget_class, clean_heads);
++  //gtk_widget_class_bind_template_callback (widget_class, clean_heads);
+   gtk_widget_class_bind_template_callback (widget_class, remove_printer);
+   gtk_widget_class_bind_template_callback (widget_class, show_jobs_dialog);
+   gtk_widget_class_bind_template_callback (widget_class, restart_printer);
+diff --git a/panels/printers/printer-entry.ui b/panels/printers/printer-entry.ui
+index c72b90a..1cfd0b2 100644
+--- a/panels/printers/printer-entry.ui
++++ b/panels/printers/printer-entry.ui
+@@ -44,7 +44,7 @@
+             <property name="width">3</property>
+           </packing>
+         </child>
+-        <child>
++        <!--<child>
+           <object class="GtkModelButton" id="clean_heads_menuitem">
+             <property name="visible">False</property>
+             <property name="text" translatable="yes" comments="Translators: This button executes command which cleans print heads of the printer.">Clean Print Heads</property>
+@@ -54,7 +54,7 @@
+             <property name="left-attach">1</property>
+             <property name="top-attach">3</property>
+           </packing>
+-        </child>
++        </child>-->
+         <child>
+           <object class="GtkModelButton" id="remove_printer_menuitem">
+             <property name="visible">True</property>
+-- 
+2.20.1
+
