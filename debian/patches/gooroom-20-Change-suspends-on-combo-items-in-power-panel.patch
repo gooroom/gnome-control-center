@@ -1,0 +1,79 @@
+From 19cc70370d6d3ba8436bcce9e32f72f305a9c527 Mon Sep 17 00:00:00 2001
+From: HaeRyong Jeong <jeong89@gooroom.kr>
+Date: Mon, 29 Jun 2020 17:34:14 +0900
+Subject: [PATCH] Change suspends on combo items in power panel
+
+---
+ panels/power/power.ui | 4 ++--
+ po/en.po              | 6 ++++++
+ po/en_GB.po           | 6 ++++++
+ po/ko.po              | 6 ++++++
+ 4 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/panels/power/power.ui b/panels/power/power.ui
+index 7ee3146..70855f5 100644
+--- a/panels/power/power.ui
++++ b/panels/power/power.ui
+@@ -30,7 +30,7 @@
+         <col id="1">2700</col>
+       </row>
+       <row>
+-        <col id="0" translatable="yes">1 hour</col>
++        <col id="0" translatable="yes">60 minutes</col>
+         <col id="1">3600</col>
+       </row>
+       <row>
+@@ -46,7 +46,7 @@
+         <col id="1">6000</col>
+       </row>
+       <row>
+-        <col id="0" translatable="yes">2 hours</col>
++        <col id="0" translatable="yes">120 minutes</col>
+         <col id="1">7200</col>
+       </row>
+     </data>
+diff --git a/po/en.po b/po/en.po
+index 40e77ae..4e92f13 100644
+--- a/po/en.po
++++ b/po/en.po
+@@ -3370,3 +3370,9 @@ msgstr ""
+ 
+ msgid "Not use"
+ msgstr ""
++
++msgid "60 minutes"
++msgstr ""
++
++msgid "120 minutes"
++msgstr ""
+diff --git a/po/en_GB.po b/po/en_GB.po
+index 60f871e..9c552ac 100644
+--- a/po/en_GB.po
++++ b/po/en_GB.po
+@@ -13476,3 +13476,9 @@ msgstr "Pick a Font"
+ 
+ msgid "Not use"
+ msgstr "Not use"
++
++msgid "60 minutes"
++msgstr "60 minutes"
++
++msgid "120 minutes"
++msgstr "120 minutes"
+diff --git a/po/ko.po b/po/ko.po
+index 96be321..eec499a 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -7900,3 +7900,9 @@ msgstr "글꼴 고르기"
+ 
+ msgid "Not use"
+ msgstr "미사용"
++
++msgid "60 minutes"
++msgstr "60 분"
++
++msgid "120 minutes"
++msgstr "120 분"
+-- 
+2.20.1
+
