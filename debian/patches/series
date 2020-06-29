@@ -41,3 +41,4 @@ gooroom-17-Disabled-speaker-test-in-sound-panel.patch
 gooroom-18-Removed-clean-head-printer.patch
 gooroom-19-Fixed-color-ui-file.patch
 gooroom-20-Change-suspends-on-combo-items-in-power-panel.patch
+gooroom-21-Fixed-preview-text-in-font-chooser-widget.patch
