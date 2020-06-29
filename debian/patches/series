@@ -39,3 +39,4 @@ gooroom-15-Fixed-search-entry-completion-in-datetime.patch
 gooroom-16-Updated-ko-po-and-email-default-mime-on-context-menu.patch
 gooroom-17-Disabled-speaker-test-in-sound-panel.patch
 gooroom-18-Removed-clean-head-printer.patch
+gooroom-19-Fixed-color-ui-file.patch
