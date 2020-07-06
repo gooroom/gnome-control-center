@@ -1,0 +1,247 @@
+From a891a398f770e440c88f3cfb8496b7be0b27c1c0 Mon Sep 17 00:00:00 2001
+From: HaeRyong Jeong <jeong89@gooroom.kr>
+Date: Mon, 6 Jul 2020 19:26:36 +0900
+Subject: [PATCH] Added Lock screen theme
+
+---
+ panels/themes/cc-themes-panel.c | 82 +++++++++++++++++++--------------
+ po/ko.po                        |  4 +-
+ 2 files changed, 50 insertions(+), 36 deletions(-)
+
+diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
+index ad56302..b4193c8 100644
+--- a/panels/themes/cc-themes-panel.c
++++ b/panels/themes/cc-themes-panel.c
+@@ -19,7 +19,6 @@
+  */
+ 
+ #include "cc-themes-panel.h"
+-//#include "font-dialog.h"
+ #include "cc-themes-resources.h"
+ 
+ #include <config.h>
+@@ -36,7 +35,7 @@
+ #define DEFAULT_THEMES_INI   "/usr/share/gnome-control-center/themes/gooroom-themes.ini"
+ 
+ #define WID(y) (GtkWidget *) gtk_builder_get_object (panel->builder, y)
+-
++ 
+ enum
+ {
+   COL_THUMBNAIL,
+@@ -55,9 +54,11 @@ struct _CcThemesPanel
+ 
+   GSettings         *interface_settings;
+   GSettings         *bg_settings;
++  GSettings         *screensaver_settings;
+ 
+   GtkIconView       *icon_view;
+   GtkListStore      *themes_liststore;
++  GtkWidget         *current_theme_label;
+ 
+   GdkPixbuf         *current_theme_thumbnail;
+   gchar             *icon;
+@@ -103,36 +104,41 @@ create_store (void)
+   return store;
+ }
+ 
+-static gchar*
++static const gchar*
+ get_language ()
+ {
+-  const gchar *locale = NULL;
+-  const gchar **split = NULL;
++  char *lo = NULL;
++  const char *locale = NULL;
++  const gchar *result = NULL;
+   const g_autofree gchar *lang = NULL;
++  gchar **split = NULL;
+ 
+-  locale = setlocale (LC_ALL, NULL);
++  locale = setlocale (LC_MESSAGES, NULL);
++
++  if (locale == NULL)
++    return "ko";
+ 
+   split = g_strsplit (locale, ".", -1);
+   lang = g_strdup_printf ("%s", split[0]);
+ 
+-  g_free (locale);
+-  g_strfreev (split);
+-
+   if (g_strcmp0 (lang, "ko") == 0 ||
+       g_strcmp0 (lang, "ko_KR") == 0) {
+-    return "ko";
++    result = g_strdup_printf ("ko");
+   }
+   else if (g_strcmp0 (lang, "en") == 0 ||
+       g_strcmp0 (lang, "en_GB") == 0 ||
+       g_strcmp0 (lang, "en_US") == 0) {
+-    return "en";
++    result = g_strdup_printf ("en");
+   }
+ 
+-  return "ko";
++  g_strfreev (split);
++  setlocale (LC_MESSAGES, locale);
++
++  return result;
+ }
+ 
+ static void
+-set_theme_liststore (GtkListStore *store, GKeyFile *keyfile, gchar *group, gchar *locale)
++set_theme_liststore (GtkListStore *store, GKeyFile *keyfile, gchar *group, const gchar *locale)
+ {
+   gchar *name;
+   gchar *background;
+@@ -168,8 +174,8 @@ load_themes_liststore (CcThemesPanel *panel)
+   g_autoptr(GError) error = NULL;
+   g_autoptr(GKeyFile) keyfile = g_key_file_new ();
+   gchar **groups = NULL;
+-  gsize *group_length;
+-  gchar *locale = NULL;
++  gsize group_length;
++  const gchar *locale = NULL;
+ 
+   if (!g_key_file_load_from_file (keyfile, DEFAULT_THEMES_INI, G_KEY_FILE_KEEP_TRANSLATIONS, &error))
+   {
+@@ -201,7 +207,7 @@ cc_themes_panel_draw_theme (GtkWidget *widget, cairo_t *cr, gpointer data)
+   color.green = 1.0;
+   color.blue = 1.0;
+   color.alpha = 1.0;
+-
++ 
+   _cr = gdk_cairo_create (gtk_widget_get_window (widget));
+ 
+   /* border color */
+@@ -234,7 +240,7 @@ cc_themes_panel_selected_theme (GtkIconView *icon_view,
+   if (list == NULL)
+     return;
+ 
+-  model = gtk_icon_view_get_model (GTK_ICON_VIEW (icon_view));
++  model = gtk_icon_view_get_model (icon_view);
+ 
+   if (gtk_tree_model_get_iter (model, &iter, (GtkTreePath*)list->data) == FALSE)
+     goto bail;
+@@ -268,7 +274,7 @@ cc_themes_panel_apply_theme (GtkButton *button, CcThemesPanel *panel)
+   if (list == NULL)
+     return FALSE;
+ 
+-  model = gtk_icon_view_get_model (GTK_ICON_VIEW (panel->icon_view));
++  model = gtk_icon_view_get_model (panel->icon_view);
+   if (gtk_tree_model_get_iter (GTK_TREE_MODEL (model), &iter, (GtkTreePath*)list->data) == FALSE)
+     goto bail;
+ 
+@@ -280,7 +286,10 @@ cc_themes_panel_apply_theme (GtkButton *button, CcThemesPanel *panel)
+   panel->icon = icon;
+   panel->background =  background;
+ 
+-  gtk_label_set_text (WID ("current-theme-label"), icon_name);
++  g_settings_set_string (panel->screensaver_settings, "picture-uri", background);
++
++  //gtk_label_set_text (WID ("current-theme-label"), icon_name);
++  gtk_label_set_text (GTK_LABEL (panel->current_theme_label), icon_name);
+ 
+ bail:
+   g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
+@@ -321,6 +330,7 @@ cc_themes_panel_dispose (GObject *object)
+ 
+   g_clear_object (&panel->interface_settings);
+   g_clear_object (&panel->bg_settings);
++  g_clear_object (&panel->screensaver_settings);
+   g_clear_object (&panel->builder);
+ 
+   g_clear_object (&panel->current_theme_thumbnail);
+@@ -364,16 +374,17 @@ cc_themes_panel_init (CcThemesPanel *panel)
+                                          "/org/gnome/control-center/themes/themes.ui",
+                                          objects, &err);
+ 
++  panel->current_theme_label = WID ("current-theme-label");
++
+   if (err)
+   {
+     g_warning ("Could not load ui: %s", err->message);
+     return;
+   }
+ 
+-  themes_list_sw = WID ("themes-list-sw");
+-
+   panel->interface_settings = g_settings_new ("org.gnome.desktop.interface");
+   panel->bg_settings = g_settings_new ("org.gnome.desktop.background");
++  panel->screensaver_settings = g_settings_new ("org.gnome.desktop.screensaver");
+ 
+   panel->icon = g_settings_get_string (panel->interface_settings, "icon-theme");
+   panel->background = g_settings_get_string (panel->bg_settings, "picture-uri");
+@@ -392,7 +403,8 @@ cc_themes_panel_init (CcThemesPanel *panel)
+     if (g_strcmp0 (panel->icon, icon) == 0)
+     {
+       set_thumbnail (panel, thumb_path); // /usr/.../.png
+-      gtk_label_set_text (WID ("current-theme-label"), icon_name);
++      //gtk_label_set_text (WID ("current-theme-label"), icon_name);
++      gtk_label_set_text (GTK_LABEL (panel->current_theme_label), icon_name);
+ 
+       break;
+     }
+@@ -401,17 +413,17 @@ cc_themes_panel_init (CcThemesPanel *panel)
+   while (ret && gtk_tree_model_iter_next (GTK_TREE_MODEL (panel->themes_liststore), &iter));
+ 
+   /* create icon view from list store */
+-  panel->icon_view = gtk_icon_view_new_with_model (GTK_TREE_MODEL (panel->themes_liststore));
+-  gtk_icon_view_set_selection_mode (GTK_ICON_VIEW (panel->icon_view),
++  panel->icon_view = GTK_ICON_VIEW (gtk_icon_view_new_with_model (GTK_TREE_MODEL (panel->themes_liststore)));
++  gtk_icon_view_set_selection_mode (panel->icon_view,
+                                     GTK_SELECTION_SINGLE);
+ 
+-  gtk_icon_view_set_text_column (GTK_ICON_VIEW (panel->icon_view), COL_NAME);
++  gtk_icon_view_set_text_column (panel->icon_view, COL_NAME);
+ 
+-  gtk_icon_view_set_pixbuf_column (GTK_ICON_VIEW (panel->icon_view), COL_THUMBNAIL);
+-  gtk_icon_view_set_columns (GTK_ICON_VIEW (panel->icon_view), 3);
+-  gtk_icon_view_set_item_width (GTK_ICON_VIEW (panel->icon_view), 120);
+-  gtk_icon_view_set_column_spacing (GTK_ICON_VIEW (panel->icon_view), 10);
+-  gtk_icon_view_set_margin (GTK_ICON_VIEW (panel->icon_view), 10);
++  gtk_icon_view_set_pixbuf_column (panel->icon_view, COL_THUMBNAIL);
++  gtk_icon_view_set_columns (panel->icon_view, 3);
++  gtk_icon_view_set_item_width (panel->icon_view, 120);
++  gtk_icon_view_set_column_spacing (panel->icon_view, 10);
++  gtk_icon_view_set_margin (panel->icon_view, 10);
+ 
+   g_signal_connect (WID ("current-theme-drawingarea"),
+                     "draw",
+@@ -422,13 +434,15 @@ cc_themes_panel_init (CcThemesPanel *panel)
+                     G_CALLBACK (cc_themes_panel_selected_theme),
+                     panel);
+ 
+-  gtk_scrolled_window_set_shadow_type (themes_list_sw, GTK_SHADOW_ETCHED_IN);
+-  gtk_scrolled_window_set_policy (themes_list_sw,
++  themes_list_sw = WID ("themes-list-sw");
++
++  gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (themes_list_sw), GTK_SHADOW_ETCHED_IN);
++  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (themes_list_sw),
+                                   GTK_POLICY_AUTOMATIC,
+                                   GTK_POLICY_AUTOMATIC);
+ 
+-  gtk_container_add (GTK_CONTAINER (themes_list_sw), panel->icon_view);
+-  gtk_widget_grab_focus (panel->icon_view);
++  gtk_container_add (GTK_CONTAINER (themes_list_sw), GTK_WIDGET (panel->icon_view));
++  //gtk_widget_grab_focus (panel->icon_view);
+ 
+   w = WID ("themes-main-scrolled-window");
+ 
+diff --git a/po/ko.po b/po/ko.po
+index eec499a..8ef61e7 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -7902,7 +7902,7 @@ msgid "Not use"
+ msgstr "미사용"
+ 
+ msgid "60 minutes"
+-msgstr "60 분"
++msgstr "60분"
+ 
+ msgid "120 minutes"
+-msgstr "120 분"
++msgstr "120분"
+-- 
+2.20.1
+
