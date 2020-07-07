@@ -1,3 +1,43 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u6) gooroom-2.0; urgency=medium
+
+  [ donghun ]
+  * [a41d51a3] [Bug:1435] Fixed print queue job dialog error
+  * [f97e8e19] [Bug:2458] Added patch to remove local user auto login
+
+  [ subin.kim ]
+  * [c68b150c] [Bug:2018]Removed always show universial access menu
+
+  [ HaeRyong Jeong ]
+  * [70305bf4] [Revert] Fixed it default option for picture background to scaled
+  * [12fd8214] [Bug:1997,2002] Fixed panel search mode.
+  * [ebb7f772] [Bug:2019,2023] Added 30 time on blank screen feature and Modified to work the same as the tray sound bar.
+  * [e201c4ad] [Bug:2091,2092] Fixed Keyboard shortcut issue
+  * [f9ac1958] [Bug:2075] Fixed themes panel
+  * [d1aebde0] [Bug:2051,2095] Fixed thunderbolt panel label and changed IPv4 Method text in network add dialog
+  * [d8b990a4] Split patch files.
+  * [fc6b7eed] [Bug:2028,2030,2033,2040,2058] Customize gtk font chooser
+  * [c45f83b7] [Bug:2055] Fixed Wi-Fi header title. Fixed header title to appear even if there is no Wi-Fi firmware. and fixed shell-loader code
+  * [5091d0f2] Hidden search, sharing, online-accounts
+  * [90fdc012] Fixed Theme load
+  * [a5383e55] Modified display minimum size
+  * [5626ced4] [Bug:2386, 2272] Added rygel library for auto trash feature and Fixed universal-access panel
+  * [53c7b6a9] Show disconnected title in wifi panel
+  * [21992567] [Bug:2091] Update ko.po Disabled high contrast and scale display
+  * [e63887a7] [Bug:2326] Updated translation ko file for keyboard panel, add rygel, rygel-tracker in control.in, Updated 01-screenshot.xml.in
+  * [b58ccbc2] [Bug:2410] Fixed search entry in datetime panel
+  * [e5aad2da] [Bug:2421, 2436] 1. Updated ko.po 2. Fixed email default mime on context menu
+  * [cdae8908] [Bug:2067] Disabled speaker test in sound panel
+  * [91e749ef] Removed clean head printer and applied gooroom-adjust.py
+  * [64de6d28] [Bug:2409] Fixed color.ui file in color panel
+  * [5f973386] [Bug:2022] Change combo items in power panel
+  * [d88153f9] [Bug:2054] Fixed preview text in font chooser widget
+  * [acf7e777] [Bug:2483]Changed default background style to zoom
+  * [050a9bd9] [Bug: 2482,2485] Added Lock screen theme and Change power korean language
+
+  [ Gooroom Autobuilder ]
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Tue, 07 Jul 2020 09:49:13 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u5) gooroom-2.0; urgency=medium
 
   [ JeongHaeRyong ]
