@@ -1,3 +1,12 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u8) gooroom-2.0; urgency=medium
+
+  [ Haeryong Jeong ]
+  * [e8d271cf] [Bug:2488] Fixed duplicated shortcut key
+
+  [ Gooroom Autobuilder ]
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Wed, 08 Jul 2020 20:24:06 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u7) gooroom-2.0; urgency=medium
 
   [ HaeRyong Jeong ]
