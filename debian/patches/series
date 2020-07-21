@@ -47,3 +47,4 @@ gooroom-23-Change-default-background-style-to-zoom.patch
 gooroom-24-Added-Lock-screen-theme.patch
 gooroom-25-Fixed-theme-panel.patch
 gooroom-26-Fixed-duplicated-shortcut-key.patch
+gooroom-27-Added-xsessionrc.patch
