@@ -1,0 +1,79 @@
+From f6bfeea41ff25ffbeb452ac6858fb871f6863c23 Mon Sep 17 00:00:00 2001
+From: HaeRyong Jeong <jeong89@gooroom.kr>
+Date: Fri, 17 Jul 2020 14:34:21 +0900
+Subject: [PATCH] Added xsessionrc
+
+Change-Id: I70a94417cbb1129c93dd3e9811e470bf5c21a46e
+---
+ panels/region/cc-region-panel.c | 27 +++++++++++++++++++++++----
+ 1 file changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/panels/region/cc-region-panel.c b/panels/region/cc-region-panel.c
+index 5060b98..7343795 100644
+--- a/panels/region/cc-region-panel.c
++++ b/panels/region/cc-region-panel.c
+@@ -51,7 +51,12 @@
+ #define INPUT_SOURCE_TYPE_XKB "xkb"
+ #define INPUT_SOURCE_TYPE_IBUS "ibus"
+ 
+-#define DEFAULT_LOCALE "en_US.utf-8"
++#define DEFAULT_LOCALE "ko_KR.utf-8"
++#define XSESSIONRC ".xsessionrc"
++
++static const gchar *xsessionrc_template = "export LANG=%s\n";
++                                           //export LANGUAGE=%s:%s\n
++                                           //export ";
+ 
+ typedef enum {
+         CHOOSE_LANGUAGE,
+@@ -94,7 +99,6 @@ struct _CcRegionPanel {
+ 
+         GtkWidget *restart_button;
+         GtkWidget *language_list;
+-
+ };
+ 
+ CC_PANEL_REGISTER (CcRegionPanel, cc_region_panel)
+@@ -173,7 +177,7 @@ restart_now (CcRegionPanel *self)
+ 
+         g_dbus_proxy_call (self->session,
+                            "Logout",
+-                           g_variant_new ("(u)", 0),
++                           g_variant_new ("(u)", 1),
+                            G_DBUS_CALL_FLAGS_NONE,
+                            -1, NULL, NULL, NULL);
+ }
+@@ -313,6 +317,21 @@ set_system_language (CcRegionPanel *self,
+         set_localed_locale (self);
+ }
+ 
++static void
++set_user_language (CcRegionPanel *self,
++                   const gchar   *language)
++{
++        g_autofree gchar *xsessionrc;
++        g_autofree gchar *contents;
++
++
++        xsessionrc = g_build_filename (g_get_home_dir (), XSESSIONRC, NULL);
++        contents = g_strdup_printf (xsessionrc_template, language);
++
++        g_file_set_contents (xsessionrc, contents, -1, NULL);
++        act_user_set_language (self->user, language);
++}
++
+ static void
+ update_language (CcRegionPanel *self,
+                  const gchar   *language)
+@@ -322,7 +341,7 @@ update_language (CcRegionPanel *self,
+         } else {
+                 if (g_strcmp0 (language, self->language) == 0)
+                         return;
+-                act_user_set_language (self->user, language);
++                set_user_language (self, language);
+                 if (self->login_auto_apply)
+                         set_system_language (self, language);
+                 maybe_notify (self, LC_MESSAGES, language);
+-- 
+2.20.1
+
