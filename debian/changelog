@@ -1,3 +1,14 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u9) gooroom-2.0; urgency=medium
+
+  [ HaeRyong Jeong ]
+  * [8310abc5] [Bug:2379] Fixed Restart action and Added xsessionrc
+  * [ddb2fcf6] [Bug:2375] Fixed it display always new font dialog
+  * [9211af4d] [Bug:2529] Fixed wifi panel title align
+
+  [ Gooroom Autobuilder ]
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Fri, 31 Jul 2020 10:18:58 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u8) gooroom-2.0; urgency=medium
 
   [ Haeryong Jeong ]
