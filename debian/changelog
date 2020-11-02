@@ -1,3 +1,16 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u10) gooroom-2.0; urgency=medium
+
+  [ donghun ]
+  * [c12590d3] [Bug:2621,2629,2632] Fixed date time setting error
+
+  [ HaeRyong Jeong ]
+  * [e3647662] Added xsessionrc file Fixed it display always new font dialog Fixed wifi panel title
+  * [fda84392] Changed background and themes panel ui
+
+  [ Gooroom Autobuilder ]
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Mon, 02 Nov 2020 15:52:25 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u9) gooroom-2.0; urgency=medium
 
   [ HaeRyong Jeong ]
