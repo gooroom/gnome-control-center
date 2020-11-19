@@ -1,0 +1,76 @@
+diff --git a/panels/user-accounts/um-photo-dialog.c b/panels/user-accounts/um-photo-dialog.c
+index 7080e42..b793021 100644
+--- a/panels/user-accounts/um-photo-dialog.c
++++ b/panels/user-accounts/um-photo-dialog.c
+@@ -4,7 +4,7 @@
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; either version 2 of the License, or
++ * the Free SoftwInstalling /projects/project/gnome-control-center/gnome-control-center-work/build/panels/datetime/po-timezones/zh_CN.gmo to /projects/project/gnome-control-center/gnome-are Foundation; either version 2 of the License, or
+  * (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful,
+@@ -156,6 +156,7 @@ file_chooser_response (GtkDialog     *chooser,
+         gtk_widget_destroy (GTK_WIDGET (chooser));
+ 
+         um_photo_dialog_crop (um, pixbuf2);
++
+         g_object_unref (pixbuf2);
+ }
+ 
+@@ -235,6 +236,7 @@ um_photo_dialog_select_file (UmPhotoDialog *um)
+ 
+         preview = gtk_image_new ();
+         gtk_widget_set_size_request (preview, 128, -1);
++        gtk_widget_set_margin_end (preview, 12);
+         gtk_file_chooser_set_preview_widget (GTK_FILE_CHOOSER (chooser), preview);
+         gtk_file_chooser_set_use_preview_label (GTK_FILE_CHOOSER (chooser), FALSE);
+         gtk_widget_show (preview);
+@@ -488,6 +490,20 @@ popup_icon_menu (GtkToggleButton *button, UmPhotoDialog *um)
+         gtk_popover_popup (GTK_POPOVER (um));
+ }
+ 
++static void
++popdown_icon_menu (GtkToggleButton *button, UmPhotoDialog *um)
++{
++        gtk_popover_popdown (GTK_POPOVER (um));
++}
++
++static void
++toggle_button_inactive (UmPhotoDialog *um_event, UmPhotoDialog *um)
++{
++        if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (um->popup_button))){
++          gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (um->popup_button), FALSE);
++        }
++}
++
+ static gboolean
+ on_popup_button_button_pressed (GtkToggleButton *button,
+                                 GdkEventButton *event,
+@@ -498,7 +514,7 @@ on_popup_button_button_pressed (GtkToggleButton *button,
+                         popup_icon_menu (button, um);
+                         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
+                 } else {
+-                        gtk_popover_popdown (GTK_POPOVER (um));
++                        popdown_icon_menu (button, um);
+                         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), FALSE);
+                 }
+ 
+@@ -522,11 +538,13 @@ um_photo_dialog_new (GtkWidget *button)
+         /* Set up the popup */
+         um->popup_button = button;
+         setup_photo_popup (um);
+-        g_signal_connect (button, "toggled",
+-                          G_CALLBACK (popup_icon_menu), um);
++
++//        g_signal_connect (button, "toggled",
++//                          G_CALLBACK (popup_icon_menu), um);
+         g_signal_connect (button, "button-press-event",
+                           G_CALLBACK (on_popup_button_button_pressed), um);
+-
++        g_signal_connect (um, "closed",
++                          G_CALLBACK (toggle_button_inactive), um);
+         return um;
+ }
+ 
