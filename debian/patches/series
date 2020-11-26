@@ -56,3 +56,4 @@ gooroom-32-Update-po.ko-Fixed-the-header-bar-in-the-Add-image-window.patch
 gooroom-33-Add-clear-recent-history-notification.patch
 gooroom-34-Fix-user-accounts-icon.patch
 gooroom-35-Add-clear-user-accounts-password-verify-entry.patch
+gooroom-36-Fix-device-keyboard-custom-keysetting.patch
