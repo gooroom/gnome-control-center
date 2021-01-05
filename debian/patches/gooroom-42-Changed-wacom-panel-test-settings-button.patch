@@ -1,0 +1,111 @@
+diff --git a/panels/wacom/cc-wacom-panel.c b/panels/wacom/cc-wacom-panel.c
+index 896032a..380bd29 100644
+--- a/panels/wacom/cc-wacom-panel.c
++++ b/panels/wacom/cc-wacom-panel.c
+@@ -51,6 +51,7 @@ struct _CcWacomPanel
+ 	GtkWidget        *switcher;
+ 	GtkWidget        *tablet_notebook;
+ 	GtkWidget        *stylus_notebook;
++	GtkWidget	 *test_button;
+ 	GtkWidget        *test_popover;
+ 	GtkWidget        *test_draw_area;
+ 	GHashTable       *devices; /* key=GsdDevice, value=CcWacomDevice */
+@@ -417,7 +418,6 @@ static void
+ cc_wacom_panel_constructed (GObject *object)
+ {
+ 	CcWacomPanel *self = CC_WACOM_PANEL (object);
+-	GtkWidget *button;
+ 	CcShell *shell;
+ 
+ 	G_OBJECT_CLASS (cc_wacom_panel_parent_class)->constructed (object);
+@@ -425,15 +425,9 @@ cc_wacom_panel_constructed (GObject *object)
+ 	/* Add test area button to shell header. */
+ 	shell = cc_panel_get_shell (CC_PANEL (self));
+ 
+-	button = gtk_toggle_button_new_with_mnemonic (_("Test Your _Settings"));
+-	gtk_style_context_add_class (gtk_widget_get_style_context (button),
+-				     "text-button");
+-	gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
+-	gtk_widget_set_visible (button, TRUE);
++	cc_shell_embed_widget_in_header (shell, self->test_button);
+ 
+-	cc_shell_embed_widget_in_header (shell, button);
+-
+-	self->test_popover = gtk_popover_new (button);
++	self->test_popover = gtk_popover_new (self->test_button);
+ 	gtk_container_set_border_width (GTK_CONTAINER (self->test_popover), 6);
+ 
+ 	self->test_draw_area = cc_drawing_area_new ();
+@@ -442,7 +436,7 @@ cc_wacom_panel_constructed (GObject *object)
+ 			   self->test_draw_area);
+ 	gtk_widget_show (self->test_draw_area);
+ 
+-	g_object_bind_property (button, "active",
++	g_object_bind_property (self->test_button, "active",
+ 				self->test_popover, "visible",
+ 				G_BINDING_BIDIRECTIONAL);
+ 
+@@ -507,6 +501,7 @@ update_current_page (CcWacomPanel  *self,
+ 	GHashTableIter iter;
+ 	GsdDevice *gsd_device;
+ 	CcWacomDevice *device;
++	guint tablets_length = 0;
+ 
+ 	changed = FALSE;
+ 
+@@ -543,6 +538,11 @@ update_current_page (CcWacomPanel  *self,
+ 	/* We now have a list of Tablet structs,
+ 	 * see which ones are full tablets */
+ 	tablets = g_hash_table_get_values (ht);
++	tablets_length = g_list_length (tablets);
++
++	if (self->test_button != NULL)
++		gtk_widget_set_sensitive (self->test_button, tablets_length > 0 ? TRUE : FALSE);
++
+ 	for (l = tablets; l; l = l->next) {
+ 		Tablet *tablet;
+ 		GtkWidget *page;
+@@ -836,6 +836,12 @@ cc_wacom_panel_init (CcWacomPanel *self)
+ 		add_known_device (self, l->data);
+ 	g_list_free (devices);
+ 
++        self->test_button = gtk_toggle_button_new_with_mnemonic (_("Test Your _Settings"));
++        gtk_style_context_add_class (gtk_widget_get_style_context (self->test_button),
++                                     "text-button");
++        gtk_widget_set_valign (self->test_button, GTK_ALIGN_CENTER);
++        gtk_widget_set_visible (self->test_button, TRUE);
++
+ 	update_current_page (self, NULL);
+ }
+ 
+diff --git a/po/ko.po b/po/ko.po
+index 32f5814..268eb57 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -2015,7 +2015,7 @@ msgstr "바꾸기"
+ msgid "Set"
+ msgstr "설정"
+ 
+-#: panels/mouse/cc-mouse-panel.c:80 panels/wacom/cc-wacom-panel.c:439
++#: panels/mouse/cc-mouse-panel.c:80 panels/wacom/cc-wacom-panel.c:839
+ msgid "Test Your _Settings"
+ msgstr "설정 검사(_S)"
+ 
+@@ -3996,7 +3996,7 @@ msgstr "미디어 플레이어"
+ 
+ # 태블릿 PC
+ #. TRANSLATORS: secondary battery
+-#: panels/power/cc-power-panel.c:553 panels/wacom/cc-wacom-panel.c:830
++#: panels/power/cc-power-panel.c:553 panels/wacom/cc-wacom-panel.c:808
+ msgid "Tablet"
+ msgstr "태블릿"
+ 
+@@ -7436,7 +7436,7 @@ msgstr "%2$d개 중 %1$d"
+ msgid "Display Mapping"
+ msgstr "디스플레이 매핑"
+ 
+-#: panels/wacom/cc-wacom-panel.c:827 panels/wacom/wacom-stylus-page.ui:129
++#: panels/wacom/cc-wacom-panel.c:805 panels/wacom/wacom-stylus-page.ui:129
+ msgid "Stylus"
+ msgstr "스타일러스"
+ 

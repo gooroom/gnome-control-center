@@ -62,3 +62,4 @@ gooroom-38-Fixed-color-profile-problem-message.patch
 gooroom-39-Fixed-font-underline-problem.patch
 gooroom-40-Fixed-color-profile-apply-all-users.patch
 gooroom-41-Changed-user-accounts-add-error-message.patch
+gooroom-42-Changed-wacom-panel-test-settings-button.patch
