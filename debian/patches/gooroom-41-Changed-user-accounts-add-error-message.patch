@@ -1,0 +1,28 @@
+diff --git a/panels/user-accounts/um-account-dialog.c b/panels/user-accounts/um-account-dialog.c
+index ea40cdd..bf519ef 100644
+--- a/panels/user-accounts/um-account-dialog.c
++++ b/panels/user-accounts/um-account-dialog.c
+@@ -137,7 +137,7 @@ show_error_dialog (UmAccountDialog *self,
+         if (error != NULL) {
+                 g_dbus_error_strip_remote_error (error);
+                 gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
+-                                                          "%s", error->message);
++                                                          "%s", _("Username cannot start with digits."));
+         }
+ 
+         g_signal_connect (dialog, "response", G_CALLBACK (gtk_widget_destroy), NULL);
+diff --git a/po/ko.po b/po/ko.po
+index 092a233..f0af24e 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -6962,6 +6962,10 @@ msgstr "알 수 없는 오류"
+ msgid "Should match the web address of your login provider."
+ msgstr "로그인을 제공하는 곳의 웹 주소."
+ 
++#: panels/user-accounts/um-account-dialog.c:140
++msgid "Username cannot start with digits."
++msgstr "사용자 이름은 숫자로 시작할 수 없습니다."
++
+ #: panels/user-accounts/um-account-dialog.c:225
+ msgid "Failed to add account"
+ msgstr "계정 추가에 실패했습니다"
