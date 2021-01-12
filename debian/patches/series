@@ -64,3 +64,4 @@ gooroom-40-Fixed-color-profile-apply-all-users.patch
 gooroom-41-Changed-user-accounts-add-error-message.patch
 gooroom-42-Changed-wacom-panel-test-settings-button.patch
 gooroom-43-Fixed-power-brightness-bar.patch
+gooroom-44-Chaned-day-spin-button-range-in-datetime-panel.patch
