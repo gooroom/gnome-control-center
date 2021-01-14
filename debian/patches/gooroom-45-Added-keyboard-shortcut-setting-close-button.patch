@@ -1,0 +1,25 @@
+diff --git a/panels/keyboard/cc-keyboard-shortcut-editor.c b/panels/keyboard/cc-keyboard-shortcut-editor.c
+index 38c9631..ab76e2b 100644
+--- a/panels/keyboard/cc-keyboard-shortcut-editor.c
++++ b/panels/keyboard/cc-keyboard-shortcut-editor.c
+@@ -292,7 +292,11 @@ static void
+ set_header_mode (CcKeyboardShortcutEditor *self,
+                  HeaderMode                mode)
+ {
+-  gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (self->headerbar), mode == HEADER_MODE_CUSTOM_EDIT);
++  gboolean is_custom;
++
++  is_custom = is_custom_shortcut (self);
++
++  gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (self->headerbar), mode == HEADER_MODE_CUSTOM_EDIT || (!is_custom && mode == HEADER_MODE_NONE));
+ 
+   gtk_widget_set_visible (self->cancel_button, mode != HEADER_MODE_NONE &&
+                                                mode != HEADER_MODE_CUSTOM_EDIT);
+@@ -625,6 +629,7 @@ setup_keyboard_item (CcKeyboardShortcutEditor *self,
+ 
+   set_header_mode (self, is_custom ? HEADER_MODE_CUSTOM_EDIT : HEADER_MODE_NONE);
+ 
++  gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (self->headerbar), TRUE);
+   gtk_widget_hide (self->add_button);
+   gtk_widget_hide (self->cancel_button);
+   gtk_widget_hide (self->replace_button);
