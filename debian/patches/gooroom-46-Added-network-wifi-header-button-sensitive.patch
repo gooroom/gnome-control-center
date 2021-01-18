@@ -1,0 +1,266 @@
+diff --git a/panels/network/net-device-wifi.c b/panels/network/net-device-wifi.c
+index 4440b94..f48a76f 100644
+--- a/panels/network/net-device-wifi.c
++++ b/panels/network/net-device-wifi.c
+@@ -719,6 +719,36 @@ device_wifi_refresh (NetObject *object)
+         nm_device_wifi_refresh_ui (device_wifi);
+ }
+ 
++static void
++button_sensitive (GtkWidget *widget, gboolean enabled, NetDeviceWifi *device_wifi)
++{
++        gtk_widget_set_sensitive (widget, enabled);
++}
++
++static void
++button_sensitive_set (GtkButton *button, NetDeviceWifi *device_wifi)
++{
++        if (gtk_toggle_button_get_active (button)) {
++
++                GtkWidget *start_hotspot_widget;
++                GtkWidget *connect_hidden_widget;
++	         NMClient *client;
++                gboolean enabled;
++
++                start_hotspot_widget = GTK_WIDGET (gtk_builder_get_object (device_wifi->priv->builder,
++                                                                           "start_hotspot_button"));
++                connect_hidden_widget = GTK_WIDGET (gtk_builder_get_object (device_wifi->priv->builder,
++                                                                            "connect_hidden_button"));
++                client = net_object_get_client (NET_OBJECT (device_wifi));
++                enabled = nm_client_wireless_get_enabled (client);
++
++                button_sensitive (start_hotspot_widget, enabled, device_wifi);
++                button_sensitive (connect_hidden_widget, enabled, device_wifi);
++        }
++}
++
++
++
+ static void
+ device_off_toggled (GtkSwitch *sw,
+                     GParamSpec *pspec,
+@@ -2339,6 +2369,11 @@ net_device_wifi_init (NetDeviceWifi *device_wifi)
+         gtk_notebook_set_show_tabs (GTK_NOTEBOOK (widget), FALSE);
+         gtk_notebook_set_current_page (GTK_NOTEBOOK (widget), 0);
+ 
++        widget = GTK_WIDGET (gtk_builder_get_object (device_wifi->priv->builder,
++                                                     "header_button"));
++        g_signal_connect (widget, "clicked",
++                          G_CALLBACK (button_sensitive_set), device_wifi);
++
+         widget = GTK_WIDGET (gtk_builder_get_object (device_wifi->priv->builder,
+                                                      "start_hotspot_button"));
+         g_signal_connect (widget, "clicked",
+diff --git a/po/ko.po b/po/ko.po
+index 268eb57..5324be0 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -130,8 +130,8 @@ msgstr "이미지 파일을 %s 폴더에 놓으면 여기 나타납니다"
+ #: panels/network/connection-editor/connection-editor.ui:15
+ #: panels/network/connection-editor/vpn-helpers.c:181
+ #: panels/network/connection-editor/vpn-helpers.c:310
+-#: panels/network/net-device-wifi.c:1411 panels/network/net-device-wifi.c:1491
+-#: panels/network/net-device-wifi.c:1736 panels/network/network-wifi.ui:24
++#: panels/network/net-device-wifi.c:1443 panels/network/net-device-wifi.c:1523
++#: panels/network/net-device-wifi.c:1772 panels/network/network-wifi.ui:24
+ #: panels/printers/new-printer-dialog.ui:45
+ #: panels/printers/pp-details-dialog.c:330
+ #: panels/privacy/cc-privacy-panel.c:1049 panels/region/cc-format-chooser.ui:24
+@@ -2256,31 +2256,31 @@ msgstr "프로파일 %d"
+ 
+ #. TRANSLATORS: this WEP WiFi security
+ #: panels/network/connection-editor/ce-page-details.c:56
+-#: panels/network/net-device-wifi.c:235 panels/network/net-device-wifi.c:468
++#: panels/network/net-device-wifi.c:236 panels/network/net-device-wifi.c:470
+ msgid "WEP"
+ msgstr "WEP"
+ 
+ #. TRANSLATORS: this WPA WiFi security
+ #: panels/network/connection-editor/ce-page-details.c:60
+-#: panels/network/net-device-wifi.c:239 panels/network/net-device-wifi.c:473
++#: panels/network/net-device-wifi.c:240 panels/network/net-device-wifi.c:475
+ #: panels/network/network-wifi.ui:593
+ msgid "WPA"
+ msgstr "WPA"
+ 
+ #. TRANSLATORS: this WPA WiFi security
+ #: panels/network/connection-editor/ce-page-details.c:64
+-#: panels/network/net-device-wifi.c:243
++#: panels/network/net-device-wifi.c:244
+ msgid "WPA2"
+ msgstr "WPA2"
+ 
+ #. TRANSLATORS: this Enterprise WiFi security
+ #: panels/network/connection-editor/ce-page-details.c:69
+-#: panels/network/net-device-wifi.c:248
++#: panels/network/net-device-wifi.c:249
+ msgid "Enterprise"
+ msgstr "기업용"
+ 
+ #: panels/network/connection-editor/ce-page-details.c:74
+-#: panels/network/net-device-wifi.c:253 panels/network/net-device-wifi.c:458
++#: panels/network/net-device-wifi.c:254 panels/network/net-device-wifi.c:460
+ msgctxt "Wifi security"
+ msgid "None"
+ msgstr "없음"
+@@ -2292,7 +2292,7 @@ msgstr "안 함"
+ 
+ #: panels/network/connection-editor/ce-page-details.c:110
+ #: panels/network/net-device-ethernet.c:121
+-#: panels/network/net-device-wifi.c:567
++#: panels/network/net-device-wifi.c:569
+ #, c-format
+ msgid "%i day ago"
+ msgid_plural "%i days ago"
+@@ -2300,37 +2300,37 @@ msgstr[0] " %i일 전"
+ 
+ #. Translators: network device speed
+ #: panels/network/connection-editor/ce-page-details.c:225
+-#: panels/network/net-device-ethernet.c:50 panels/network/net-device-wifi.c:646
++#: panels/network/net-device-ethernet.c:50 panels/network/net-device-wifi.c:648
+ #, c-format
+ msgid "%d Mb/s"
+ msgstr "%d Mb/s"
+ 
+ #: panels/network/connection-editor/ce-page-details.c:251
+-#: panels/network/net-device-wifi.c:675
++#: panels/network/net-device-wifi.c:677
+ msgctxt "Signal strength"
+ msgid "None"
+ msgstr "없음"
+ 
+ #: panels/network/connection-editor/ce-page-details.c:253
+-#: panels/network/net-device-wifi.c:677
++#: panels/network/net-device-wifi.c:679
+ msgctxt "Signal strength"
+ msgid "Weak"
+ msgstr "약함"
+ 
+ #: panels/network/connection-editor/ce-page-details.c:255
+-#: panels/network/net-device-wifi.c:679
++#: panels/network/net-device-wifi.c:681
+ msgctxt "Signal strength"
+ msgid "Ok"
+ msgstr "좋음"
+ 
+ #: panels/network/connection-editor/ce-page-details.c:257
+-#: panels/network/net-device-wifi.c:681
++#: panels/network/net-device-wifi.c:683
+ msgctxt "Signal strength"
+ msgid "Good"
+ msgstr "좋음"
+ 
+ #: panels/network/connection-editor/ce-page-details.c:259
+-#: panels/network/net-device-wifi.c:683
++#: panels/network/net-device-wifi.c:685
+ msgctxt "Signal strength"
+ msgid "Excellent"
+ msgstr "최상"
+@@ -2781,17 +2781,17 @@ msgstr ""
+ "망;;DNS;네임서버;"
+ 
+ #: panels/network/net-device-ethernet.c:107
+-#: panels/network/net-device-wifi.c:553
++#: panels/network/net-device-wifi.c:555
+ msgid "never"
+ msgstr "안 함"
+ 
+ #: panels/network/net-device-ethernet.c:117
+-#: panels/network/net-device-wifi.c:563
++#: panels/network/net-device-wifi.c:565
+ msgid "today"
+ msgstr "오늘"
+ 
+ #: panels/network/net-device-ethernet.c:119
+-#: panels/network/net-device-wifi.c:565
++#: panels/network/net-device-wifi.c:567
+ msgid "yesterday"
+ msgstr "어제"
+ 
+@@ -2816,7 +2816,7 @@ msgid "Wired"
+ msgstr "유선"
+ 
+ #: panels/network/net-device-ethernet.c:344
+-#: panels/network/net-device-wifi.c:1895 panels/network/network-ethernet.ui:120
++#: panels/network/net-device-wifi.c:1931 panels/network/network-ethernet.ui:120
+ #: panels/network/network-mobile.ui:394 panels/network/network-simple.ui:75
+ #: panels/network/network-vpn.ui:79
+ msgid "Options…"
+@@ -2826,64 +2826,64 @@ msgstr "옵션…"
+ msgid "Add new connection"
+ msgstr "새 연결 추가"
+ 
+-#: panels/network/net-device-wifi.c:1368
++#: panels/network/net-device-wifi.c:1400
+ #, c-format
+ msgid "Switching on the wireless hotspot will disconnect you from <b>%s</b>."
+ msgstr "무선 핫스팟을 전환하면 <b>%s</b>의 연결이 끊어집니다."
+ 
+-#: panels/network/net-device-wifi.c:1372
++#: panels/network/net-device-wifi.c:1404
+ msgid ""
+ "It is not possible to access the Internet through your wireless while the "
+ "hotspot is active."
+ msgstr "핫스팟이 동작할 때는 무선으로 인터넷에 연결할 수 없습니다."
+ 
+-#: panels/network/net-device-wifi.c:1379
++#: panels/network/net-device-wifi.c:1411
+ msgid "Turn On Wi-Fi Hotspot?"
+ msgstr "와이파이 핫스팟을 켜시겠습니까?"
+ 
+-#: panels/network/net-device-wifi.c:1401
++#: panels/network/net-device-wifi.c:1433
+ msgid ""
+ "Wi-Fi hotspots are usually used to share an additional Internet connection "
+ "over Wi-Fi."
+ msgstr "와이파이 핫스팟은 인터넷 연결을 와이파이를 통해 공유할 때 사용됩니다."
+ 
+-#: panels/network/net-device-wifi.c:1412
++#: panels/network/net-device-wifi.c:1444
+ msgid "_Turn On"
+ msgstr "켜기(_T)"
+ 
+-#: panels/network/net-device-wifi.c:1489
++#: panels/network/net-device-wifi.c:1521
+ msgid "Stop hotspot and disconnect any users?"
+ msgstr "핫스팟을 중지하고 연결 중인 사용자를 끊으시겠습니까?"
+ 
+-#: panels/network/net-device-wifi.c:1492
++#: panels/network/net-device-wifi.c:1524
+ msgid "_Stop Hotspot"
+ msgstr "핫스팟 중지(_S)"
+ 
+-#: panels/network/net-device-wifi.c:1592
++#: panels/network/net-device-wifi.c:1624
+ msgid "System policy prohibits use as a Hotspot"
+ msgstr "시스템 정책이 핫스팟 사용을 막습니다"
+ 
+-#: panels/network/net-device-wifi.c:1595
++#: panels/network/net-device-wifi.c:1627
+ msgid "Wireless device does not support Hotspot mode"
+ msgstr "무선 장치에서 핫스팟 모드를 지원하지 않습니다"
+ 
+-#: panels/network/net-device-wifi.c:1733
++#: panels/network/net-device-wifi.c:1769
+ msgid ""
+ "Network details for the selected networks, including passwords and any "
+ "custom configuration will be lost."
+ msgstr ""
+ "선택한 네트워크의 상세 정보(암호 및 기타 사용자 설정 정보 포함)가 지워집니다."
+ 
+-#: panels/network/net-device-wifi.c:1737 panels/network/network-wifi.ui:1362
++#: panels/network/net-device-wifi.c:1773 panels/network/network-wifi.ui:1362
+ msgid "_Forget"
+ msgstr "저장 지우기(_F)"
+ 
+-#: panels/network/net-device-wifi.c:2046 panels/network/net-device-wifi.c:2053
++#: panels/network/net-device-wifi.c:2082 panels/network/net-device-wifi.c:2089
+ msgid "Known Wi-Fi Networks"
+ msgstr "알려진 와이파이 네트워크"
+ 
+ #. translators: This is the label for the "Forget wireless network" functionality
+-#: panels/network/net-device-wifi.c:2086
++#: panels/network/net-device-wifi.c:2122
+ msgctxt "Wi-Fi Network"
+ msgid "_Forget"
+ msgstr "지우기(_F)"
