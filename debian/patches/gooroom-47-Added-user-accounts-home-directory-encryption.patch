@@ -10,11 +10,11 @@ index 9fd176f..d856d20 100644
 +                  <object class="GtkCheckButton" id="home_directory_encrypt">
 +                    <property name="label" translatable="yes">Home directory _Encryption</property>
 +                    <property name="visible">True</property>
-+		    <property name="can_focus">True</property>
-+		    <property name="receives_default">False</property>
-+		    <property name="tooltip_text" translatable="yes">Encrypt all files in user's home directory with user's login password to protect sensitive data from people who can access to user's computer.</property>
-+		    <property name="use_underline">True</property>
-+		    <property name="draw_indicator">True</property>
++                    <property name="can_focus">True</property>
++                    <property name="receives_default">False</property>
++                    <property name="tooltip_text" translatable="yes">Encrypt all files in user's home directory with user's login password to protect sensitive data from people who can access to user's computer.</property>
++                    <property name="use_underline">True</property>
++                    <property name="draw_indicator">True</property>
 +                  </object>
 +                  <packing>
 +                    <property name="left_attach">1</property>
@@ -187,7 +187,7 @@ index 55bf5bc..a210d59 100644
          GtkWidget *local_strength_indicator;
          GtkWidget *local_hint;
          GtkWidget *local_verify_hint;
-+	GtkWidget *home_directory_encrypt;
++        GtkWidget *home_directory_encrypt;
  
          /* Enterprise widgets */
          guint realmd_watch;
@@ -198,7 +198,7 @@ index 55bf5bc..a210d59 100644
 -                if (!g_error_matches (error, ACT_USER_MANAGER_ERROR, ACT_USER_MANAGER_ERROR_PERMISSION_DENIED))
 +                if (!g_error_matches (error, ACT_USER_MANAGER_ERROR, ACT_USER_MANAGER_ERROR_PERMISSION_DENIED)) {
                         show_error_dialog (self, _("Failed to add account"), error);
-+	}
++        }
                  g_error_free (error);
                  gtk_widget_grab_focus (self->local_name);
          } else {
@@ -206,25 +206,25 @@ index 55bf5bc..a210d59 100644
          const gchar *username;
          const gchar *name;
          gint account_type;
-+	gboolean encrypt_home;
++        gboolean encrypt_home;
  
          begin_action (self);
  
          name = gtk_entry_get_text (GTK_ENTRY (self->local_name));
          username = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (self->local_username));
          account_type = (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->account_type_standard)) ? ACT_USER_ACCOUNT_TYPE_STANDARD : ACT_USER_ACCOUNT_TYPE_ADMINISTRATOR);
-+	encrypt_home = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->home_directory_encrypt));
++        encrypt_home = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (self->home_directory_encrypt));
  
          g_debug ("Creating local user: %s", username);
  
 -        manager = act_user_manager_get_default ();
 -        act_user_manager_create_user_async (manager,
-+	manager = act_user_manager_get_default ();
++        manager = act_user_manager_get_default ();
 +        act_user_manager_create_user_encrypt_async (manager,
                                              g_ascii_strdown (username, -1),
                                              name,
                                              account_type,
-+					    encrypt_home,
++                                            encrypt_home,
                                              self->cancellable,
                                              (GAsyncReadyCallback)create_user_done,
                                              self);
@@ -232,7 +232,7 @@ index 55bf5bc..a210d59 100644
          gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, local_strength_indicator);
          gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, local_hint);
          gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, local_verify_hint);
-+	gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, home_directory_encrypt);
++        gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, home_directory_encrypt);
          gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, enterprise_button);
          gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, spinner);
          gtk_widget_class_bind_template_child (widget_class, UmAccountDialog, enterprise_domain);
@@ -254,7 +254,7 @@ index 35b3b52..26d66bd 100644
                  remove_files = TRUE;
          }
 -        else {
-+        else {	
++        else {
                  remove_files = FALSE;
          }
  
@@ -277,22 +277,22 @@ index 35b3b52..26d66bd 100644
 -                                        _("_Keep Files"), GTK_RESPONSE_YES,
 -                                        _("_Cancel"), GTK_RESPONSE_CANCEL,
 -                                        NULL);
-+		if (is_ecryptfs_user (act_user_get_user_name (user))) {
-+	                dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_toplevel (self->main_box)),
++                if (is_ecryptfs_user (act_user_get_user_name (user))) {
++                        dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_toplevel (self->main_box)),
 +                                                         0,
 +                                                         GTK_MESSAGE_QUESTION,
 +                                                         GTK_BUTTONS_NONE,
 +                                                         _("Do you want to delete user %s?"),
 +                                                         get_real_or_user_name (user));
-+	
-+	                gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
++
++                        gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog),
 +                                                                  _("All data related with user %s will be deleted."),get_real_or_user_name(user));
 +
-+	                gtk_dialog_add_buttons (GTK_DIALOG (dialog),
++                        gtk_dialog_add_buttons (GTK_DIALOG (dialog),
 +                                                _("_Delete Files"), GTK_RESPONSE_NO,
 +                                                _("_Cancel"), GTK_RESPONSE_CANCEL,
 +                                                NULL);
-+		} else {
++                } else {
 +                        dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_toplevel (self->main_box)),
 +                                                         0,
 +                                                         GTK_MESSAGE_QUESTION,
@@ -307,7 +307,7 @@ index 35b3b52..26d66bd 100644
 +                                                _("_Keep Files"), GTK_RESPONSE_YES,
 +                                                _("_Cancel"), GTK_RESPONSE_CANCEL,
 +                                                NULL);
-+		}
++                }
  
                  gtk_window_set_icon_name (GTK_WINDOW (dialog), "system-users");
  
@@ -315,8 +315,8 @@ index 35b3b52..26d66bd 100644
          show = is_ecryptfs_user (act_user_get_user_name (user));//act_user_is_local_account (user);
          gtk_widget_set_visible (widget, !show);
          gtk_widget_set_visible (label, !show);
-+	label = get_widget (self, "encrypt-home-check-label");
-+	gtk_widget_set_visible (label, show);
++        label = get_widget (self, "encrypt-home-check-label");
++        gtk_widget_set_visible (label, show);
  
          /* Language: do not show for current user */
          widget = get_widget (self, "account-language-button");
