@@ -1,0 +1,42 @@
+diff --git a/panels/printers/pp-options-dialog.c b/panels/printers/pp-options-dialog.c
+index 6a032f7..b5bde35 100644
+--- a/panels/printers/pp-options-dialog.c
++++ b/panels/printers/pp-options-dialog.c
+@@ -86,6 +86,7 @@ static const struct {
+   { "OutputBin", N_("Output Tray") },
+   { "Resolution", N_("Resolution") },
+   { "PreFilter", N_("GhostScript pre-filtering") },
++  { "PageSize", N_("Media Size") },
+ };
+ 
+ /* keep sorted when changing */
+diff --git a/po/ko.po b/po/ko.po
+index a142b1c..c5710fd 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -4678,6 +4678,10 @@ msgstr "출력 표시줄"
+ msgid "GhostScript pre-filtering"
+ msgstr "고스트스크립트 우선 필터링"
+ 
++#: panels/printers/pp-options-dialog.c:89
++msgid "Media Size"
++msgstr "용지 크기"
++
+ #. Translators: This option sets number of pages printed on one sheet
+ #: panels/printers/pp-options-dialog.c:534
+ msgid "Pages per side"
+@@ -6576,8 +6580,12 @@ msgid "Home directory _Encryption"
+ msgstr "홈폴더 암호화(_E)"
+ 
+ #: panels/user-accounts/data/account-dialog.ui:119
+-msgid "Encrypt all files in user's home directory with user's login password to protect sensitive da     ta from people who can access to user's computer."
+-msgstr "사용자의 홈폴더에 있는 모든 파일을 사용자의 로그인 암호로 암호화하여 사용자의 컴퓨터에 물리>     적으로 접근 가능한 사람으로부터 민감한 정보를 보호합니다."
++msgid ""
++"Encrypt all files in user's home directory with user's login password "
++"to protect sensitive data from people who can access to user's computer."
++msgstr ""
++"사용자의 홈폴더에 있는 모든 파일을 사용자의 로그인 암호로 암호화하여 "
++"사용자의 컴퓨터에 물리적으로 접근 가능한 사람으로부터 민감한 정보를 보호합니다."
+ 
+ #: panels/user-accounts/data/account-dialog.ui:186
+ msgid "_Full Name"
