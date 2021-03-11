@@ -75,3 +75,4 @@ gooroom-51-Updated-keyboard-shortcut.patch
 gooroom-52-Added-printer-options-translation.patch
 gooroom-53-Updated-low-resolution-panel-scollable.patch
 gooroom-54-Fixed-close-button-rendering-error-when-changing-the.patch
+gooroom-55-Fixed-GSlice-memory-error.patch
