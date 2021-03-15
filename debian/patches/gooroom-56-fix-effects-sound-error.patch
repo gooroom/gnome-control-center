@@ -1,0 +1,46 @@
+diff --git a/panels/sound/gvc-channel-bar.c b/panels/sound/gvc-channel-bar.c
+index a2d6dac..87ff904 100644
+--- a/panels/sound/gvc-channel-bar.c
++++ b/panels/sound/gvc-channel-bar.c
+@@ -958,3 +958,13 @@ gvc_channel_bar_new (void)
+                             NULL);
+         return GTK_WIDGET (bar);
+ }
++
++void
++sync_effects_base_volume_and_scale(GvcChannelBar *bar)
++{
++    if (bar->base_volume == 65536) {
++        GtkAdjustment *adj = GTK_ADJUSTMENT (gvc_channel_bar_get_adjustment (bar));
++        gtk_adjustment_set_value (adj, 1);
++        gtk_adjustment_set_value (adj, bar->base_volume);
++    }
++}
+diff --git a/panels/sound/gvc-channel-bar.h b/panels/sound/gvc-channel-bar.h
+index f0ded18..ed8c3d9 100644
+--- a/panels/sound/gvc-channel-bar.h
++++ b/panels/sound/gvc-channel-bar.h
+@@ -64,6 +64,8 @@ void                gvc_channel_bar_set_ellipsize       (GvcChannelBar *bar,
+ gboolean            gvc_channel_bar_scroll              (GvcChannelBar  *bar,
+                                                          GdkEventScroll *event);
+ 
++void                sync_effects_base_volume_and_scale  (GvcChannelBar *bar);
++
+ G_END_DECLS
+ 
+ #endif /* __GVC_CHANNEL_BAR_H */
+diff --git a/panels/sound/gvc-mixer-dialog.c b/panels/sound/gvc-mixer-dialog.c
+index 5034a45..57a844d 100644
+--- a/panels/sound/gvc-mixer-dialog.c
++++ b/panels/sound/gvc-mixer-dialog.c
+@@ -1029,6 +1029,10 @@ add_stream (GvcMixerDialog *dialog,
+                 }
+                 save_bar_for_stream (dialog, stream, bar);
+                 bar_set_stream (dialog, bar, stream);
++
++                if (bar == dialog->effects_bar)
++                   sync_effects_base_volume_and_scale(GVC_CHANNEL_BAR(dialog->effects_bar));
++
+                 gtk_widget_show (bar);
+         }
+ }
