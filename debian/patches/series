@@ -79,3 +79,4 @@ gooroom-55-Fixed-GSlice-memory-error.patch
 gooroom-56-fix-effects-sound-error.patch
 gooroom-57-restrict-Korean-input-when-changing-password.patch
 gooroom-58-Display-Refresh-Rate-Bug-Fixed.patch
+gooroom-59-Dont-change-gsettings-values-when-timeout-values-are-zero.patch

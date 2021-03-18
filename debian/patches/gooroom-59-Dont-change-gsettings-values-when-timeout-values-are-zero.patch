@@ -1,0 +1,20 @@
+diff --git a/panels/power/cc-power-panel.c b/panels/power/cc-power-panel.c
+index 9da5a54..0088034 100644
+--- a/panels/power/cc-power-panel.c
++++ b/panels/power/cc-power-panel.c
+@@ -2221,6 +2221,7 @@ add_suspend_and_power_off_section (CcPowerPanel *self)
+   if (!can_suspend && !can_hibernate)
+     return;
+ 
++#if 0
+   /* The default values for these settings are unfortunate for us;
+    * timeout == 0, action == suspend means 'do nothing' - just
+    * as timout === anything, action == nothing.
+@@ -2237,6 +2238,7 @@ add_suspend_and_power_off_section (CcPowerPanel *self)
+       g_settings_set_enum (self->gsd_settings, "sleep-inactive-battery-type", GSD_POWER_ACTION_NOTHING);
+       g_settings_set_int (self->gsd_settings, "sleep-inactive-battery-timeout", 1800);
+     }
++#endif
+ 
+   /* Frame header */
+   s = g_markup_printf_escaped ("<b>%s</b>", _("Suspend & Power Button"));
