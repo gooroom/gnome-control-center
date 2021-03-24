@@ -82,3 +82,4 @@ gooroom-58-Display-Refresh-Rate-Bug-Fixed.patch
 gooroom-59-Dont-change-gsettings-values-when-timeout-values-are-zero.patch
 gooroom-60-Hide-printer-search-button-if-empty.patch
 gooroom-61-Printer-Searching-Issue-Fixed.patch
+gooroom-62-exception-handled-of-old-files-age.patch
