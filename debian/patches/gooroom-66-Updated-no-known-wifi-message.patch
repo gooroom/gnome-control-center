@@ -1,0 +1,22 @@
+diff --git a/panels/network/net-device-wifi.c b/panels/network/net-device-wifi.c
+index c58d22d..28cfc3e 100644
+--- a/panels/network/net-device-wifi.c
++++ b/panels/network/net-device-wifi.c
+@@ -2079,7 +2079,7 @@ update_list (GtkContainer *list, GtkWidget *row, NetDeviceWifi *device_wifi)
+                 connections = net_device_get_valid_connections (NET_DEVICE (device_wifi));
+ 
+                 length = g_list_length (connections);
+-                if (length == 2) {
++                if (length == 1) {
+                         label = create_label();
+                         gtk_widget_show (label);
+                         gtk_container_add (GTK_CONTAINER (list), label);
+@@ -2217,7 +2217,7 @@ open_history (NetDeviceWifi *device_wifi)
+         }
+ 
+         length = g_slist_length (connections);
+-        if (length == 1) {
++        if (length == 0) {
+                 label = create_label();
+                 gtk_widget_show (label);
+                 gtk_container_add (GTK_CONTAINER (list), label);
