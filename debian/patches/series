@@ -85,3 +85,4 @@ gooroom-61-Printer-Searching-Issue-Fixed.patch
 gooroom-62-exception-handled-of-old-files-age.patch
 gooroom-63-removed-one-hour-old-files-age.patch
 gooroom-64-Fixed-locale-setting-error.patch
+gooroom-65-Updates-ui-when-vpn-removed.patch
