@@ -1,0 +1,12 @@
+diff --git a/panels/universal-access/uap.ui b/panels/universal-access/uap.ui
+index 2a0ad46..128ad6a 100644
+--- a/panels/universal-access/uap.ui
++++ b/panels/universal-access/uap.ui
+@@ -963,6 +963,7 @@
+     <property name="resizable">False</property>
+     <property name="modal">True</property>
+     <property name="type_hint">dialog</property>
++    <property name="use_header_bar">1</property>
+     <child internal-child="vbox">
+       <object class="GtkBox" id="dialog-vbox7">
+         <property name="can_focus">False</property>
