@@ -1,0 +1,156 @@
+diff --git a/panels/region/cc-region-panel.c b/panels/region/cc-region-panel.c
+index e9a02b6..7a3213e 100644
+--- a/panels/region/cc-region-panel.c
++++ b/panels/region/cc-region-panel.c
+@@ -51,12 +51,11 @@
+ #define INPUT_SOURCE_TYPE_XKB "xkb"
+ #define INPUT_SOURCE_TYPE_IBUS "ibus"
+ 
+-#define DEFAULT_LOCALE "ko_KR.utf-8"
++#define DEFAULT_LOCALE "en_US.UTF-8"
+ #define XSESSIONRC ".xsessionrc"
+ 
+-static const gchar *xsessionrc_template = "export LANG=%s\n";
+-                                           //export LANGUAGE=%s:%s\n
+-                                           //export ";
++static const gchar *xsessionrc_template = "export LANG=%s\n"
++                                          "export LC_TIME=%s";
+ 
+ typedef enum {
+         CHOOSE_LANGUAGE,
+@@ -155,6 +154,32 @@ cc_region_panel_get_help_uri (CcPanel *panel)
+         return "help:gnome-help/prefs-language";
+ }
+ 
++static char *
++get_session_property (CcRegionPanel *self, int category)
++{
++        gchar *ret = NULL;
++        GVariant *variant = NULL;
++
++        if (self->session) {
++                variant = g_dbus_proxy_call_sync (self->session,
++                                                  "GetLocale",
++                                                  g_variant_new ("(i)", category),
++                                                  G_DBUS_CALL_FLAGS_NONE,
++                                                  -1,
++                                                  NULL,
++                                                  NULL);
++        }
++
++        if (variant) {
++                const gchar *current_locale;
++                g_variant_get (variant, "(&s)", &current_locale);
++                ret = g_strdup (current_locale);
++                g_variant_unref (variant);
++        }
++
++        return ret;
++}
++
+ static GFile *
+ get_needs_restart_file (void)
+ {
+@@ -380,18 +405,17 @@ set_system_language (CcRegionPanel *self,
+ }
+ 
+ static void
+-set_user_language (CcRegionPanel *self,
+-                   const gchar   *language)
++update_xsessionrc (CcRegionPanel *self,
++                   const gchar   *language,
++                   const gchar   *region)
+ {
+         g_autofree gchar *xsessionrc;
+         g_autofree gchar *contents;
+ 
+-
+         xsessionrc = g_build_filename (g_get_home_dir (), XSESSIONRC, NULL);
+-        contents = g_strdup_printf (xsessionrc_template, language);
++        contents = g_strdup_printf (xsessionrc_template, language, region);
+ 
+         g_file_set_contents (xsessionrc, contents, -1, NULL);
+-        act_user_set_language (self->user, language);
+ }
+ 
+ static void
+@@ -403,7 +427,8 @@ update_language (CcRegionPanel *self,
+         } else {
+                 if (g_strcmp0 (language, self->language) == 0)
+                         return;
+-                set_user_language (self, language);
++                act_user_set_language (self->user, language);
++                update_xsessionrc (self, language, self->region);
+                 maybe_notify (self, LC_MESSAGES, language);
+         }
+ }
+@@ -446,6 +471,7 @@ update_region (CcRegionPanel *self,
+                 if (g_strcmp0 (region, self->region) == 0)
+                         return;
+                 g_settings_set_string (self->locale_settings, KEY_REGION, region);
++                update_xsessionrc (self, self->language, region);
+                 maybe_notify (self, LC_TIME, region);
+         }
+ }
+@@ -597,6 +623,12 @@ update_region_from_setting (CcRegionPanel *self)
+ {
+         g_free (self->region);
+         self->region = g_settings_get_string (self->locale_settings, KEY_REGION);
++
++        if (!self->region || g_str_equal (self->region, "")) {
++                g_free (self->region);
++                self->region = get_session_property (self, LC_TIME);
++        }
++
+         update_region_label (self);
+ }
+ 
+@@ -613,9 +645,6 @@ update_language_label (CcRegionPanel *self)
+                 name = gnome_get_language_from_locale (DEFAULT_LOCALE, DEFAULT_LOCALE);
+ 
+         gtk_label_set_label (GTK_LABEL (self->language_label), name);
+-
+-        /* Formats will change too if not explicitly set. */
+-        update_region_label (self);
+ }
+ 
+ static void
+@@ -623,14 +652,17 @@ update_language_from_user (CcRegionPanel *self)
+ {
+         const gchar *language = NULL;
+ 
++        g_free (self->language);
++
+         if (act_user_is_loaded (self->user))
+                 language = act_user_get_language (self->user);
+ 
+-        if (language == NULL || *language == '\0')
+-                language = setlocale (LC_MESSAGES, NULL);
++        if (!language || g_str_equal (language, "")) {
++                self->language = get_session_property (self, LC_MESSAGES);
++        } else {
++                self->language = g_strdup (language);
++        }
+ 
+-        g_free (self->language);
+-        self->language = g_strdup (language);
+         update_language_label (self);
+ }
+ 
+@@ -946,6 +978,8 @@ session_proxy_ready (GObject      *source,
+         }
+ 
+         self->session = proxy;
++
++        setup_language_section (self);
+ }
+ 
+ static void
+@@ -999,7 +1033,6 @@ cc_region_panel_init (CcRegionPanel *self)
+                                   self);
+ 
+         setup_login_button (self);
+-        setup_language_section (self);
+ 
+         needs_restart_file = get_needs_restart_file ();
+         if (g_file_query_exists (needs_restart_file, NULL))

@@ -88,3 +88,4 @@ gooroom-64-Fixed-locale-setting-error.patch
 gooroom-65-Updates-ui-when-vpn-removed.patch
 gooroom-66-Updated-no-known-wifi-message.patch
 gooroom-67-Added-cursor-size-dialog-headerbar.patch
+gooroom-68-Fixed-user-locale-setting-error.patch
