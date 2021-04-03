@@ -1,3 +1,62 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u12) gooroom-2.0; urgency=medium
+
+  [ boyeon.choi ]
+  * [e864eb47] [Bug:2962] Fixed the header bar typos in the Add image window
+  * [af42f975] [Bug:2590] Fixed the issue that day_spinbutton is not clicked when the value is max
+  * [2a164312] [Bug:2586] Translated some city names
+
+  [ heejun.jang ]
+  * [f0235799] [Bug: 2525,2973,2974] 1.Add clear recent history notification 2.Fix user-accounts-icon
+  * [86a2e94d] [Bug:2975] Add clear user-accounts password verify entry
+  * [ab5a4ca2] [Bug:2965,2967] Fix device keyboard custom-keysetting
+  * [c6bb51c5] [Bug:3076,3081] Fixed region logout button
+  * [00bb7fc7] [Bug:3137]Fixed color profile problem message
+  * [0292612f] [Bug:2984]Fixed font underline problem
+  * [39250746] [Bug:3131]Fixed color profile apply all users
+  * [bb3d09b8] [Bug:3065]Changed user accounts add error message
+  * [20eb2718] [Bug:2614,2616]Changed wacom panel test settings button
+  * [fbcb3682] [Bug:2933]Fixed power brightness bar
+  * [c2859432] [Bug:2554]Added keyboard shortcut setting close button
+  * [869ce47c] [Bug:2600,2606]Added network wifi header button sensitive
+  * [d1fc8a94] Added user accounts home directory encryption
+  * [d7e5138f] [Bug:3102] Added keyboard shortcut setting guide message
+  * [2e615863] [Bug:2602]Added no known wifi message
+  * [b5938acb] [Bug:2983]Updated keyboard shortcut
+  * [3e160695] [Bug:2562]Added printer options translation
+  * [cabb30b7] [Bug:2477]Updated low resolution panel scollable
+  * [a8dbabd9] [Bug:2602]Updated no known wifi message
+  * [30de86cb] [Bug:3078]Added cursor size dialog headerbar
+
+  [ donghun ]
+  * [3ce6fd94] [Bug:2629]Fixed date time setting error
+  * [7544caef] Added accountsservice dependency version
+  * [52481fad] [Bug:2472]Fixed close button rendering error when changing theme
+  * [636271ff] [Bug:2564]Fixed GSlice memory error
+  * [6ec26302] [Bug:2064] Restrict Korean input when changing password
+
+  [ hmkim ]
+  * [ab727069] [Bug:3059] fix effects sound error
+
+  [ byunghui.jeun@gooroom.kr ]
+  * [fb920ea8] [Bug:2393,2578] Display Refresh Rate Bug Fixed.
+  * [d7ebee75] [Bug:3358] Printer Searching Issue Fixed.
+
+  [ subin.kim ]
+  * [51dd521e] Don't change gsettings values when timeout values are zero
+  * [994fb270] [Bug:3360]Hide printer search button if empty
+  * [9e1d4bf0] Exception handled for [Bug:3359]Shorten purge trash id adapting time
+  * [264d007e] Removed one hour old files age related to [Bug:3359]
+  * [c47dbd9c] [Bug:3383]Update ui when vpn removed
+
+  [ cjheo ]
+  * [18451a02] [Bug:3079] 로케일 설정 오류 수정
+  * [8c7068f2] [Bug:3079] 언어 및 로케일 설정오류 수정
+  * [df7442ba] 최초 언어 설정시 다시시작 알림이 노출되지 않는 버그 수정
+
+  [ Gooroom Autobuilder ]
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Sat, 03 Apr 2021 16:07:29 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u10) gooroom-2.0; urgency=medium
 
   [ donghun ]
