@@ -1,0 +1,86 @@
+diff --git a/panels/sound/gvc-mixer-dialog.c b/panels/sound/gvc-mixer-dialog.c
+index 57a844d..28a1d33 100644
+--- a/panels/sound/gvc-mixer-dialog.c
++++ b/panels/sound/gvc-mixer-dialog.c
+@@ -62,7 +62,9 @@ struct _GvcMixerDialog
+         GtkWidget       *sound_effects_box;
+         GtkWidget       *input_box;
+         GtkWidget       *output_box;
++#if 0
+         GtkWidget       *applications_box;
++#endif
+         GtkWidget       *no_apps_label;
+         GtkWidget       *output_treeview;
+         GtkWidget       *output_settings_box;
+@@ -743,10 +745,12 @@ on_stream_is_muted_notify (GObject        *object,
+         gvc_channel_bar_set_is_muted (GVC_CHANNEL_BAR (bar),
+                                       is_muted);
+ 
++#if 0
+         if (stream == gvc_mixer_control_get_default_sink (dialog->mixer_control)) {
+                 gtk_widget_set_sensitive (dialog->applications_box,
+                                           !is_muted);
+         }
++#endif
+ 
+ }
+ 
+@@ -999,6 +1003,8 @@ add_stream (GvcMixerDialog *dialog,
+                 bar = dialog->effects_bar;
+                 g_debug ("Adding effects stream");
+         } else {
++                  return;
++#if 0
+                 /* Must be an application stream */
+                 const char *name;
+                 name = gvc_mixer_stream_get_name (stream);
+@@ -1009,6 +1015,7 @@ add_stream (GvcMixerDialog *dialog,
+                 gtk_box_pack_start (GTK_BOX (dialog->applications_box), bar, FALSE, FALSE, 12);
+                 dialog->num_apps++;
+                 gtk_widget_hide (dialog->no_apps_label);
++#endif
+         }
+ 
+         /* We should have a bar by now. */
+@@ -1761,6 +1768,7 @@ gvc_mixer_dialog_constructor (GType                  type,
+                             self->sound_theme_chooser,
+                             TRUE, TRUE, 6);
+ 
++#if 0
+         /* Applications */
+         self->applications_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
+         gtk_container_set_border_width (GTK_CONTAINER (self->applications_box), 12);
+@@ -1776,6 +1784,7 @@ gvc_mixer_dialog_constructor (GType                  type,
+         gtk_box_pack_start (GTK_BOX (self->applications_box),
+                             self->no_apps_label,
+                             TRUE, TRUE, 0);
++#endif
+ 
+         g_signal_connect (self->mixer_control,
+                           "output-added",
+@@ -1805,12 +1814,14 @@ gvc_mixer_dialog_constructor (GType                  type,
+ 
+         gtk_widget_show_all (main_vbox);
+ 
++#if 0
+         streams = gvc_mixer_control_get_streams (self->mixer_control);
+         for (l = streams; l != NULL; l = l->next) {
+                 stream = l->data;
+                 add_stream (self, stream);
+         }
+         g_slist_free (streams);
++#endif
+ 
+         return object;
+ }
+@@ -1976,8 +1987,10 @@ gvc_mixer_dialog_set_page (GvcMixerDialog *self,
+                 num = PAGE_INPUT;
+         else if (g_str_equal (page, "output"))
+                 num = PAGE_OUTPUT;
++#if 0
+         else if (g_str_equal (page, "applications"))
+                 num = PAGE_APPLICATIONS;
++#endif
+ 
+         gtk_notebook_set_current_page (GTK_NOTEBOOK (self->notebook), num);
+ 

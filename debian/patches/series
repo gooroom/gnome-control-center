@@ -90,3 +90,4 @@ gooroom-66-Updated-no-known-wifi-message.patch
 gooroom-67-Added-cursor-size-dialog-headerbar.patch
 gooroom-68-Fixed-user-locale-setting-error.patch
 gooroom-69-Fixed-background-lock-screen-apply.patch
+gooroom-70-Deleted-sound-panel-application-tab.patch
