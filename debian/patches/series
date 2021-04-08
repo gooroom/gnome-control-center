@@ -92,3 +92,4 @@ gooroom-68-Fixed-user-locale-setting-error.patch
 gooroom-69-Fixed-background-lock-screen-apply.patch
 gooroom-70-Deleted-sound-panel-application-tab.patch
 gooroom-71-Fixed-hangul-searching-in-GtkSearchEntry.patch
+gooroom-72-Deleted-info-default-apps-panel.patch
