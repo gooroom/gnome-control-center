@@ -1,0 +1,170 @@
+diff --git a/panels/background/cc-background-chooser.c b/panels/background/cc-background-chooser.c
+index e14619b..1803ebe 100644
+--- a/panels/background/cc-background-chooser.c
++++ b/panels/background/cc-background-chooser.c
+@@ -63,19 +63,102 @@ on_delete_background_clicked_cb (GtkButton *button,
+   bg_recent_source_remove_item (source, item);
+ }
+ 
++static gboolean
++run_warning (GtkWindow *parent, char *prompt, char *text, char *button_title)
++{
++  GtkWidget *dialog;
++  GtkWidget *button;
++  int result;
++  dialog = gtk_message_dialog_new (parent,
++                                   0,
++                                   GTK_MESSAGE_WARNING,
++                                   GTK_BUTTONS_NONE,
++                                   NULL);
++  g_object_set (dialog,
++                "text", prompt,
++                "secondary-text", text,
++                NULL);
++  gtk_dialog_add_button (GTK_DIALOG (dialog), _("_Cancel"), GTK_RESPONSE_CANCEL);
++  gtk_dialog_add_button (GTK_DIALOG (dialog), button_title, GTK_RESPONSE_OK);
++
++  gtk_dialog_set_default_response (GTK_DIALOG (dialog), FALSE);
++
++  button = gtk_dialog_get_widget_for_response (GTK_DIALOG (dialog), GTK_RESPONSE_OK);
++  gtk_style_context_add_class (gtk_widget_get_style_context (button), "destructive-action");
++
++  result = gtk_dialog_run (GTK_DIALOG (dialog));
++  gtk_widget_destroy (dialog);
++
++  return result == GTK_RESPONSE_OK;
++}
++
+ static void
+ on_file_dialog_response_cb (GtkDialog           *dialog,
+                             gint                 response,
+                             CcBackgroundChooser *chooser)
+ {
++
++  gboolean result;
++
+   if (response == GTK_RESPONSE_ACCEPT) {
+-    g_autofree gchar *filename = NULL;
+ 
++    g_autofree gchar *filename = NULL;
++    GListStore *store;
++    guint i, j;
++    g_autofree gchar **filename_split = NULL;
++    g_autofree gchar *image_name = NULL;
++    guint filename_split_length;
++  
++    result = response == GTK_RESPONSE_ACCEPT;
+     filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+-    bg_recent_source_add_file (chooser->recent_source, filename);
+-  }
+   
+-  gtk_widget_destroy (GTK_WIDGET (dialog));
++    filename_split = g_strsplit (filename, "/", -1);
++    filename_split_length = g_strv_length (filename_split) - 1;
++    image_name = filename_split[filename_split_length];
++  
++    store = bg_source_get_liststore (BG_SOURCE (chooser->recent_source));
++    
++    for ( i = 0; i < g_list_model_get_n_items (G_LIST_MODEL (store)); i++) {
++
++      g_autoptr(CcBackgroundItem) tmp_item = NULL;
++      g_autofree gchar **tmp_filename_split = NULL;
++      g_autofree gchar **tmp_image_name_split = NULL;
++      g_autofree gchar **tmp_image_name_split_without_date = NULL;
++      g_autofree gchar *tmp_filename = NULL;
++      g_autofree gchar *tmp_image_name = NULL;
++      guint tmp_filename_split_length;
++      guint tmp_image_name_split_length;
++  
++      tmp_item = g_list_model_get_item (G_LIST_MODEL (store), i);
++      tmp_filename_split = g_strsplit (cc_background_item_get_uri (tmp_item), "/", -1);
++      tmp_filename_split_length = g_strv_length (tmp_filename_split) - 1;
++      tmp_filename = tmp_filename_split[tmp_filename_split_length];
++
++      tmp_image_name_split = g_strsplit (tmp_filename, "-", -1);
++      tmp_image_name_split_length = g_strv_length (tmp_image_name_split) - 1;
++      
++      tmp_image_name_split_without_date = g_strdupv (&tmp_image_name_split[6]);
++      tmp_image_name = g_strjoinv (g_strdup("-"), tmp_image_name_split_without_date);
++
++      if (g_strcmp0 (image_name, tmp_image_name) == 0) {
++
++        result = run_warning (dialog, _("Add the selected image file?"),
++                              _("The file which has same name already exists."),
++                              _("_Add"));
++
++        if (result) 
++          bg_recent_source_remove_item (chooser->recent_source, tmp_item);
++        
++        break;
++      }
++    }
++
++    if (result)
++      bg_recent_source_add_file (chooser->recent_source, filename);
++  }
++ 
++  if (result || response != GTK_RESPONSE_ACCEPT) 
++    gtk_widget_destroy (GTK_WIDGET (dialog));
+ }
+ 
+ static void
+diff --git a/po/ko.po b/po/ko.po
+index 15f9312..dc5c8ec 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -122,6 +122,7 @@ msgid "You can add images to your %s folder and they will show up here"
+ msgstr "이미지 파일을 %s 폴더에 놓으면 여기 나타납니다"
+ 
+ #: panels/background/cc-background-chooser-dialog.c:560
++#: panels/background/cc-background-chooser.c:81
+ #: panels/color/cc-color-panel.c:225 panels/color/cc-color-panel.c:284
+ #: panels/color/cc-color-panel.c:937
+ #: panels/color/color-calibrate.ui:25 panels/color/color.ui:657
+@@ -154,6 +155,14 @@ msgstr "취소(_C)"
+ msgid "_Select"
+ msgstr "선택(_S)"
+ 
++#: panels/background/cc-background-chooser.c:145
++msgid "Add the selected image file?"
++msgstr "선택하신 이미지 파일을 추가하시겠습니까?"
++
++#: panels/background/cc-background-chooser.c:146
++msgid "The file which has same name already exists."
++msgstr "동일한 이름을 가진 파일이 이미 존재합니다."
++
+ #: panels/background/cc-background-item.c:191
+ msgid "multiple sizes"
+ msgstr "여러 개 크기"
+@@ -730,6 +739,7 @@ msgstr "프로파일 추가"
+ msgid "_Import File…"
+ msgstr "파일 가져오기(_I)…"
+ 
++#: panels/background/cc-background-chooser.c:147
+ #: panels/color/color.ui:672
+ #: panels/network/connection-editor/net-connection-editor.c:519
+ #: panels/printers/new-printer-dialog.ui:80 panels/region/input-chooser.ui:22
+@@ -1884,6 +1894,7 @@ msgstr ""
+ "바로 가기를 초기화하면 사용자 추가한 바로 가기에도 영향을 미칩니다. 이 동작"
+ "은 되돌릴 수 없습니다."
+ 
++#: panels/background/cc-background-chooser.c:234
+ #: panels/keyboard/cc-keyboard-panel.c:186
+ #: panels/keyboard/shortcut-editor.ui:359
+ #: panels/printers/authentication-dialog.ui:29
+@@ -2693,6 +2704,7 @@ msgstr "가져올 파일을 선택하십시오"
+ msgid "_Open"
+ msgstr "열기(_O)"
+ 
++#: panels/background/cc-background-chooser.c:235
+ msgid "Open"
+ msgstr "열기"
+ 
+@@ -7999,6 +8011,7 @@ msgstr "구름 테마 2"
+ msgid "Gooroom Icon Theme 3"
+ msgstr "구름 테마 3"
+ 
++#: panels/background/cc-background-chooser.c:231
+ #: panels/background/background-chooser.ui:70
+ msgid "Add Image"
+ msgstr "이미지 추가하기"
