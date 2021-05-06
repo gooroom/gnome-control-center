@@ -1,0 +1,21 @@
+diff --git a/panels/user-accounts/um-user-panel.c b/panels/user-accounts/um-user-panel.c
+index 98783a3..5da9a31 100644
+--- a/panels/user-accounts/um-user-panel.c
++++ b/panels/user-accounts/um-user-panel.c
+@@ -392,6 +396,7 @@ delete_user_response (GtkWidget   *dialog,
+ {
+         ActUser *user;
+         gboolean remove_files;
++        GtkWidget *widget;
+ 
+         gtk_widget_destroy (dialog);
+ 
+@@ -406,6 +411,8 @@ delete_user_response (GtkWidget   *dialog,
+         }
+ 
+         user = get_selected_user (self);
++        widget = get_widget (self, "remove-user-toolbutton");
++        gtk_widget_set_sensitive (widget, FALSE);
+ 
+         /* remove autologin */
+         if (act_user_get_automatic_login (user)) {
