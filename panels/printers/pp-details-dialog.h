@@ -18,8 +18,7 @@
  * Author: Felipe Borges <feborges@redhat.com>
  */
 
-#ifndef __PP_DETAILS_DIALOG_H__
-#define __PP_DETAILS_DIALOG_H__
+#pragma once
 
 #include <gtk/gtk.h>
 #include "pp-utils.h"
@@ -27,21 +26,16 @@
 G_BEGIN_DECLS
 
 #define PP_DETAILS_DIALOG_TYPE (pp_details_dialog_get_type ())
-#define PP_DETAILS_DIALOG(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), PP_DETAILS_DIALOG_TYPE, PpDetailsDialog))
+G_DECLARE_FINAL_TYPE (PpDetailsDialog, pp_details_dialog, PP, DETAILS_DIALOG, GtkDialog)
 
-typedef struct _PpDetailsDialog PpDetailsDialog;
-typedef struct _PpDetailsDialogClass PpDetailsDialogClass;
+PpDetailsDialog *pp_details_dialog_new                  (gchar   *printer_name,
+                                                         gchar   *printer_location,
+                                                         gchar   *printer_address,
+                                                         gchar   *printer_make_and_model,
+                                                         gboolean sensitive);
 
-GType            pp_details_dialog_get_type (void);
+const gchar     *pp_details_dialog_get_printer_name     (PpDetailsDialog *dialog);
 
-PpDetailsDialog *pp_details_dialog_new      (GtkWindow            *parent,
-                                             gchar                *printer_name,
-                                             gchar                *printer_location,
-                                             gchar                *printer_address,
-                                             gchar                *printer_make_and_model,
-                                             gboolean              sensitive);
-void             pp_details_dialog_free     (PpDetailsDialog      *dialog);
+const gchar     *pp_details_dialog_get_printer_location (PpDetailsDialog *dialog);
 
 G_END_DECLS
-
-#endif

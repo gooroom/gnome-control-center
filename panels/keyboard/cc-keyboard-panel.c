@@ -22,6 +22,7 @@
 
 #include <glib/gi18n.h>
 
+#include "cc-alt-chars-key-dialog.h"
 #include "cc-keyboard-item.h"
 #include "cc-keyboard-manager.h"
 #include "cc-keyboard-option.h"
@@ -47,15 +48,21 @@ struct _CcKeyboardPanel
 
   /* Search */
   GtkWidget          *empty_search_placeholder;
+  GtkWidget          *reset_button;
   GtkWidget          *search_bar;
   GtkWidget          *search_button;
   GtkWidget          *search_entry;
   guint               search_bar_handler_id;
 
   /* Shortcuts */
-  GtkWidget          *listbox;
+  GtkWidget          *shortcuts_listbox;
   GtkListBoxRow      *add_shortcut_row;
   GtkSizeGroup       *accelerator_sizegroup;
+
+  /* Alternate characters key */
+  CcAltCharsKeyDialog *alt_chars_key_dialog;
+  GSettings           *input_source_settings;
+  GtkWidget           *value_alternate_chars;
 
   /* Custom shortcut dialog */
   GtkWidget          *shortcut_editor;
@@ -76,6 +83,21 @@ static const gchar* custom_css =
 "button.reset-shortcut-button {"
 "    padding: 0;"
 "}";
+
+
+#define DEFAULT_LV3_OPTION 5
+static struct {
+  const char *xkb_option;
+  const char *label;
+  const char *widget_name;
+} lv3_xkb_options[] = {
+  { "lv3:switch", NC_("keyboard key", "Right Ctrl"), "radiobutton_rightctrl" },
+  { "lv3:menu_switch", NC_("keyboard key", "Menu Key"), "radiobutton_menukey" },
+  { "lv3:lwin_switch", NC_("keyboard key", "Left Super"), "radiobutton_leftsuper" },
+  { "lv3:rwin_switch", NC_("keyboard key", "Right Super"), "radiobutton_rightsuper" },
+  { "lv3:lalt_switch", NC_("keyboard key", "Left Alt"), "radiobutton_leftalt" },
+  { "lv3:ralt_switch", NC_("keyboard key", "Right Alt"), "radiobutton_rightalt" },
+};
 
 /* RowData functions */
 static RowData *
@@ -198,7 +220,7 @@ reset_all_clicked_cb (CcKeyboardPanel *self)
 
   if (response == GTK_RESPONSE_ACCEPT)
     {
-      gtk_container_foreach (GTK_CONTAINER (self->listbox),
+      gtk_container_foreach (GTK_CONTAINER (self->shortcuts_listbox),
                              reset_all_shortcuts_cb,
                              self);
     }
@@ -234,9 +256,11 @@ add_item (CcKeyboardPanel *self,
                       "margin-bottom", 4,
                       "margin-top", 4,
                       NULL);
+  gtk_widget_show (box);
 
   /* Shortcut title */
   label = gtk_label_new (cc_keyboard_item_get_description (item));
+  gtk_widget_show (label);
   gtk_label_set_xalign (GTK_LABEL (label), 0.0);
   gtk_label_set_line_wrap (GTK_LABEL (label), TRUE);
   gtk_label_set_line_wrap_mode (GTK_LABEL (label), PANGO_WRAP_WORD_CHAR);
@@ -252,6 +276,7 @@ add_item (CcKeyboardPanel *self,
 
   /* Shortcut accelerator */
   label = gtk_label_new ("");
+  gtk_widget_show (label);
   gtk_label_set_xalign (GTK_LABEL (label), 0.0);
   gtk_label_set_use_markup (GTK_LABEL (label), TRUE);
 
@@ -261,7 +286,7 @@ add_item (CcKeyboardPanel *self,
                                "binding",
                                label,
                               "label",
-                               G_BINDING_DEFAULT | G_BINDING_SYNC_CREATE,
+                               G_SETTINGS_BIND_GET | G_BINDING_SYNC_CREATE,
                                transform_binding_to_accel,
                                NULL, NULL, NULL);
 
@@ -271,6 +296,7 @@ add_item (CcKeyboardPanel *self,
 
   /* Reset shortcut button */
   reset_button = gtk_button_new_from_icon_name ("edit-clear-symbolic", GTK_ICON_SIZE_BUTTON);
+  gtk_widget_show (reset_button);
   gtk_widget_set_valign (reset_button, GTK_ALIGN_CENTER);
 
   gtk_button_set_relief (GTK_BUTTON (reset_button), GTK_RELIEF_NONE);
@@ -284,28 +310,27 @@ add_item (CcKeyboardPanel *self,
   gtk_style_context_add_class (gtk_widget_get_style_context (reset_button), "circular");
   gtk_style_context_add_class (gtk_widget_get_style_context (reset_button), "reset-shortcut-button");
 
-  g_signal_connect (item,
-                    "notify::is-value-default",
-                    G_CALLBACK (shortcut_modified_changed_cb),
-                    reset_button);
+  g_signal_connect_object (item,
+                           "notify::is-value-default",
+                           G_CALLBACK (shortcut_modified_changed_cb),
+                           reset_button, 0);
 
-  g_signal_connect (reset_button,
-                    "clicked",
-                    G_CALLBACK (reset_shortcut_cb),
-                    item);
+  g_signal_connect_object (reset_button,
+                           "clicked",
+                           G_CALLBACK (reset_shortcut_cb),
+                           item, 0);
 
   /* The row */
   row = gtk_list_box_row_new ();
+  gtk_widget_show (row);
   gtk_container_add (GTK_CONTAINER (row), box);
-
-  gtk_widget_show_all (row);
 
   g_object_set_data_full (G_OBJECT (row),
                           "data",
                           row_data_new (item, section_id, section_title),
                           (GDestroyNotify) row_data_free);
 
-  gtk_container_add (GTK_CONTAINER (self->listbox), row);
+  gtk_container_add (GTK_CONTAINER (self->shortcuts_listbox), row);
 }
 
 static void
@@ -314,7 +339,7 @@ remove_item (CcKeyboardPanel *self,
 {
   GList *children, *l;
 
-  children = gtk_container_get_children (GTK_CONTAINER (self->listbox));
+  children = gtk_container_get_children (GTK_CONTAINER (self->shortcuts_listbox));
 
   for (l = children; l != NULL; l = l->next)
     {
@@ -324,7 +349,7 @@ remove_item (CcKeyboardPanel *self,
 
       if (row_data->item == item)
         {
-          gtk_container_remove (GTK_CONTAINER (self->listbox), l->data);
+          gtk_container_remove (GTK_CONTAINER (self->shortcuts_listbox), l->data);
           break;
         }
     }
@@ -504,10 +529,11 @@ header_function (GtkListBoxRow *row,
 
   if (add_header)
     {
-      GtkWidget *box, *label;
+      GtkWidget *box, *label, *separator;
       g_autofree gchar *markup = NULL;
 
       box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+      gtk_widget_show (box);
       gtk_widget_set_margin_top (box, before ? 18 : 6);
 
       markup = g_strdup_printf ("<b>%s</b>", _(data->section_title));
@@ -517,15 +543,15 @@ header_function (GtkListBoxRow *row,
                             "xalign", 0.0,
                             "margin-start", 6,
                             NULL);
-
+      gtk_widget_show (label);
       gtk_style_context_add_class (gtk_widget_get_style_context (label), "dim-label");
-
       gtk_container_add (GTK_CONTAINER (box), label);
-      gtk_container_add (GTK_CONTAINER (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
+
+      separator = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
+      gtk_widget_show (separator);
+      gtk_container_add (GTK_CONTAINER (box), separator);
 
       gtk_list_box_row_set_header (row, box);
-
-      gtk_widget_show_all (box);
     }
   else
     {
@@ -595,6 +621,55 @@ shortcut_row_activated (GtkWidget       *button,
 }
 
 static void
+alternate_chars_activated (GtkWidget       *button,
+                           GtkListBoxRow   *row,
+                           CcKeyboardPanel *self)
+{
+  GtkWindow *window;
+
+  window = GTK_WINDOW (cc_shell_get_toplevel (cc_panel_get_shell (CC_PANEL (self))));
+
+  gtk_window_set_transient_for (GTK_WINDOW (self->alt_chars_key_dialog), window);
+  gtk_widget_show (GTK_WIDGET (self->alt_chars_key_dialog));
+}
+
+static gboolean
+transform_binding_to_alt_chars (GValue   *value,
+                                GVariant *variant,
+                                gpointer  user_data)
+{
+  const char **items;
+  guint i;
+
+  items = g_variant_get_strv (variant, NULL);
+  if (!items)
+    goto bail;
+
+  for (i = 0; items[i] != NULL; i++)
+    {
+      guint j;
+
+      if (!g_str_has_prefix (items[i], "lv3:"))
+        continue;
+
+      for (j = 0; j < G_N_ELEMENTS (lv3_xkb_options); j++)
+        {
+          if (!g_str_equal (items[i], lv3_xkb_options[j].xkb_option))
+            continue;
+
+          g_value_set_string (value,
+                              g_dpgettext2 (NULL, "keyboard key", lv3_xkb_options[j].label));
+          return TRUE;
+        }
+    }
+
+bail:
+  g_value_set_string (value,
+                      g_dpgettext2 (NULL, "keyboard key", lv3_xkb_options[DEFAULT_LV3_OPTION].label));
+  return TRUE;
+}
+
+static void
 cc_keyboard_panel_set_property (GObject      *object,
                                guint         property_id,
                                const GValue *value,
@@ -624,6 +699,7 @@ cc_keyboard_panel_finalize (GObject *object)
 
   g_clear_pointer (&self->pictures_regex, g_regex_unref);
   g_clear_object (&self->accelerator_sizegroup);
+  g_clear_object (&self->input_source_settings);
 
   cc_keyboard_option_clear_all ();
 
@@ -641,14 +717,17 @@ cc_keyboard_panel_constructed (GObject *object)
 {
   CcKeyboardPanel *self = CC_KEYBOARD_PANEL (object);
   GtkWindow *toplevel;
+  CcShell *shell;
 
   G_OBJECT_CLASS (cc_keyboard_panel_parent_class)->constructed (object);
 
   /* Setup the dialog's transient parent */
-  toplevel = GTK_WINDOW (cc_shell_get_toplevel (cc_panel_get_shell (CC_PANEL (self))));
+  shell = cc_panel_get_shell (CC_PANEL (self));
+  toplevel = GTK_WINDOW (cc_shell_get_toplevel (shell));
   gtk_window_set_transient_for (GTK_WINDOW (self->shortcut_editor), toplevel);
 
-  cc_shell_embed_widget_in_header (cc_panel_get_shell (CC_PANEL (self)), self->search_button);
+  cc_shell_embed_widget_in_header (shell, self->reset_button, GTK_POS_LEFT);
+  cc_shell_embed_widget_in_header (shell, self->search_button, GTK_POS_RIGHT);
 
   self->search_bar_handler_id =
     g_signal_connect_swapped (toplevel,
@@ -672,17 +751,20 @@ cc_keyboard_panel_class_init (CcKeyboardPanelClass *klass)
 
   g_object_class_override_property (object_class, PROP_PARAMETERS, "parameters");
 
-  gtk_widget_class_set_template_from_resource (widget_class, "/org/gnome/control-center/keyboard/gnome-keyboard-panel.ui");
+  gtk_widget_class_set_template_from_resource (widget_class, "/org/gnome/control-center/keyboard/cc-keyboard-panel.ui");
 
   gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, add_shortcut_row);
   gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, empty_search_placeholder);
-  gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, listbox);
+  gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, reset_button);
   gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, search_bar);
   gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, search_button);
   gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, search_entry);
+  gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, shortcuts_listbox);
+  gtk_widget_class_bind_template_child (widget_class, CcKeyboardPanel, value_alternate_chars);
 
   gtk_widget_class_bind_template_callback (widget_class, reset_all_clicked_cb);
   gtk_widget_class_bind_template_callback (widget_class, shortcut_row_activated);
+  gtk_widget_class_bind_template_callback (widget_class, alternate_chars_activated);
 }
 
 static void
@@ -704,43 +786,59 @@ cc_keyboard_panel_init (CcKeyboardPanel *self)
 
   g_object_unref (provider);
 
+  /* Alternate characters key */
+  self->input_source_settings = g_settings_new ("org.gnome.desktop.input-sources");
+  g_settings_bind_with_mapping (self->input_source_settings,
+                                "xkb-options",
+                                self->value_alternate_chars,
+                                "label",
+                                G_SETTINGS_BIND_GET,
+                                transform_binding_to_alt_chars,
+                                NULL,
+                                self->value_alternate_chars,
+                                NULL);
+
+  self->alt_chars_key_dialog = cc_alt_chars_key_dialog_new (self->input_source_settings);
+
   /* Shortcut manager */
   self->manager = cc_keyboard_manager_new ();
 
   /* Use a sizegroup to make the accelerator labels the same width */
   self->accelerator_sizegroup = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
 
-  g_signal_connect_swapped (self->manager,
-                            "shortcut-added",
-                            G_CALLBACK (add_item),
-                            self);
+  g_signal_connect_object (self->manager,
+                           "shortcut-added",
+                           G_CALLBACK (add_item),
+                           self,
+                           G_CONNECT_SWAPPED);
 
-  g_signal_connect_swapped (self->manager,
-                            "shortcut-removed",
-                            G_CALLBACK (remove_item),
-                            self);
+  g_signal_connect_object (self->manager,
+                           "shortcut-removed",
+                           G_CALLBACK (remove_item),
+                           self,
+                           G_CONNECT_SWAPPED);
 
   cc_keyboard_manager_load_shortcuts (self->manager);
 
   /* Shortcut editor dialog */
   self->shortcut_editor = cc_keyboard_shortcut_editor_new (self->manager);
 
-  /* Setup the shortcuts listbox */
-  gtk_list_box_set_sort_func (GTK_LIST_BOX (self->listbox),
+  /* Setup the shortcuts shortcuts_listbox */
+  gtk_list_box_set_sort_func (GTK_LIST_BOX (self->shortcuts_listbox),
                               sort_function,
                               self,
                               NULL);
 
-  gtk_list_box_set_header_func (GTK_LIST_BOX (self->listbox),
+  gtk_list_box_set_header_func (GTK_LIST_BOX (self->shortcuts_listbox),
                                 header_function,
                                 self,
                                 NULL);
 
-  gtk_list_box_set_filter_func (GTK_LIST_BOX (self->listbox),
+  gtk_list_box_set_filter_func (GTK_LIST_BOX (self->shortcuts_listbox),
                                 filter_function,
                                 self,
                                 NULL);
 
-  gtk_list_box_set_placeholder (GTK_LIST_BOX (self->listbox), self->empty_search_placeholder);
+  gtk_list_box_set_placeholder (GTK_LIST_BOX (self->shortcuts_listbox), self->empty_search_placeholder);
 }
 

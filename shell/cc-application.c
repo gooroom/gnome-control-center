@@ -24,16 +24,13 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <handy.h>
 
 #include "cc-application.h"
 #include "cc-log.h"
 #include "cc-object-storage.h"
 #include "cc-panel-loader.h"
 #include "cc-window.h"
-
-#if defined(HAVE_WACOM) || defined(HAVE_CHEESE)
-#include <clutter-gtk/clutter-gtk.h>
-#endif /* HAVE_WACOM || HAVE_CHEESE */
 
 struct _CcApplication
 {
@@ -100,8 +97,8 @@ launch_panel_activated (GSimpleAction *action,
                         gpointer       user_data)
 {
   CcApplication *self = CC_APPLICATION (user_data);
-  g_autoptr (GVariant) parameters = NULL;
-  g_autoptr (GError) error = NULL;
+  g_autoptr(GVariant) parameters = NULL;
+  g_autoptr(GError) error = NULL;
   gchar *panel_id;
 
   g_variant_get (parameter, "(&s@av)", &panel_id, &parameters);
@@ -129,15 +126,7 @@ cc_application_handle_local_options (GApplication *application,
 
   if (g_variant_dict_contains (options, "list"))
     {
-      g_autoptr(GList) panels = NULL;
-      g_autoptr(GList) l = NULL;
-
-      panels = cc_panel_loader_get_panels ();
-
-      g_print ("%s\n", _("Available panels:"));
-      for (l = panels; l != NULL; l = l->next)
-        g_print ("\t%s\n", (char *) l->data);
-
+      cc_panel_loader_list_panels ();
       return 0;
     }
 
@@ -227,8 +216,6 @@ static void
 cc_application_startup (GApplication *application)
 {
   CcApplication *self = CC_APPLICATION (application);
-  GMenu *section;
-  GMenu *menu;
   const gchar *help_accels[] = { "F1", NULL };
 
   g_action_map_add_action_entries (G_ACTION_MAP (self),
@@ -238,25 +225,7 @@ cc_application_startup (GApplication *application)
 
   G_APPLICATION_CLASS (cc_application_parent_class)->startup (application);
 
-#if defined(HAVE_WACOM) || defined(HAVE_CHEESE)
-  if (gtk_clutter_init (NULL, NULL) != CLUTTER_INIT_SUCCESS)
-    {
-      g_critical ("Unable to initialize Clutter");
-      return;
-    }
-#endif /* HAVE_WACOM || HAVE_CHEESE */
-
-  menu = g_menu_new ();
-
-  section = g_menu_new ();
-  g_menu_append (section, _("Keyboard Shortcuts"), "win.show-help-overlay");
-  g_menu_append (section, _("Help"), "app.help");
-  g_menu_append (section, _("Quit"), "app.quit");
-
-  g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
-
-  gtk_application_set_app_menu (GTK_APPLICATION (application),
-                                G_MENU_MODEL (menu));
+  hdy_init ();
 
   gtk_application_set_accels_for_action (GTK_APPLICATION (application),
                                          "app.help", help_accels);
@@ -310,9 +279,17 @@ cc_application_class_init (CcApplicationClass *klass)
 static void
 cc_application_init (CcApplication *self)
 {
+  g_autoptr(GtkCssProvider) provider = NULL;
+
   cc_object_storage_initialize ();
 
   g_application_add_main_option_entries (G_APPLICATION (self), all_options);
+
+  provider = gtk_css_provider_new ();
+  gtk_css_provider_load_from_resource (provider, "/org/gnome/ControlCenter/gtk/style.css");
+  gtk_style_context_add_provider_for_screen (gdk_screen_get_default (),
+                                             GTK_STYLE_PROVIDER (provider),
+                                             GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 }
 
 GtkApplication *

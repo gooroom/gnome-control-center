@@ -94,40 +94,33 @@ i18n.merge_file(
 )
 
 common_sources = files(
+  'cc-add-user-dialog.c',
+  'cc-realm-manager.c',
   'pw-utils.c',
-  'um-account-dialog.c',
-  'um-realm-manager.c',
-  'um-utils.c'
+  'user-utils.c',
 )
 
 resource_data = files(
-  'data/icons/left-index-finger.png',
-  'data/icons/left-little-finger.png',
-  'data/icons/left-middle-finger.png',
-  'data/icons/left-ring-finger.png',
-  'data/icons/left-thumb.png',
-  'data/icons/print_error.png',
-  'data/icons/print_ok.png',
-  'data/icons/right-index-finger.png',
-  'data/icons/right-little-finger.png',
-  'data/icons/right-middle-finger.png',
-  'data/icons/right-ring-finger.png',
-  'data/icons/right-thumb.png',
-  'data/account-dialog.ui',
-  'data/account-fingerprint.ui',
+  'cc-add-user-dialog.ui',
+  'cc-avatar-chooser.ui',
+  'cc-carousel.ui',
+  'cc-login-history-dialog.ui',
+  'cc-password-dialog.ui',
+  'cc-user-panel.ui',
+  'cc-fingerprint-dialog.ui',
+  'data/icons/fingerprint-detection-complete-symbolic.svg',
+  'data/icons/fingerprint-detection-symbolic.svg',
+  'data/icons/fingerprint-detection-warning-symbolic.svg',
   'data/carousel.css',
-  'data/carousel.ui',
-  'data/history-dialog.ui',
   'data/join-dialog.ui',
-  'data/password-dialog.ui',
   'data/user-accounts-dialog.css',
-  'data/user-accounts-dialog.ui'
+  'data/cc-fingerprint-dialog.css',
 )
 
 common_sources += gnome.compile_resources(
-  'um-resources',
+  'cc-' + cappletname + '-resources',
   cappletname + '.gresource.xml',
-  c_name: 'um',
+  c_name: 'cc_' + cappletname.underscorify(),
   dependencies: resource_data,
   export: true
 )
@@ -135,26 +128,46 @@ common_sources += gnome.compile_resources(
 realmd_namespace = 'org.freedesktop.realmd'
 
 common_sources += gnome.gdbus_codegen(
-  'um-realm-generated',
+  'cc-realm-generated',
   'data/' + realmd_namespace + '.xml',
   interface_prefix: realmd_namespace + '.',
-  namespace: 'UmRealm',
+  namespace: 'CcRealm',
   object_manager: true,
   annotations: ['org.freedesktop.realmd.Realm', 'org.gtk.GDBus.C.Name', 'Common']
 )
 
-sources = common_sources + files(
-  'cc-crop-area.c',
-  'run-passwd.c',
-  'um-account-type.c',
-  'um-carousel.c',
-  'um-fingerprint-dialog.c',
-  'um-history-dialog.c',
-  'um-password-dialog.c',
-  'um-photo-dialog.c',
-  'um-user-image.c',
-  'um-user-panel.c'
+fprintd_namespace = 'net.reactivated.Fprint'
+common_sources += gnome.gdbus_codegen(
+  'cc-fprintd-generated',
+  sources: [
+    'data' / fprintd_namespace + '.Manager.xml',
+    'data' / fprintd_namespace + '.Device.xml',
+  ],
+  interface_prefix: fprintd_namespace + '.',
+  namespace: 'CcFprintd',
+  autocleanup: 'all',
 )
+
+enum_headers = [
+  'cc-fingerprint-manager.h',
+]
+
+sources = common_sources + files(
+  'cc-avatar-chooser.c',
+  'cc-carousel.c',
+  'cc-crop-area.c',
+  'cc-fingerprint-manager.c',
+  'cc-fingerprint-dialog.c',
+  'cc-login-history-dialog.c',
+  'cc-password-dialog.c',
+  'cc-user-image.c',
+  'cc-user-panel.c',
+  'run-passwd.c',
+)
+
+sources += gnome.mkenums_simple(
+  'cc-user-accounts-enum-types',
+  sources: files(enum_headers))
 
 # Kerberos support
 krb_dep = dependency('krb5', required: false)
@@ -175,6 +188,10 @@ if enable_cheese
   deps += cheese_deps
 endif
 
+if enable_malcontent
+  deps += malcontent_dep
+endif
+
 cflags += [
   '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir),
   '-DHAVE_LIBPWQUALITY',
@@ -185,18 +202,6 @@ panels_libs += static_library(
   cappletname,
   sources: sources,
   include_directories: [top_inc, shell_inc],
-  dependencies: deps,
-  c_args: cflags
-)
-
-name = 'frob-account-dialog'
-
-sources = common_sources + files(name + '.c')
-
-executable(
-  name,
-  sources,
-  include_directories: top_inc,
   dependencies: deps,
   c_args: cflags
 )

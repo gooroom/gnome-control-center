@@ -2,10 +2,8 @@
 #include "config.h"
 
 #include <glib/gi18n.h>
-#include <clutter-gtk/clutter-gtk.h>
 
 #include "cc-wacom-page.h"
-#include "clutter/clutter.h"
 
 #define FIXED_WIDTH 675
 
@@ -28,19 +26,18 @@ add_page (GList *devices,
 	  GtkWidget *notebook)
 {
 	GtkWidget *widget;
-	CcWacomDevice *stylus, *eraser, *pad;
+	CcWacomDevice *stylus = NULL;
 	GList *l;
 
 	if (devices == NULL)
 		return;
 
-	stylus = eraser = pad = NULL;
 	for (l = devices; l ; l = l->next) {
 		stylus = l->data;
 	}
 	g_list_free (devices);
 
-	widget = cc_wacom_page_new (NULL, stylus, pad);
+	widget = cc_wacom_page_new (NULL, stylus);
 	cc_wacom_page_set_navigation (CC_WACOM_PAGE (widget), GTK_NOTEBOOK (notebook), FALSE);
 	gtk_notebook_append_page (GTK_NOTEBOOK (notebook), widget, NULL);
 	gtk_widget_show (widget);
@@ -125,10 +122,7 @@ int main (int argc, char **argv)
 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 	textdomain (GETTEXT_PACKAGE);
 
-	if (gtk_clutter_init (&argc, &argv) != CLUTTER_INIT_SUCCESS) {
-		g_critical ("Unable to initialize Clutter");
-		return 1;
-        }
+	gtk_init (&argc, &argv);
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_resizable (GTK_WINDOW (window), FALSE);

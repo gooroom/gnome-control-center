@@ -17,11 +17,11 @@
  *
  */
 
-#ifndef CC_GNOME_REMOTE_DESKTOP_H
-#define CC_GNOME_REMOTE_DESKTOP_H
+#pragma once
 
-#include <gtk/gtk.h>
 #include <libsecret/secret.h>
+
+G_BEGIN_DECLS
 
 const SecretSchema * cc_grd_vnc_password_get_schema (void);
 #define CC_GRD_VNC_PASSWORD_SCHEMA cc_grd_vnc_password_get_schema ()
@@ -42,8 +42,9 @@ GVariant * cc_grd_set_is_auth_method_password (const GValue       *value,
                                                const GVariantType *type,
                                                gpointer            user_data);
 
-void cc_grd_on_vnc_password_entry_notify_text (GtkEntry   *entry,
-                                               GParamSpec *pspec,
-                                               gpointer    user_data);
+void cc_grd_store_vnc_password (const gchar  *password,
+                                GCancellable *cancellable);
 
-#endif /* CC_GNOME_REMOTE_DESKTOP_H */
+gchar * cc_grd_lookup_vnc_password (GCancellable *cancellable);
+
+G_END_DECLS

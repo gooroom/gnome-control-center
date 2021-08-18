@@ -45,12 +45,11 @@ sources = files(
   'cc-sharing-switch.c',
   'cc-gnome-remote-desktop.c',
   'file-share-properties.c',
-  'vino-preferences.c'
 )
 
 resource_data = files(
-  'networks.ui',
-  'sharing.ui'
+  'cc-sharing-panel.ui',
+  'cc-sharing-networks.ui',
 )
 
 sources += gnome.compile_resources(

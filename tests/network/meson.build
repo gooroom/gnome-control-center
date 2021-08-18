@@ -20,12 +20,30 @@ exe = executable(
 envs = [
   'G_MESSAGES_DEBUG=all',
           'BUILDDIR=' + meson.current_build_dir(),
-      'TOP_BUILDDIR=' + meson.build_root()
+      'TOP_BUILDDIR=' + meson.build_root(),
+# Disable ATK, this should not be required but it caused CI failures -- 2018-12-07
+      'NO_AT_BRIDGE=1'
 ]
 
 test(
   'test-network-panel',
   find_program('test-network-panel.py'),
       env : envs,
+  timeout : 60
+)
+
+exe = executable(
+  'test-wifi-panel-text',
+  ['test-wifi-text.c'],
+  include_directories : includes + [common_inc],
+  dependencies : common_deps + network_manager_deps + [libtestshell_dep],
+  link_with : [network_panel_lib],
+  c_args : cflags,
+)
+
+test(
+  'test-wif-panel-text',
+  exe,
+  env : envs,
   timeout : 60
 )

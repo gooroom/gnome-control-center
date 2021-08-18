@@ -111,17 +111,15 @@ get_tag_value (const gchar *tag_string, const gchar *tag_name)
 static gchar *
 normalize (const gchar *input_string)
 {
-  gchar *tmp = NULL;
-  gchar *res = NULL;
   gchar *result = NULL;
   gint   i, j = 0, k = -1;
 
   if (input_string)
     {
-      tmp = g_strstrip (g_ascii_strdown (input_string, -1));
+      g_autofree gchar *tmp = g_strstrip (g_ascii_strdown (input_string, -1));
       if (tmp)
         {
-          res = g_new (gchar, 2 * strlen (tmp));
+          g_autofree gchar *res = g_new (gchar, 2 * strlen (tmp));
 
           for (i = 0; i < strlen (tmp); i++)
             {
@@ -154,8 +152,6 @@ normalize (const gchar *input_string)
           res[j] = '\0';
 
           result = g_strdup (res);
-          g_free (tmp);
-          g_free (res);
         }
     }
 
@@ -262,29 +258,29 @@ printer_rename (const gchar *old_name,
   cups_dest_t      *dests = NULL;
   cups_dest_t      *dest = NULL;
   cups_job_t       *jobs = NULL;
-  GDBusConnection  *bus;
-  const char       *printer_location = NULL;
-  const char       *printer_info = NULL;
-  const char       *printer_uri = NULL;
-  const char       *device_uri = NULL;
-  const char       *job_sheets = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  const gchar      *printer_location = NULL;
+  const gchar      *printer_info = NULL;
+  const gchar      *printer_uri = NULL;
+  const gchar      *device_uri = NULL;
+  const gchar      *job_sheets = NULL;
   gboolean          result = FALSE;
   gboolean          accepting = TRUE;
   gboolean          printer_paused = FALSE;
   gboolean          default_printer = FALSE;
   gboolean          printer_shared = FALSE;
-  GError           *error = NULL;
+  g_autoptr(GError) error = NULL;
   http_t           *http;
-  gchar            *ppd_link;
-  gchar            *ppd_filename = NULL;
+  g_autofree gchar *ppd_link = NULL;
+  g_autofree gchar *ppd_filename = NULL;
   gchar           **sheets = NULL;
   gchar           **users_allowed = NULL;
   gchar           **users_denied = NULL;
   gchar           **member_names = NULL;
-  gchar            *start_sheet = NULL;
-  gchar            *end_sheet = NULL;
-  gchar            *error_policy = NULL;
-  gchar            *op_policy = NULL;
+  const gchar      *start_sheet = NULL;
+  const gchar      *end_sheet = NULL;
+  g_autofree gchar *error_policy = NULL;
+  g_autofree gchar *op_policy = NULL;
   ipp_t            *request;
   ipp_t            *response;
   gint              i;
@@ -371,8 +367,13 @@ printer_rename (const gchar *old_name,
   /*
    * Gather additional informations about the original printer
    */
-  if ((http = httpConnectEncrypt (cupsServer (), ippPort (),
-                                  cupsEncryption ())) != NULL)
+#ifdef HAVE_CUPS_HTTPCONNECT2
+  http = httpConnect2 (cupsServer (), ippPort (), NULL, AF_UNSPEC,
+                       cupsEncryption (), 1, 30000, NULL);
+#else
+  http = httpConnectEncrypt (cupsServer (), ippPort (), cupsEncryption ());
+#endif
+  if (http != NULL)
     {
       request = ippNewRequest (IPP_GET_PRINTER_ATTRIBUTES);
       ippAddString (request, IPP_TAG_OPERATION, IPP_TAG_URI,
@@ -446,7 +447,6 @@ printer_rename (const gchar *old_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
    }
   else
     {
@@ -458,7 +458,8 @@ printer_rename (const gchar *old_name,
         }
       else
         {
-          GVariant *output;
+          g_autoptr(GVariant) output = NULL;
+          g_autoptr(GError) add_error = NULL;
 
           output = g_dbus_connection_call_sync (bus,
                                                 MECHANISM_BUS,
@@ -475,8 +476,7 @@ printer_rename (const gchar *old_name,
                                                 G_DBUS_CALL_FLAGS_NONE,
                                                 -1,
                                                 NULL,
-                                                &error);
-          g_object_unref (bus);
+                                                &add_error);
 
           if (output)
             {
@@ -485,13 +485,10 @@ printer_rename (const gchar *old_name,
               g_variant_get (output, "(&s)", &ret_error);
               if (ret_error[0] != '\0')
                 g_warning ("cups-pk-helper: rename of printer %s to %s failed: %s", old_name, new_name, ret_error);
-
-              g_variant_unref (output);
             }
           else
             {
-              g_warning ("%s", error->message);
-              g_error_free (error);
+              g_warning ("%s", add_error->message);
             }
         }
     }
@@ -499,8 +496,6 @@ printer_rename (const gchar *old_name,
   if (ppd_link)
     {
       g_unlink (ppd_link);
-      g_free (ppd_link);
-      g_free (ppd_filename);
     }
 
   num_dests = cupsGetDests (&dests);
@@ -526,8 +521,6 @@ printer_rename (const gchar *old_name,
     printer_set_accepting_jobs (old_name, accepting, NULL);
 
   cupsFreeDests (num_dests, dests);
-  g_free (op_policy);
-  g_free (error_policy);
   if (sheets)
     g_strfreev (sheets);
   if (users_allowed)
@@ -542,10 +535,10 @@ gboolean
 printer_set_location (const gchar *printer_name,
                       const gchar *location)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name || !location)
     return TRUE;
@@ -554,7 +547,6 @@ printer_set_location (const gchar *printer_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -569,27 +561,21 @@ printer_set_location (const gchar *printer_name,
                                         -1,
                                         NULL,
                                         &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: setting of location for printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: setting of location for printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
@@ -597,10 +583,10 @@ printer_set_accepting_jobs (const gchar *printer_name,
                             gboolean     accepting_jobs,
                             const gchar *reason)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name)
     return TRUE;
@@ -609,7 +595,6 @@ printer_set_accepting_jobs (const gchar *printer_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -627,36 +612,31 @@ printer_set_accepting_jobs (const gchar *printer_name,
                                         -1,
                                         NULL,
                                         &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: setting of acceptance of jobs for printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: setting of acceptance of jobs for printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
 printer_set_enabled (const gchar *printer_name,
                      gboolean     enabled)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name)
     return TRUE;
@@ -665,7 +645,6 @@ printer_set_enabled (const gchar *printer_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -680,36 +659,30 @@ printer_set_enabled (const gchar *printer_name,
                                         -1,
                                         NULL,
                                         &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: setting of enablement of printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: setting of enablement of printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
 printer_delete (const gchar *printer_name)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name)
     return TRUE;
@@ -718,7 +691,6 @@ printer_delete (const gchar *printer_name)
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -733,37 +705,28 @@ printer_delete (const gchar *printer_name)
                                         -1,
                                         NULL,
                                         &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: removing of printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: removing of printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
 printer_set_default (const gchar *printer_name)
 {
-  GDBusConnection *bus;
   const char *cups_server;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name)
     return TRUE;
@@ -774,6 +737,10 @@ printer_set_default (const gchar *printer_name)
       g_ascii_strncasecmp (cups_server, "::1", 3) == 0 ||
       cups_server[0] == '/')
     {
+      g_autoptr(GDBusConnection) bus = NULL;
+      g_autoptr(GVariant) output = NULL;
+      const gchar *ret_error;
+
       /* Clean .cups/lpoptions before setting
        * default printer on local CUPS server.
        */
@@ -783,41 +750,35 @@ printer_set_default (const gchar *printer_name)
       if (!bus)
         {
           g_warning ("Failed to get system bus: %s", error->message);
-          g_error_free (error);
+          return FALSE;
         }
-      else
+
+      output = g_dbus_connection_call_sync (bus,
+                                            MECHANISM_BUS,
+                                            "/",
+                                            MECHANISM_BUS,
+                                            "PrinterSetDefault",
+                                            g_variant_new ("(s)", printer_name),
+                                            G_VARIANT_TYPE ("(s)"),
+                                            G_DBUS_CALL_FLAGS_NONE,
+                                            -1,
+                                            NULL,
+                                            &error);
+
+      if (output == NULL)
         {
-          output = g_dbus_connection_call_sync (bus,
-                                                MECHANISM_BUS,
-                                                "/",
-                                                MECHANISM_BUS,
-                                                "PrinterSetDefault",
-                                                g_variant_new ("(s)", printer_name),
-                                                G_VARIANT_TYPE ("(s)"),
-                                                G_DBUS_CALL_FLAGS_NONE,
-                                                -1,
-                                                NULL,
-                                                &error);
-          g_object_unref (bus);
-
-          if (output)
-            {
-              const gchar *ret_error;
-
-              g_variant_get (output, "(&s)", &ret_error);
-              if (ret_error[0] != '\0')
-                g_warning ("cups-pk-helper: setting default printer to %s failed: %s", printer_name, ret_error);
-              else
-                result = TRUE;
-
-              g_variant_unref (output);
-            }
-          else
-            {
-              g_warning ("%s", error->message);
-              g_error_free (error);
-            }
+          g_warning ("%s", error->message);
+          return FALSE;
         }
+
+      g_variant_get (output, "(&s)", &ret_error);
+      if (ret_error[0] != '\0')
+        {
+          g_warning ("cups-pk-helper: setting default printer to %s failed: %s", printer_name, ret_error);
+          return FALSE;
+        }
+
+      return TRUE;
     }
   else
     /* Store default printer to .cups/lpoptions
@@ -825,19 +786,18 @@ printer_set_default (const gchar *printer_name)
      */
     {
       set_local_default_printer (printer_name);
+      return TRUE;
     }
-
-  return result;
 }
 
 gboolean
 printer_set_shared (const gchar *printer_name,
                     gboolean     shared)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name)
     return TRUE;
@@ -846,7 +806,6 @@ printer_set_shared (const gchar *printer_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -861,27 +820,21 @@ printer_set_shared (const gchar *printer_name,
                                         -1,
                                         NULL,
                                         &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: setting of sharing of printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: setting of sharing of printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
@@ -889,10 +842,10 @@ printer_set_job_sheets (const gchar *printer_name,
                         const gchar *start_sheet,
                         const gchar *end_sheet)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  GError     *error = NULL;
-  gboolean    result = FALSE;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name || !start_sheet || !end_sheet)
     return TRUE;
@@ -901,7 +854,6 @@ printer_set_job_sheets (const gchar *printer_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -916,27 +868,21 @@ printer_set_job_sheets (const gchar *printer_name,
                                         -1,
                                         NULL,
                                         &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: setting of job sheets for printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: setting of job sheets for printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
@@ -944,10 +890,10 @@ printer_set_policy (const gchar *printer_name,
                     const gchar *policy,
                     gboolean     error_policy)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  gboolean   result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!printer_name || !policy)
     return TRUE;
@@ -956,7 +902,6 @@ printer_set_policy (const gchar *printer_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -984,27 +929,21 @@ printer_set_policy (const gchar *printer_name,
                                           -1,
                                           NULL,
                                           &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: setting of a policy for printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: setting of a policy for printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
@@ -1012,12 +951,12 @@ printer_set_users (const gchar  *printer_name,
                    gchar       **users,
                    gboolean      allowed)
 {
-  GDBusConnection *bus;
-  GVariantBuilder array_builder;
-  gint        i;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  GVariantBuilder     array_builder;
+  gint                i;
+  g_autoptr(GVariant) output = NULL;
+  const gchar        *ret_error;
+  g_autoptr(GError)   error = NULL;
 
   if (!printer_name || !users)
     return TRUE;
@@ -1026,7 +965,6 @@ printer_set_users (const gchar  *printer_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -1058,37 +996,31 @@ printer_set_users (const gchar  *printer_name,
                                           -1,
                                           NULL,
                                           &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: setting of access list for printer %s failed: %s", printer_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: setting of access list for printer %s failed: %s", printer_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
 class_add_printer (const gchar *class_name,
                    const gchar *printer_name)
 {
-  GDBusConnection *bus;
-  GVariant   *output;
-  gboolean    result = FALSE;
-  GError     *error = NULL;
+  g_autoptr(GDBusConnection) bus = NULL;
+  g_autoptr(GVariant) output = NULL;
+  const gchar *ret_error;
+  g_autoptr(GError) error = NULL;
 
   if (!class_name || !printer_name)
     return TRUE;
@@ -1097,7 +1029,6 @@ class_add_printer (const gchar *class_name,
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      return TRUE;
    }
 
@@ -1112,27 +1043,21 @@ class_add_printer (const gchar *class_name,
                                         -1,
                                         NULL,
                                         &error);
-  g_object_unref (bus);
 
-  if (output)
-    {
-      const gchar *ret_error;
-
-      g_variant_get (output, "(&s)", &ret_error);
-      if (ret_error[0] != '\0')
-        g_warning ("cups-pk-helper: adding of printer %s to class %s failed: %s", printer_name, class_name, ret_error);
-      else
-        result = TRUE;
-
-      g_variant_unref (output);
-    }
-  else
+  if (output == NULL)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      return FALSE;
     }
 
-  return result;
+  g_variant_get (output, "(&s)", &ret_error);
+  if (ret_error[0] != '\0')
+    {
+      g_warning ("cups-pk-helper: adding of printer %s to class %s failed: %s", printer_name, class_name, ret_error);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 gboolean
@@ -1306,7 +1231,7 @@ get_ipp_attributes_func (gpointer user_data)
   GIAData          *data = (GIAData *) user_data;
   ipp_t            *request;
   ipp_t            *response = NULL;
-  gchar            *printer_uri;
+  g_autofree gchar *printer_uri = NULL;
   char            **requested_attrs = NULL;
   gint              i, j, length = 0;
 
@@ -1398,8 +1323,6 @@ get_ipp_attributes_func (gpointer user_data)
     g_free (requested_attrs[i]);
   g_free (requested_attrs);
 
-  g_free (printer_uri);
-
   get_ipp_attributes_cb (data);
 
   return NULL;
@@ -1411,9 +1334,9 @@ get_ipp_attributes_async (const gchar  *printer_name,
                           GIACallback   callback,
                           gpointer      user_data)
 {
-  GIAData *data;
-  GThread *thread;
-  GError  *error = NULL;
+  GIAData          *data;
+  GThread          *thread;
+  g_autoptr(GError) error = NULL;
 
   data = g_new0 (GIAData, 1);
   data->printer_name = g_strdup (printer_name);
@@ -1432,7 +1355,6 @@ get_ipp_attributes_async (const gchar  *printer_name,
       g_warning ("%s", error->message);
       callback (NULL, user_data);
 
-      g_error_free (error);
       get_ipp_attributes_data_free (data);
     }
   else
@@ -1497,10 +1419,10 @@ printer_set_ppd_async_dbus_cb (GObject      *source_object,
                                GAsyncResult *res,
                                gpointer      user_data)
 {
-  GVariant *output;
-  gboolean  result = FALSE;
-  PSPData  *data = (PSPData *) user_data;
-  GError   *error = NULL;
+  g_autoptr(GVariant) output = NULL;
+  gboolean            result = FALSE;
+  PSPData            *data = (PSPData *) user_data;
+  g_autoptr(GError)   error = NULL;
 
   output = g_dbus_connection_call_finish (G_DBUS_CONNECTION (source_object),
                                           res,
@@ -1516,20 +1438,17 @@ printer_set_ppd_async_dbus_cb (GObject      *source_object,
         g_warning ("cups-pk-helper: setting of driver for printer %s failed: %s", data->printer_name, ret_error);
       else
         result = TRUE;
-
-      g_variant_unref (output);
     }
   else
     {
-      if (error->code != G_IO_ERROR_CANCELLED)
+      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         g_warning ("%s", error->message);
-      g_error_free (error);
     }
 
   /* Don't call callback if cancelled */
   if (!data->cancellable ||
       !g_cancellable_is_cancelled (data->cancellable))
-    data->callback (g_strdup (data->printer_name),
+    data->callback (data->printer_name,
                     result,
                     data->user_data);
 
@@ -1557,9 +1476,9 @@ printer_set_ppd_async (const gchar  *printer_name,
                        PSPCallback   callback,
                        gpointer      user_data)
 {
-  GDBusConnection *bus;
-  PSPData         *data;
-  GError          *error = NULL;
+  GDBusConnection  *bus;
+  PSPData          *data;
+  g_autoptr(GError) error = NULL;
 
   data = g_new0 (PSPData, 1);
   if (cancellable)
@@ -1578,7 +1497,6 @@ printer_set_ppd_async (const gchar  *printer_name,
   if (!bus)
     {
       g_warning ("Failed to get system bus: %s", error->message);
-      g_error_free (error);
       goto out;
     }
 
@@ -1603,7 +1521,7 @@ printer_set_ppd_async (const gchar  *printer_name,
   return;
 
 out:
-  callback (g_strdup (printer_name), FALSE, user_data);
+  callback (printer_name, FALSE, user_data);
 
   if (data->cancellable)
     g_object_unref (data->cancellable);
@@ -1616,10 +1534,10 @@ printer_set_ppd_file_async_scb (GObject      *source_object,
                                 GAsyncResult *res,
                                 gpointer      user_data)
 {
-  GDBusConnection *bus;
-  gboolean         success;
-  PSPData         *data = (PSPData *) user_data;
-  GError          *error = NULL;
+  GDBusConnection  *bus;
+  gboolean          success;
+  PSPData          *data = (PSPData *) user_data;
+  g_autoptr(GError) error = NULL;
 
   success = g_file_copy_finish (G_FILE (source_object),
                                 res,
@@ -1629,7 +1547,6 @@ printer_set_ppd_file_async_scb (GObject      *source_object,
   if (!success)
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
       goto out;
     }
 
@@ -1637,7 +1554,6 @@ printer_set_ppd_file_async_scb (GObject      *source_object,
   if (!bus)
     {
       g_warning ("Failed to get system bus: %s", error->message);
-      g_error_free (error);
       goto out;
     }
 
@@ -1662,7 +1578,7 @@ printer_set_ppd_file_async_scb (GObject      *source_object,
   return;
 
 out:
-  data->callback (g_strdup (data->printer_name), FALSE, data->user_data);
+  data->callback (data->printer_name, FALSE, data->user_data);
 
   if (data->cancellable)
     g_object_unref (data->cancellable);
@@ -1724,7 +1640,7 @@ printer_set_ppd_file_async (const gchar  *printer_name,
   return;
 
 out:
-  callback (g_strdup (printer_name), FALSE, user_data);
+  callback (printer_name, FALSE, user_data);
 
   if (data->cancellable)
     g_object_unref (data->cancellable);
@@ -1790,13 +1706,12 @@ get_ppds_attribute_func (gpointer user_data)
   ppd_file_t  *ppd_file;
   ppd_attr_t  *ppd_attr;
   GPAData     *data = (GPAData *) user_data;
-  gchar       *ppd_filename;
   gint         i;
 
   data->result = g_new0 (gchar *, g_strv_length (data->ppds_names) + 1);
   for (i = 0; data->ppds_names[i]; i++)
     {
-      ppd_filename = g_strdup (cupsGetServerPPD (CUPS_HTTP_DEFAULT, data->ppds_names[i]));
+      g_autofree gchar *ppd_filename = g_strdup (cupsGetServerPPD (CUPS_HTTP_DEFAULT, data->ppds_names[i]));
       if (ppd_filename)
         {
           ppd_file = ppdOpenFile (ppd_filename);
@@ -1810,7 +1725,6 @@ get_ppds_attribute_func (gpointer user_data)
             }
 
           g_unlink (ppd_filename);
-          g_free (ppd_filename);
         }
     }
 
@@ -1828,9 +1742,9 @@ get_ppds_attribute_async (gchar       **ppds_names,
                           GPACallback   callback,
                           gpointer      user_data)
 {
-  GPAData *data;
-  GThread *thread;
-  GError  *error = NULL;
+  GPAData          *data;
+  GThread          *thread;
+  g_autoptr(GError) error = NULL;
 
   if (!ppds_names || !attribute_name)
     {
@@ -1855,7 +1769,6 @@ get_ppds_attribute_async (gchar       **ppds_names,
       g_warning ("%s", error->message);
       callback (NULL, user_data);
 
-      g_error_free (error);
       get_ppds_attribute_data_free (data);
     }
   else
@@ -1939,14 +1852,14 @@ get_ppd_names_async_dbus_scb (GObject      *source_object,
                               GAsyncResult *res,
                               gpointer      user_data)
 {
-  GVariant  *output;
-  PPDName   *ppd_item;
-  PPDName  **result = NULL;
-  GPNData   *data = (GPNData *) user_data;
-  GError    *error = NULL;
-  GList     *driver_list = NULL;
-  GList     *iter;
-  gint       i, j, n = 0;
+  g_autoptr(GVariant) output = NULL;
+  PPDName            *ppd_item;
+  PPDName           **result = NULL;
+  GPNData            *data = (GPNData *) user_data;
+  g_autoptr(GError)   error = NULL;
+  GList              *driver_list = NULL;
+  GList              *iter;
+  gint                i, j, n = 0;
   static const char * const match_levels[] = {
              "exact-cmd",
              "exact",
@@ -1961,68 +1874,49 @@ get_ppd_names_async_dbus_scb (GObject      *source_object,
 
   if (output)
     {
-      GVariant *array;
+      g_autoptr(GVariant) array = NULL;
 
       g_variant_get (output, "(@a(ss))",
                      &array);
 
-      if (array)
+      for (j = 0; j < G_N_ELEMENTS (match_levels) && n < data->count; j++)
         {
-          GVariantIter *iter;
-          GVariant     *item;
-          gchar        *driver;
-          gchar        *match;
+          g_autoptr(GVariantIter) iter = NULL;
+          const gchar *driver, *match;
 
-          for (j = 0; j < G_N_ELEMENTS (match_levels) && n < data->count; j++)
+          g_variant_get (array,
+                         "a(ss)",
+                         &iter);
+
+          while (g_variant_iter_next (iter, "(&s&s)", &driver, &match))
             {
-              g_variant_get (array,
-                             "a(ss)",
-                             &iter);
-
-              while ((item = g_variant_iter_next_value (iter)))
+              if (g_str_equal (match, match_levels[j]) && n < data->count)
                 {
-                  g_variant_get (item,
-                                 "(ss)",
-                                 &driver,
-                                 &match);
+                  ppd_item = g_new0 (PPDName, 1);
+                  ppd_item->ppd_name = g_strdup (driver);
 
-                  if (g_str_equal (match, match_levels[j]) && n < data->count)
-                    {
-                      ppd_item = g_new0 (PPDName, 1);
-                      ppd_item->ppd_name = g_strdup (driver);
+                  if (g_strcmp0 (match, "exact-cmd") == 0)
+                    ppd_item->ppd_match_level = PPD_EXACT_CMD_MATCH;
+                  else if (g_strcmp0 (match, "exact") == 0)
+                    ppd_item->ppd_match_level = PPD_EXACT_MATCH;
+                  else if (g_strcmp0 (match, "close") == 0)
+                    ppd_item->ppd_match_level = PPD_CLOSE_MATCH;
+                  else if (g_strcmp0 (match, "generic") == 0)
+                    ppd_item->ppd_match_level = PPD_GENERIC_MATCH;
+                  else if (g_strcmp0 (match, "none") == 0)
+                    ppd_item->ppd_match_level = PPD_NO_MATCH;
 
-                      if (g_strcmp0 (match, "exact-cmd") == 0)
-                        ppd_item->ppd_match_level = PPD_EXACT_CMD_MATCH;
-                      else if (g_strcmp0 (match, "exact") == 0)
-                        ppd_item->ppd_match_level = PPD_EXACT_MATCH;
-                      else if (g_strcmp0 (match, "close") == 0)
-                        ppd_item->ppd_match_level = PPD_CLOSE_MATCH;
-                      else if (g_strcmp0 (match, "generic") == 0)
-                        ppd_item->ppd_match_level = PPD_GENERIC_MATCH;
-                      else if (g_strcmp0 (match, "none") == 0)
-                        ppd_item->ppd_match_level = PPD_NO_MATCH;
+                  driver_list = g_list_append (driver_list, ppd_item);
 
-                      driver_list = g_list_append (driver_list, ppd_item);
-
-                      n++;
-                    }
-
-                  g_free (driver);
-                  g_free (match);
-                  g_variant_unref (item);
+                  n++;
                 }
             }
-
-          g_variant_unref (array);
         }
-
-      g_variant_unref (output);
     }
   else
     {
-      if (error->code != G_IO_ERROR_CANCELLED)
+      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         g_warning ("%s", error->message);
-      g_error_free (error);
     }
 
   if (n > 0)
@@ -2073,9 +1967,9 @@ get_device_attributes_cb (gchar    *device_id,
                           gchar    *device_uri,
                           gpointer  user_data)
 {
-  GDBusConnection *bus;
-  GError          *error = NULL;
-  GPNData         *data = (GPNData *) user_data;
+  GDBusConnection  *bus;
+  g_autoptr(GError) error = NULL;
+  GPNData          *data = (GPNData *) user_data;
 
   if (g_cancellable_is_cancelled (data->cancellable))
     goto out;
@@ -2087,7 +1981,6 @@ get_device_attributes_cb (gchar    *device_id,
   if (!bus)
     {
       g_warning ("Failed to get system bus: %s", error->message);
-      g_error_free (error);
       goto out;
     }
 
@@ -2181,12 +2074,12 @@ get_device_attributes_async_dbus_cb (GObject      *source_object,
                                      gpointer      user_data)
 
 {
-  GVariant *output;
-  GDAData  *data = (GDAData *) user_data;
-  GError   *error = NULL;
-  GList    *tmp;
-  gchar    *device_id = NULL;
-  gchar    *device_make_and_model = NULL;
+  g_autoptr(GVariant) output = NULL;
+  GDAData            *data = (GDAData *) user_data;
+  g_autoptr(GError)   error = NULL;
+  GList              *tmp;
+  gchar              *device_id = NULL;
+  gchar              *device_make_and_model = NULL;
 
   output = g_dbus_connection_call_finish (G_DBUS_CONNECTION (source_object),
                                           res,
@@ -2196,7 +2089,8 @@ get_device_attributes_async_dbus_cb (GObject      *source_object,
   if (output)
     {
       const gchar *ret_error;
-      GVariant    *devices_variant = NULL;
+      g_autoptr(GVariant) devices_variant = NULL;
+      gint index = -1;
 
       g_variant_get (output, "(&s@a{ss})",
                      &ret_error,
@@ -2207,95 +2101,60 @@ get_device_attributes_async_dbus_cb (GObject      *source_object,
           g_warning ("cups-pk-helper: getting of attributes for printer %s failed: %s", data->printer_name, ret_error);
         }
 
-      if (devices_variant)
+      if (data->device_uri)
         {
-          GVariantIter *iter;
-          GVariant     *item;
-          gint          index = -1;
+          g_autoptr(GVariantIter) iter = NULL;
+          const gchar *key, *value;
+          g_autofree gchar *suffix = NULL;
 
-          if (data->device_uri)
+          g_variant_get (devices_variant,
+                         "a{ss}",
+                         &iter);
+
+          while (g_variant_iter_next (iter, "{&s&s}", &key, &value))
             {
-              gchar *key;
-              gchar *value;
-              gchar *number;
-              gchar *endptr;
-              gchar *suffix;
-
-              g_variant_get (devices_variant,
-                             "a{ss}",
-                             &iter);
-
-              while ((item = g_variant_iter_next_value (iter)))
+              if (g_str_equal (value, data->device_uri))
                 {
-                  g_variant_get (item,
-                                 "{ss}",
-                                 &key,
-                                 &value);
-
-                  if (g_str_equal (value, data->device_uri))
+                  gchar *number = g_strrstr (key, ":");
+                  if (number != NULL)
                     {
-                      number = g_strrstr (key, ":");
-                      if (number != NULL)
-                        {
-                          number++;
-                          index = g_ascii_strtoll (number, &endptr, 10);
-                          if (index == 0 && endptr == (number))
-                            index = -1;
-                        }
+                      gchar *endptr;
+
+                      number++;
+                      index = g_ascii_strtoll (number, &endptr, 10);
+                      if (index == 0 && endptr == (number))
+                        index = -1;
                     }
-
-                  g_free (key);
-                  g_free (value);
-                  g_variant_unref (item);
                 }
-
-              suffix = g_strdup_printf (":%d", index);
-
-              g_variant_get (devices_variant,
-                             "a{ss}",
-                             &iter);
-
-              while ((item = g_variant_iter_next_value (iter)))
-                {
-                  gchar *key;
-                  gchar *value;
-
-                  g_variant_get (item,
-                                 "{ss}",
-                                 &key,
-                                 &value);
-
-                  if (g_str_has_suffix (key, suffix))
-                    {
-                      if (g_str_has_prefix (key, "device-id"))
-                        {
-                          device_id = g_strdup (value);
-                        }
-
-                      if (g_str_has_prefix (key, "device-make-and-model"))
-                        {
-                          device_make_and_model = g_strdup (value);
-                        }
-                    }
-
-                  g_free (key);
-                  g_free (value);
-                  g_variant_unref (item);
-                }
-
-              g_free (suffix);
             }
 
-          g_variant_unref (devices_variant);
-        }
+          suffix = g_strdup_printf (":%d", index);
 
-      g_variant_unref (output);
+          g_variant_get (devices_variant,
+                         "a{ss}",
+                         &iter);
+
+          while (g_variant_iter_next (iter, "{&s&s}", &key, &value))
+            {
+              if (g_str_has_suffix (key, suffix))
+                {
+                  if (g_str_has_prefix (key, "device-id"))
+                    {
+                      device_id = g_strdup (value);
+                    }
+
+                  if (g_str_has_prefix (key, "device-make-and-model"))
+                    {
+                      device_make_and_model = g_strdup (value);
+                    }
+                }
+            }
+        }
     }
   else
     {
-      if (error->code != G_IO_ERROR_CANCELLED)
+      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         g_warning ("%s", error->message);
-      g_error_free (error);
     }
 
   if (!device_id || !device_make_and_model)
@@ -2380,12 +2239,12 @@ static void
 get_device_attributes_async_scb (GHashTable *result,
                                  gpointer    user_data)
 {
-  GDBusConnection *bus;
-  GVariantBuilder  include_scheme_builder;
-  IPPAttribute    *attr;
-  GDAData         *data = (GDAData *) user_data;
-  GError          *error = NULL;
-  GList           *tmp;
+  GDBusConnection  *bus;
+  GVariantBuilder   include_scheme_builder;
+  IPPAttribute     *attr;
+  GDAData          *data = (GDAData *) user_data;
+  g_autoptr(GError) error = NULL;
+  GList            *tmp;
 
   if (result)
     {
@@ -2406,7 +2265,6 @@ get_device_attributes_async_scb (GHashTable *result,
   if (!bus)
     {
       g_warning ("Failed to get system bus: %s", error->message);
-      g_error_free (error);
       goto out;
     }
 
@@ -2662,14 +2520,6 @@ get_all_ppds_func (gpointer user_data)
   ipp_t           *request;
   ipp_t           *response;
   GList           *list;
-  const gchar     *ppd_make_and_model;
-  const gchar     *ppd_device_id;
-  const gchar     *ppd_name;
-  const gchar     *ppd_product;
-  const gchar     *ppd_make;
-  gchar           *mfg;
-  gchar           *mfg_normalized;
-  gchar           *mdl;
   gchar           *manufacturer_display_name;
   gint             i, j;
 
@@ -2687,7 +2537,7 @@ get_all_ppds_func (gpointer user_data)
 
       /*
        * This hash contains all possible names of manufacturers as keys
-       * and values are just first occurences of their equivalents.
+       * and values are just first occurrences of their equivalents.
        * This is for mapping of e.g. "Hewlett Packard" and "HP" to the same name
        * (the one which comes first).
        */
@@ -2702,20 +2552,20 @@ get_all_ppds_func (gpointer user_data)
 
       for (attr = ippFirstAttribute (response); attr != NULL; attr = ippNextAttribute (response))
         {
+          const gchar      *ppd_device_id = NULL;
+          const gchar      *ppd_make_and_model = NULL;
+          const gchar      *ppd_name = NULL;
+          const gchar      *ppd_product = NULL;
+          const gchar      *ppd_make = NULL;
+          g_autofree gchar *mdl = NULL;
+          g_autofree gchar *mfg = NULL;
+          g_autofree gchar *mfg_normalized = NULL;
+
           while (attr != NULL && ippGetGroupTag (attr) != IPP_TAG_PRINTER)
             attr = ippNextAttribute (response);
 
           if (attr == NULL)
             break;
-
-          ppd_device_id = NULL;
-          ppd_make_and_model = NULL;
-          ppd_name = NULL;
-          ppd_product = NULL;
-          ppd_make = NULL;
-          mfg = NULL;
-          mfg_normalized = NULL;
-          mdl = NULL;
 
           while (attr != NULL && ippGetGroupTag (attr) == IPP_TAG_PRINTER)
             {
@@ -2810,10 +2660,6 @@ get_all_ppds_func (gpointer user_data)
                 }
             }
 
-          g_free (mdl);
-          g_free (mfg);
-          g_free (mfg_normalized);
-
           if (attr == NULL)
             break;
         }
@@ -2890,9 +2736,9 @@ get_all_ppds_async (GCancellable *cancellable,
                     GAPCallback   callback,
                     gpointer      user_data)
 {
-  GAPData *data;
-  GThread *thread;
-  GError  *error = NULL;
+  GAPData          *data;
+  GThread          *thread;
+  g_autoptr(GError) error = NULL;
 
   data = g_new0 (GAPData, 1);
   if (cancellable)
@@ -2911,7 +2757,6 @@ get_all_ppds_async (GCancellable *cancellable,
       g_warning ("%s", error->message);
       callback (NULL, user_data);
 
-      g_error_free (error);
       get_all_ppds_data_free (data);
     }
   else
@@ -2993,27 +2838,23 @@ ppd_list_free (PPDList *list)
 gchar *
 get_standard_manufacturers_name (const gchar *name)
 {
-  gchar *normalized_name;
-  gchar *result = NULL;
+  g_autofree gchar *normalized_name = NULL;
   gint   i;
 
-  if (name)
+  if (name == NULL)
+    return NULL;
+
+  normalized_name = normalize (name);
+
+  for (i = 0; i < G_N_ELEMENTS (manufacturers_names); i++)
     {
-      normalized_name = normalize (name);
-
-      for (i = 0; i < G_N_ELEMENTS (manufacturers_names); i++)
+      if (g_strcmp0 (manufacturers_names[i].normalized_name, normalized_name) == 0)
         {
-          if (g_strcmp0 (manufacturers_names[i].normalized_name, normalized_name) == 0)
-            {
-              result = g_strdup (manufacturers_names[i].display_name);
-              break;
-            }
+          return g_strdup (manufacturers_names[i].display_name);
         }
-
-      g_free (normalized_name);
     }
 
-  return result;
+  return NULL;
 }
 
 typedef struct
@@ -3074,7 +2915,12 @@ printer_get_ppd_func (gpointer user_data)
     {
       http_t *http;
 
+#ifdef HAVE_CUPS_HTTPCONNECT2
+      http = httpConnect2 (data->host_name, data->port, NULL, AF_UNSPEC,
+                           HTTP_ENCRYPTION_IF_REQUESTED, 1, 30000, NULL);
+#else
       http = httpConnect (data->host_name, data->port);
+#endif
       if (http)
         {
           data->result = g_strdup (cupsGetPPD2 (http, data->printer_name));
@@ -3098,9 +2944,9 @@ printer_get_ppd_async (const gchar *printer_name,
                        PGPCallback  callback,
                        gpointer     user_data)
 {
-  PGPData *data;
-  GThread *thread;
-  GError  *error = NULL;
+  PGPData          *data;
+  GThread          *thread;
+  g_autoptr(GError) error = NULL;
 
   data = g_new0 (PGPData, 1);
   data->printer_name = g_strdup (printer_name);
@@ -3120,22 +2966,11 @@ printer_get_ppd_async (const gchar *printer_name,
       g_warning ("%s", error->message);
       callback (NULL, user_data);
 
-      g_error_free (error);
       printer_get_ppd_data_free (data);
     }
   else
     {
       g_thread_unref (thread);
-    }
-}
-
-void
-pp_devices_list_free (PpDevicesList *result)
-{
-  if (result)
-    {
-      g_list_free_full (result->devices, (GDestroyNotify) g_object_unref);
-      g_free (result);
     }
 }
 
@@ -3201,9 +3036,9 @@ get_named_dest_async (const gchar *printer_name,
                       GNDCallback  callback,
                       gpointer     user_data)
 {
-  GNDData *data;
-  GThread *thread;
-  GError  *error = NULL;
+  GNDData          *data;
+  GThread          *thread;
+  g_autoptr(GError) error = NULL;
 
   data = g_new0 (GNDData, 1);
   data->printer_name = g_strdup (printer_name);
@@ -3221,7 +3056,6 @@ get_named_dest_async (const gchar *printer_name,
       g_warning ("%s", error->message);
       callback (NULL, user_data);
 
-      g_error_free (error);
       get_named_dest_data_free (data);
     }
   else
@@ -3242,10 +3076,10 @@ printer_add_option_async_dbus_cb (GObject      *source_object,
                                   GAsyncResult *res,
                                   gpointer      user_data)
 {
-  GVariant *output;
-  gboolean  success = FALSE;
-  PAOData  *data = (PAOData *) user_data;
-  GError   *error = NULL;
+  g_autoptr(GVariant) output = NULL;
+  gboolean            success = FALSE;
+  PAOData            *data = (PAOData *) user_data;
+  g_autoptr(GError)   error = NULL;
 
   output = g_dbus_connection_call_finish (G_DBUS_CONNECTION (source_object),
                                           res,
@@ -3261,14 +3095,11 @@ printer_add_option_async_dbus_cb (GObject      *source_object,
         g_warning ("cups-pk-helper: setting of an option failed: %s", ret_error);
       else
         success = TRUE;
-
-      g_variant_unref (output);
     }
   else
     {
-      if (error->code != G_IO_ERROR_CANCELLED)
+      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         g_warning ("%s", error->message);
-      g_error_free (error);
     }
 
   if (!g_cancellable_is_cancelled (data->cancellable))
@@ -3288,17 +3119,16 @@ printer_add_option_async (const gchar   *printer_name,
                           PAOCallback    callback,
                           gpointer       user_data)
 {
-  GVariantBuilder  array_builder;
-  GDBusConnection *bus;
-  PAOData         *data;
-  GError          *error = NULL;
-  gint             i;
+  GVariantBuilder   array_builder;
+  GDBusConnection  *bus;
+  PAOData          *data;
+  g_autoptr(GError) error = NULL;
+  gint              i;
 
   bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      callback (FALSE, user_data);
      return;
    }
@@ -3343,7 +3173,7 @@ typedef struct
 } GCDData;
 
 static gint
-get_suffix_index (gchar *string)
+get_suffix_index (const gchar *string)
 {
   gchar *number;
   gchar *endptr;
@@ -3367,12 +3197,11 @@ get_cups_devices_async_dbus_cb (GObject      *source_object,
                                 gpointer      user_data)
 
 {
-  PpPrintDevice **devices = NULL;
-  GVariant       *output;
-  GCDData        *data = (GCDData *) user_data;
-  GError         *error = NULL;
-  GList          *result = NULL;
-  gint            num_of_devices = 0;
+  g_autoptr(GPtrArray) devices = NULL;
+  g_autoptr(GVariant) output = NULL;
+  GCDData            *data = (GCDData *) user_data;
+  g_autoptr(GError)   error = NULL;
+  gint                num_of_devices = 0;
 
   output = g_dbus_connection_call_finish (G_DBUS_CONNECTION (source_object),
                                           res,
@@ -3381,8 +3210,11 @@ get_cups_devices_async_dbus_cb (GObject      *source_object,
   if (output)
     {
       const gchar *ret_error;
-      GVariant    *devices_variant = NULL;
+      g_autoptr(GVariant) devices_variant = NULL;
       gboolean     is_network_device;
+      g_autoptr(GVariantIter) iter = NULL;
+      const gchar  *key, *value;
+      gint          index = -1, max_index = -1, i;
 
       g_variant_get (output, "(&s@a{ss})",
                      &ret_error,
@@ -3393,92 +3225,64 @@ get_cups_devices_async_dbus_cb (GObject      *source_object,
           g_warning ("cups-pk-helper: getting of CUPS devices failed: %s", ret_error);
         }
 
-      if (devices_variant)
+      g_variant_get (devices_variant, "a{ss}", &iter);
+      while (g_variant_iter_next (iter, "{&s&s}", &key, &value))
         {
-          GVariantIter *iter;
-          GVariant     *item;
-          gchar        *key;
-          gchar        *value;
-          gint          index = -1, max_index = -1, i;
-
-          g_variant_get (devices_variant, "a{ss}", &iter);
-          while ((item = g_variant_iter_next_value (iter)))
-            {
-              g_variant_get (item, "{ss}", &key, &value);
-
-              index = get_suffix_index (key);
-              if (index > max_index)
-                max_index = index;
-
-              g_free (key);
-              g_free (value);
-              g_variant_unref (item);
-            }
-
-          if (max_index >= 0)
-            {
-              num_of_devices = max_index + 1;
-              devices = g_new0 (PpPrintDevice *, num_of_devices);
-
-              g_variant_get (devices_variant, "a{ss}", &iter);
-              while ((item = g_variant_iter_next_value (iter)))
-                {
-                  g_variant_get (item, "{ss}", &key, &value);
-
-                  index = get_suffix_index (key);
-                  if (index >= 0)
-                    {
-                      if (!devices[index])
-                        devices[index] = pp_print_device_new ();
-
-                      if (g_str_has_prefix (key, "device-class"))
-                        {
-                          is_network_device = g_strcmp0 (value, "network") == 0;
-                          g_object_set (devices[index], "is-network-device", is_network_device, NULL);
-                        }
-                      else if (g_str_has_prefix (key, "device-id"))
-                        g_object_set (devices[index], "device-id", value, NULL);
-                      else if (g_str_has_prefix (key, "device-info"))
-                        g_object_set (devices[index], "device-info", value, NULL);
-                      else if (g_str_has_prefix (key, "device-make-and-model"))
-                        {
-                          g_object_set (devices[index],
-                                        "device-make-and-model", value,
-                                        "device-name", value,
-                                        NULL);
-                        }
-                      else if (g_str_has_prefix (key, "device-uri"))
-                        g_object_set (devices[index], "device-uri", value, NULL);
-                      else if (g_str_has_prefix (key, "device-location"))
-                        g_object_set (devices[index], "device-location", value, NULL);
-
-                      g_object_set (devices[index], "acquisition-method", ACQUISITION_METHOD_DEFAULT_CUPS_SERVER, NULL);
-                    }
-
-                  g_free (key);
-                  g_free (value);
-                  g_variant_unref (item);
-                }
-
-              for (i = 0; i < num_of_devices; i++)
-                result = g_list_append (result, devices[i]);
-
-              g_free (devices);
-            }
-
-          g_variant_unref (devices_variant);
+          index = get_suffix_index (key);
+          if (index > max_index)
+            max_index = index;
         }
 
-      g_variant_unref (output);
+      if (max_index >= 0)
+        {
+          g_autoptr(GVariantIter) iter2 = NULL;
+
+          num_of_devices = max_index + 1;
+          devices = g_ptr_array_new_with_free_func (g_object_unref);
+          for (i = 0; i < num_of_devices; i++)
+             g_ptr_array_add (devices, pp_print_device_new ());
+
+          g_variant_get (devices_variant, "a{ss}", &iter2);
+          while (g_variant_iter_next (iter2, "{&s&s}", &key, &value))
+            {
+              PpPrintDevice *device;
+
+              index = get_suffix_index (key);
+              if (index >= 0)
+                {
+                  device = g_ptr_array_index (devices, index);
+                  if (g_str_has_prefix (key, "device-class"))
+                    {
+                      is_network_device = g_strcmp0 (value, "network") == 0;
+                      g_object_set (device, "is-network-device", is_network_device, NULL);
+                    }
+                  else if (g_str_has_prefix (key, "device-id"))
+                    g_object_set (device, "device-id", value, NULL);
+                  else if (g_str_has_prefix (key, "device-info"))
+                    g_object_set (device, "device-info", value, NULL);
+                  else if (g_str_has_prefix (key, "device-make-and-model"))
+                    {
+                      g_object_set (device,
+                                    "device-make-and-model", value,
+                                    "device-name", value,
+                                    NULL);
+                    }
+                  else if (g_str_has_prefix (key, "device-uri"))
+                    g_object_set (device, "device-uri", value, NULL);
+                  else if (g_str_has_prefix (key, "device-location"))
+                    g_object_set (device, "device-location", value, NULL);
+
+                  g_object_set (device, "acquisition-method", ACQUISITION_METHOD_DEFAULT_CUPS_SERVER, NULL);
+                }
+            }
+        }
     }
   else
     {
-      if (error->domain != G_IO_ERROR ||
-          error->code != G_IO_ERROR_CANCELLED)
+      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
         g_warning ("%s", error->message);
-      g_error_free (error);
 
-      data->callback (result,
+      data->callback (devices,
                       TRUE,
                       g_cancellable_is_cancelled (data->cancellable),
                       data->user_data);
@@ -3497,13 +3301,13 @@ get_cups_devices_async_dbus_cb (GObject      *source_object,
     {
       if (!g_cancellable_is_cancelled (data->cancellable))
         {
-          GVariantBuilder *include_scheme_builder = NULL;
-          GVariantBuilder *exclude_scheme_builder = NULL;
-          gchar           *backend_name;
+          GVariantBuilder  *include_scheme_builder = NULL;
+          GVariantBuilder  *exclude_scheme_builder = NULL;
+          g_autofree gchar *backend_name = NULL;
 
           backend_name = data->backend_list->data;
 
-          data->callback (result,
+          data->callback (devices,
                           FALSE,
                           FALSE,
                           data->user_data);
@@ -3518,7 +3322,6 @@ get_cups_devices_async_dbus_cb (GObject      *source_object,
               exclude_scheme_builder = create_other_backends_array ();
             }
 
-          g_free (backend_name);
           data->backend_list = g_list_remove_link (data->backend_list, data->backend_list);
 
           g_dbus_connection_call (G_DBUS_CONNECTION (g_object_ref (source_object)),
@@ -3548,7 +3351,7 @@ get_cups_devices_async_dbus_cb (GObject      *source_object,
         }
       else
         {
-          data->callback (result,
+          data->callback (devices,
                           TRUE,
                           TRUE,
                           data->user_data);
@@ -3559,7 +3362,7 @@ get_cups_devices_async_dbus_cb (GObject      *source_object,
     }
   else
     {
-      data->callback (result,
+      data->callback (devices,
                       TRUE,
                       g_cancellable_is_cancelled (data->cancellable),
                       data->user_data);
@@ -3576,17 +3379,16 @@ get_cups_devices_async (GCancellable *cancellable,
                         GCDCallback   callback,
                         gpointer      user_data)
 {
-  GDBusConnection *bus;
-  GVariantBuilder  include_scheme_builder;
-  GCDData         *data;
-  GError          *error = NULL;
-  gchar           *backend_name;
+  GDBusConnection  *bus;
+  GVariantBuilder   include_scheme_builder;
+  GCDData          *data;
+  g_autoptr(GError) error = NULL;
+  g_autofree gchar *backend_name = NULL;
 
   bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
   if (!bus)
    {
      g_warning ("Failed to get system bus: %s", error->message);
-     g_error_free (error);
      callback (NULL, TRUE, FALSE, user_data);
      return;
    }
@@ -3603,7 +3405,6 @@ get_cups_devices_async (GCancellable *cancellable,
   g_variant_builder_init (&include_scheme_builder, G_VARIANT_TYPE ("as"));
   g_variant_builder_add (&include_scheme_builder, "s", backend_name);
 
-  g_free (backend_name);
   data->backend_list = g_list_remove_link (data->backend_list, data->backend_list);
 
   g_dbus_connection_call (bus,
@@ -3695,7 +3496,7 @@ guess_device_hostname (PpPrintDevice *device)
 
 gchar *
 canonicalize_device_name (GList         *device_names,
-                          GList         *local_cups_devices,
+                          GPtrArray     *local_cups_devices,
                           cups_dest_t   *dests,
                           gint           num_of_dests,
                           PpPrintDevice *device)
@@ -3704,9 +3505,7 @@ canonicalize_device_name (GList         *device_names,
   gboolean                   already_present;
   GList                     *iter;
   gsize                      len;
-  gchar                     *name = NULL;
-  gchar                     *new_name;
-  gchar                     *lower_name;
+  g_autofree gchar          *name = NULL;
   gchar                     *occurrence;
   gint                       name_index, j;
   static const char * const  residues[] = {
@@ -3764,7 +3563,7 @@ canonicalize_device_name (GList         *device_names,
   /* Remove common strings found in driver names */
   for (j = 0; j < G_N_ELEMENTS (residues); j++)
     {
-      lower_name = g_ascii_strdown (name, -1);
+      g_autofree gchar *lower_name = g_ascii_strdown (name, -1);
 
       occurrence = g_strrstr (lower_name, residues[j]);
       if (occurrence != NULL)
@@ -3772,8 +3571,6 @@ canonicalize_device_name (GList         *device_names,
           occurrence[0] = '\0';
           name[strlen (lower_name)] = '\0';
         }
-
-      g_free (lower_name);
     }
 
   /* Remove trailing "-" */
@@ -3795,8 +3592,10 @@ canonicalize_device_name (GList         *device_names,
 
   name_index = 2;
   already_present = FALSE;
-  do
+  while (TRUE)
     {
+      g_autofree gchar *new_name = NULL;
+
       if (already_present)
         {
           new_name = g_strdup_printf ("%s-%d", name, name_index);
@@ -3819,21 +3618,16 @@ canonicalize_device_name (GList         *device_names,
             already_present = TRUE;
         }
 
-      for (iter = local_cups_devices; iter; iter = iter->next)
+      for (guint i = 0; i < local_cups_devices->len; i++)
         {
-          item = (PpPrintDevice *) iter->data;
+          item = g_ptr_array_index (local_cups_devices, i);
           if (g_strcmp0 (pp_print_device_get_device_original_name (item), new_name) == 0)
             already_present = TRUE;
         }
 
-      if (already_present)
-        g_free (new_name);
-
-    } while (already_present);
-
-  g_free (name);
-
-  return new_name;
+      if (!already_present)
+        return g_steal_pointer (&new_name);
+    }
 }
 
 void

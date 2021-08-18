@@ -23,6 +23,7 @@
 
 #include <string.h>
 #include <gio/gdesktopappinfo.h>
+#include <glib/gi18n.h>
 
 #include "cc-panel.h"
 #include "cc-panel-loader.h"
@@ -30,16 +31,16 @@
 #ifndef CC_PANEL_LOADER_NO_GTYPES
 
 /* Extension points */
+extern GType cc_applications_panel_get_type (void);
 extern GType cc_background_panel_get_type (void);
 #ifdef BUILD_BLUETOOTH
 extern GType cc_bluetooth_panel_get_type (void);
 #endif /* BUILD_BLUETOOTH */
 extern GType cc_color_panel_get_type (void);
 extern GType cc_date_time_panel_get_type (void);
+extern GType cc_default_apps_panel_get_type (void);
 extern GType cc_display_panel_get_type (void);
 extern GType cc_info_overview_panel_get_type (void);
-extern GType cc_info_default_apps_panel_get_type (void);
-extern GType cc_info_removable_media_panel_get_type (void);
 extern GType cc_keyboard_panel_get_type (void);
 extern GType cc_mouse_panel_get_type (void);
 #ifdef BUILD_NETWORK
@@ -50,8 +51,8 @@ extern GType cc_notifications_panel_get_type (void);
 extern GType cc_goa_panel_get_type (void);
 extern GType cc_power_panel_get_type (void);
 extern GType cc_printers_panel_get_type (void);
-extern GType cc_privacy_panel_get_type (void);
 extern GType cc_region_panel_get_type (void);
+extern GType cc_removable_media_panel_get_type (void);
 extern GType cc_search_panel_get_type (void);
 extern GType cc_sharing_panel_get_type (void);
 extern GType cc_sound_panel_get_type (void);
@@ -63,8 +64,15 @@ extern GType cc_user_panel_get_type (void);
 #ifdef BUILD_WACOM
 extern GType cc_wacom_panel_get_type (void);
 #endif /* BUILD_WACOM */
+extern GType cc_location_panel_get_type (void);
+extern GType cc_camera_panel_get_type (void);
+extern GType cc_microphone_panel_get_type (void);
+extern GType cc_usage_panel_get_type (void);
+extern GType cc_lock_panel_get_type (void);
+extern GType cc_diagnostics_panel_get_type (void);
 
 /* Static init functions */
+extern void cc_diagnostics_panel_static_init_func (void);
 #ifdef BUILD_NETWORK
 extern void cc_wifi_panel_static_init_func (void);
 #endif /* BUILD_NETWORK */
@@ -80,24 +88,24 @@ extern void cc_wacom_panel_static_init_func (void);
 
 #endif
 
-static struct {
-  const char *name;
-#ifndef CC_PANEL_LOADER_NO_GTYPES
-  GType (*get_type)(void);
-  CcPanelStaticInitFunc static_init_func;
-#endif
-} all_panels[] = {
+static CcPanelLoaderVtable default_panels[] =
+{
+  PANEL_TYPE("applications",     cc_applications_panel_get_type,         NULL),
   PANEL_TYPE("background",       cc_background_panel_get_type,           NULL),
 #ifdef BUILD_BLUETOOTH
   PANEL_TYPE("bluetooth",        cc_bluetooth_panel_get_type,            NULL),
 #endif
+  PANEL_TYPE("camera",           cc_camera_panel_get_type,               NULL),
   PANEL_TYPE("color",            cc_color_panel_get_type,                NULL),
   PANEL_TYPE("datetime",         cc_date_time_panel_get_type,            NULL),
+  PANEL_TYPE("default-apps",     cc_default_apps_panel_get_type,         NULL),
+  PANEL_TYPE("diagnostics",      cc_diagnostics_panel_get_type,          cc_diagnostics_panel_static_init_func),
   PANEL_TYPE("display",          cc_display_panel_get_type,              NULL),
   PANEL_TYPE("info-overview",    cc_info_overview_panel_get_type,        NULL),
-  PANEL_TYPE("default-apps",     cc_info_default_apps_panel_get_type,    NULL),
-  PANEL_TYPE("removable-media",  cc_info_removable_media_panel_get_type, NULL),
   PANEL_TYPE("keyboard",         cc_keyboard_panel_get_type,             NULL),
+  PANEL_TYPE("location",         cc_location_panel_get_type,             NULL),
+  PANEL_TYPE("lock",             cc_lock_panel_get_type,                 NULL),
+  PANEL_TYPE("microphone",       cc_microphone_panel_get_type,           NULL),
   PANEL_TYPE("mouse",            cc_mouse_panel_get_type,                NULL),
 #ifdef BUILD_NETWORK
   PANEL_TYPE("network",          cc_network_panel_get_type,              NULL),
@@ -107,8 +115,8 @@ static struct {
   PANEL_TYPE("online-accounts",  cc_goa_panel_get_type,                  NULL),
   PANEL_TYPE("power",            cc_power_panel_get_type,                NULL),
   PANEL_TYPE("printers",         cc_printers_panel_get_type,             NULL),
-  PANEL_TYPE("privacy",          cc_privacy_panel_get_type,              NULL),
   PANEL_TYPE("region",           cc_region_panel_get_type,               NULL),
+  PANEL_TYPE("removable-media",  cc_removable_media_panel_get_type,      NULL),
   PANEL_TYPE("search",           cc_search_panel_get_type,               NULL),
   PANEL_TYPE("sharing",          cc_sharing_panel_get_type,              NULL),
   PANEL_TYPE("sound",            cc_sound_panel_get_type,                NULL),
@@ -116,23 +124,19 @@ static struct {
   PANEL_TYPE("thunderbolt",      cc_bolt_panel_get_type,                 NULL),
 #endif
   PANEL_TYPE("universal-access", cc_ua_panel_get_type,                   NULL),
+  PANEL_TYPE("usage",            cc_usage_panel_get_type,                NULL),
   PANEL_TYPE("user-accounts",    cc_user_panel_get_type,                 NULL),
 #ifdef BUILD_WACOM
   PANEL_TYPE("wacom",            cc_wacom_panel_get_type,                cc_wacom_panel_static_init_func),
 #endif
 };
 
-GList *
-cc_panel_loader_get_panels (void)
-{
-  GList *l = NULL;
-  guint i;
+/* Override for the panel vtable. When NULL, the default_panels will
+ * be used.
+ */
+static CcPanelLoaderVtable *panels_vtable = default_panels;
+static gsize panels_vtable_len = G_N_ELEMENTS (default_panels);
 
-  for (i = 0; i < G_N_ELEMENTS (all_panels); i++)
-    l = g_list_prepend (l, (gpointer) all_panels[i].name);
-
-  return g_list_reverse (l);
-}
 
 static int
 parse_categories (GDesktopAppInfo *app)
@@ -158,6 +162,8 @@ parse_categories (GDesktopAppInfo *app)
     retval = CC_CATEGORY_DEVICES;
   else if (g_strv_contains (const_strv (split), "X-GNOME-DetailsSettings"))
     retval = CC_CATEGORY_DETAILS;
+  else if (g_strv_contains (const_strv (split), "X-GNOME-PrivacySettings"))
+    retval = CC_CATEGORY_PRIVACY;
   else if (g_strv_contains (const_strv (split), "HardwareSettings"))
     retval = CC_CATEGORY_HARDWARE;
 
@@ -170,50 +176,6 @@ parse_categories (GDesktopAppInfo *app)
     }
 
   return retval;
-}
-
-void
-cc_panel_loader_fill_model (CcShellModel *model)
-{
-  guint i;
-
-  for (i = 0; i < G_N_ELEMENTS (all_panels); i++)
-    {
-      g_autoptr (GDesktopAppInfo) app;
-      g_autofree gchar *desktop_name = NULL;
-      gint category;
-
-      desktop_name = g_strconcat ("gnome-", all_panels[i].name, "-panel.desktop", NULL);
-      app = g_desktop_app_info_new (desktop_name);
-
-      if (!app)
-        {
-          g_warning ("Ignoring broken panel %s (missing desktop file)", all_panels[i].name);
-          continue;
-        }
-
-      category = parse_categories (app);
-      if (G_UNLIKELY (category < 0))
-        continue;
-
-      /* Consult OnlyShowIn/NotShowIn for desktop environments */
-      if (!g_desktop_app_info_get_show_in (app, NULL))
-        continue;
-
-      cc_shell_model_add_item (model, category, G_APP_INFO (app), all_panels[i].name);
-    }
-
-  /* If there's an static init function, execute it after adding all panels to
-   * the model. This will allow the panels to show or hide themselves without
-   * having an instance running.
-   */
-#ifndef CC_PANEL_LOADER_NO_GTYPES
-  for (i = 0; i < G_N_ELEMENTS (all_panels); i++)
-    {
-      if (all_panels[i].static_init_func)
-        all_panels[i].static_init_func ();
-    }
-#endif
 }
 
 #ifndef CC_PANEL_LOADER_NO_GTYPES
@@ -229,13 +191,22 @@ ensure_panel_types (void)
     return;
 
   panel_types = g_hash_table_new (g_str_hash, g_str_equal);
-  for (i = 0; i < G_N_ELEMENTS (all_panels); i++)
-    g_hash_table_insert (panel_types, (char*)all_panels[i].name, all_panels[i].get_type);
+  for (i = 0; i < panels_vtable_len; i++)
+    g_hash_table_insert (panel_types, (char*)panels_vtable[i].name, panels_vtable[i].get_type);
 }
 
+/**
+ * cc_panel_loader_load_by_name:
+ * @shell: a #CcShell implementation
+ * @name: name of the panel
+ * @parameters: parameters passed to the new panel
+ *
+ * Creates a new instance of a #CcPanel from @name, and sets the
+ * @shell and @parameters properties at construction time.
+ */
 CcPanel *
 cc_panel_loader_load_by_name (CcShell     *shell,
-                              const char  *name,
+                              const gchar *name,
                               GVariant    *parameters)
 {
   GType (*get_type) (void);
@@ -243,7 +214,7 @@ cc_panel_loader_load_by_name (CcShell     *shell,
   ensure_panel_types ();
 
   get_type = g_hash_table_lookup (panel_types, name);
-  g_return_val_if_fail (get_type != NULL, NULL);
+  g_assert (get_type != NULL);
 
   return g_object_new (get_type (),
                        "shell", shell,
@@ -252,3 +223,94 @@ cc_panel_loader_load_by_name (CcShell     *shell,
 }
 
 #endif /* CC_PANEL_LOADER_NO_GTYPES */
+
+/**
+ * cc_panel_loader_fill_model:
+ * @model: a #CcShellModel
+ *
+ * Fills @model with information from the available panels. It
+ * iterates over the panel vtable, gathering the panel names,
+ * build the desktop filename from it, and retrieves additional
+ * information from it.
+ */
+void
+cc_panel_loader_fill_model (CcShellModel *model)
+{
+  guint i;
+
+  for (i = 0; i < panels_vtable_len; i++)
+    {
+      g_autoptr(GDesktopAppInfo) app = NULL;
+      g_autofree gchar *desktop_name = NULL;
+      gint category;
+
+      desktop_name = g_strconcat ("gnome-", panels_vtable[i].name, "-panel.desktop", NULL);
+      app = g_desktop_app_info_new (desktop_name);
+
+      if (!app)
+        {
+          g_warning ("Ignoring broken panel %s (missing desktop file)", panels_vtable[i].name);
+          continue;
+        }
+
+      category = parse_categories (app);
+      if (G_UNLIKELY (category < 0))
+        continue;
+
+      cc_shell_model_add_item (model, category, G_APP_INFO (app), panels_vtable[i].name);
+    }
+
+  /* If there's an static init function, execute it after adding all panels to
+   * the model. This will allow the panels to show or hide themselves without
+   * having an instance running.
+   */
+#ifndef CC_PANEL_LOADER_NO_GTYPES
+  for (i = 0; i < panels_vtable_len; i++)
+    {
+      if (panels_vtable[i].static_init_func)
+        panels_vtable[i].static_init_func ();
+    }
+#endif
+}
+
+/**
+ * cc_panel_loader_list_panels:
+ *
+ * Prints the list of panels from the current panel vtable,
+ * usually as response to running GNOME Settings with the
+ * '--list' command line argument.
+ */
+void
+cc_panel_loader_list_panels (void)
+{
+  guint i;
+
+  g_print ("%s\n", _("Available panels:"));
+
+  for (i = 0; i < panels_vtable_len; i++)
+    g_print ("\t%s\n", panels_vtable[i].name);
+
+}
+
+/**
+ * cc_panel_loader_override_vtable:
+ * @override_vtable: the new panel vtable
+ * @n_elements: number of items of @override_vtable
+ *
+ * Override the default panel vtable so that GNOME Settings loads
+ * a custom set of panels. Intended to be used by tests to inject
+ * panels that exercise specific interactions with CcWindow (e.g.
+ * header widgets, permissions, etc).
+ */
+void
+cc_panel_loader_override_vtable (CcPanelLoaderVtable *override_vtable,
+                                 gsize                n_elements)
+{
+  g_assert (override_vtable != NULL);
+  g_assert (n_elements > 0);
+
+  g_debug ("Overriding default panel vtable");
+
+  panels_vtable = override_vtable;
+  panels_vtable_len = n_elements;
+}

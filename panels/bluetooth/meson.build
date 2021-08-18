@@ -19,7 +19,7 @@ i18n.merge_file(
 
 sources = files('cc-bluetooth-panel.c')
 
-resource_data = files('bluetooth.ui')
+resource_data = files('cc-bluetooth-panel.ui')
 
 sources += gnome.compile_resources(
   'cc-' + cappletname + '-resources',
@@ -30,8 +30,6 @@ sources += gnome.compile_resources(
 )
 
 deps = common_deps + [gnome_bluetooth_dep]
-
-cflags += '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir)
 
 panels_libs += static_library(
   cappletname,

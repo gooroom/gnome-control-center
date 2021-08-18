@@ -144,3 +144,67 @@ cc_util_get_smart_date (GDateTime *date)
               }
           }
 }
+
+/* Copied from src/plugins/properties/bacon-video-widget-properties.c
+ * in totem */
+char *
+cc_util_time_to_string_text (gint64 msecs)
+{
+  g_autofree gchar *hours = NULL;
+  g_autofree gchar *mins = NULL;
+  g_autofree gchar *secs = NULL;
+  gint sec, min, hour, _time;
+
+  _time = (int) (msecs / 1000);
+  sec = _time % 60;
+  _time = _time - sec;
+  min = (_time % (60*60)) / 60;
+  _time = _time - (min * 60);
+  hour = _time / (60*60);
+
+  hours = g_strdup_printf (g_dngettext (GETTEXT_PACKAGE, "%d hour", "%d hours", hour), hour);
+  mins = g_strdup_printf (g_dngettext (GETTEXT_PACKAGE, "%d minute", "%d minutes", min), min);
+  secs = g_strdup_printf (g_dngettext (GETTEXT_PACKAGE, "%d second", "%d seconds", sec), sec);
+
+  if (hour > 0)
+    {
+      if (min > 0 && sec > 0)
+        {
+          /* 5 hours 2 minutes 12 seconds */
+          return g_strdup_printf (C_("hours minutes seconds", "%s %s %s"), hours, mins, secs);
+        }
+      else if (min > 0)
+        {
+          /* 5 hours 2 minutes */
+          return g_strdup_printf (C_("hours minutes", "%s %s"), hours, mins);
+        }
+      else
+        {
+          /* 5 hours */
+          return g_strdup_printf (C_("hours", "%s"), hours);
+        }
+    }
+  else if (min > 0)
+    {
+      if (sec > 0)
+        {
+          /* 2 minutes 12 seconds */
+          return g_strdup_printf (C_("minutes seconds", "%s %s"), mins, secs);
+        }
+      else
+        {
+          /* 2 minutes */
+          return g_strdup_printf (C_("minutes", "%s"), mins);
+        }
+    }
+  else if (sec > 0)
+    {
+      /* 10 seconds */
+      return g_strdup (secs);
+    }
+  else
+    {
+      /* 0 seconds */
+      return g_strdup (_("0 seconds"));
+    }
+}

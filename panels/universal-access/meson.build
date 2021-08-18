@@ -23,12 +23,12 @@ sources = files(
 )
 
 resource_data = files(
+  'cc-ua-panel.ui',
   'left_ptr_24px.png',
   'left_ptr_32px.png',
   'left_ptr_48px.png',
   'left_ptr_64px.png',
   'left_ptr_96px.png',
-  'uap.ui',
   'zoom-options.ui'
 )
 
@@ -41,8 +41,6 @@ sources += gnome.compile_resources(
 )
 
 deps = common_deps + [m_dep]
-
-cflags += '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir)
 
 panels_libs += static_library(
   cappletname,

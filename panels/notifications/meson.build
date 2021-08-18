@@ -24,7 +24,7 @@ sources = files(
 
 resource_data = files(
   'cc-app-notifications-dialog.ui',
-  'notifications.ui'
+  'cc-notifications-panel.ui'
 )
 
 sources += gnome.compile_resources(
@@ -34,8 +34,6 @@ sources += gnome.compile_resources(
   dependencies: resource_data,
   export: true
 )
-
-cflags += '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir)
 
 panels_libs += static_library(
   cappletname,

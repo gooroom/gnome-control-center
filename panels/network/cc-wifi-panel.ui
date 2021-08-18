@@ -11,31 +11,12 @@
         <property name="can-focus">False</property>
         <property name="hscrollbar-policy">never</property>
         <child>
-          <object class="GtkGrid">
+          <object class="HdyClamp">
             <property name="visible">True</property>
-            <property name="margin">32</property>
-
-            <!-- Empty boxes to enforce 1/3 width for the main widgets -->
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="hexpand">True</property>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkBox">
-                <property name="visible">True</property>
-                <property name="hexpand">True</property>
-              </object>
-              <packing>
-                <property name="left-attach">2</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
+            <property name="margin_top">32</property>
+            <property name="margin_bottom">32</property>
+            <property name="margin_start">12</property>
+            <property name="margin_end">12</property>
 
             <child>
               <object class="GtkBox">
@@ -85,6 +66,7 @@
                                   <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="hexpand">True</property>
+                                    <property name="wrap">True</property>
                                     <property name="label" translatable="yes">Disables Wi-Fi, Bluetooth and mobile broadband</property>
                                     <property name="xalign">0.0</property>
                                     <attributes>
@@ -229,6 +211,60 @@
                         <property name="can-focus">False</property>
                         <property name="orientation">vertical</property>
 
+                        <child>
+                          <object class="GtkBox" id="hotspot_box">
+                            <property name="visible">True</property>
+                            <property name="orientation">vertical</property>
+
+                            <!-- Hotspot QR code -->
+                            <child>
+                              <object class="GtkImage" id="wifi_qr_image">
+                                <property name="visible">True</property>
+                                <property name="halign">center</property>
+                                <property name="width-request">180</property>
+                                <property name="height-request">180</property>
+                                <style>
+                                  <class name="frame"/>
+                                </style>
+                              </object>
+                            </child>
+
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="margin-top">12</property>
+                                <property name="label" translatable="yes">Wi-Fi Hotspot Active</property>
+                                <attributes>
+                                  <attribute name="weight" value="bold" />
+                                  <attribute name="scale" value="1.8" />
+                                </attributes>
+                              </object>
+                            </child>
+
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">Mobile devices can scan the QR code to connect.</property>
+                              </object>
+                            </child>
+
+                            <child>
+                              <object class="GtkButton">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="halign">center</property>
+                                <property name="margin-top">12</property>
+                                <property name="label" translatable="yes">Turn Off Hotspot…</property>
+                                <signal name="clicked" handler="hotspot_stop_clicked_cb" swapped="yes"/>
+                                <style>
+                                  <class name="destructive-action"/>
+                                </style>
+                              </object>
+                            </child>
+
+                          </object>
+                        </child>
+
                         <!-- Visible Networks label & spinner -->
                         <child>
                           <object class="GtkBox">
@@ -236,12 +272,12 @@
                             <property name="hexpand">True</property>
                             <property name="halign">start</property>
                             <property name="spacing">6</property>
+                            <property name="margin_bottom">12</property>
                             <child>
-                              <object class="GtkLabel">
+                              <object class="GtkLabel" id="list_label">
                                 <property name="visible">True</property>
                                 <property name="label" translatable="yes">Visible Networks</property>
                                 <property name="xalign">0.0</property>
-                                <property name="margin_bottom">12</property>
                                 <attributes>
                                   <attribute name="weight" value="bold"/>
                                 </attributes>
@@ -249,6 +285,7 @@
                             </child>
                             <child>
                               <object class="GtkSpinner" id="spinner">
+                                <property name="visible">True</property>
                                 <property name="hexpand">True</property>
                               </object>
                             </child>
@@ -269,10 +306,12 @@
                                 <property name="hexpand">True</property>
                                 <property name="vexpand">True</property>
                                 <property name="transition_type">crossfade</property>
+                                <signal name="notify::visible-child-name" handler="on_stack_visible_child_changed_cb" object="CcWifiPanel" swapped="no" />
                               </object>
                             </child>
                           </object>
                         </child>
+
                       </object>
                       <packing>
                         <property name="name">wifi-connections</property>
@@ -336,10 +375,6 @@
 
 
               </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">0</property>
-              </packing>
             </child>
 
           </object>
@@ -372,6 +407,4 @@
       </packing>
     </child>
   </object>
-
-  <object class="GtkSizeGroup" id="sizegroup" />
 </interface>

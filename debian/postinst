@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# execute gooroom_system.py
-GOOROOMSYSTEM=/usr/lib/gooroom/gooroomSystem/
-GOOROOM_ADJUST=gooroom-adjust.py
-
-if [ -e $GOOROOMSYSTEM$GOOROOM_ADJUST ]; then
- /usr/bin/python3 $GOOROOMSYSTEM$GOOROOM_ADJUST
-fi

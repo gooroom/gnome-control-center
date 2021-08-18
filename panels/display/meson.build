@@ -24,14 +24,14 @@ sources = files(
   'cc-display-config-dbus.c',
   'cc-display-config-manager-dbus.c',
   'cc-display-config-manager.c',
-  'cc-night-light-dialog.c',
-  'cc-night-light-widget.c',
+  'cc-display-settings.c',
+  'cc-night-light-page.c',
 )
 
 resource_data = files(
-  'cc-night-light-dialog.ui',
-  'icons/16x16/sunset.png',
-  'icons/16x16/sunrise.png'
+  'cc-display-panel.ui',
+  'cc-display-settings.ui',
+  'cc-night-light-page.ui',
 )
 
 sources += gnome.compile_resources(
@@ -51,8 +51,7 @@ deps = common_deps + [
 ]
 
 cflags += [
-  '-DDATADIR="@0@"'.format(control_center_datadir),
-  '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir)
+  '-DDATADIR="@0@"'.format(control_center_datadir)
 ]
 
 panels_libs += static_library(

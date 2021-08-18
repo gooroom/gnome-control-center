@@ -411,8 +411,11 @@ cc_display_monitor_dbus_set_logical_monitor (CcDisplayMonitorDBus *self,
     {
       g_hash_table_add (self->logical_monitor->monitors, self);
       g_object_ref (self->logical_monitor);
+      /* unset primary with NULL will select this monitor if it is the only one.*/
       if (was_primary)
         cc_display_config_dbus_set_primary (self->config, self);
+      else
+        cc_display_config_dbus_unset_primary (self->config, NULL);
     }
 }
 
@@ -874,6 +877,12 @@ struct _CcDisplayConfigDBus
 
   GVariant *state;
   GDBusConnection *connection;
+  GDBusProxy *proxy;
+
+  int min_width;
+  int min_height;
+
+  guint panel_orientation_managed;
 
   guint32 serial;
   gboolean supports_mirroring;
@@ -948,7 +957,7 @@ build_logical_monitors_parameter (CcDisplayConfigDBus *self)
   GHashTableIter iter;
   CcDisplayLogicalMonitor *logical_monitor;
 
-  g_variant_builder_init (&builder, G_VARIANT_TYPE_ARRAY);
+  g_variant_builder_init (&builder, G_VARIANT_TYPE ("a(iiduba(ssa{sv}))"));
   g_hash_table_iter_init (&iter, self->logical_monitors);
 
   while (g_hash_table_iter_next (&iter, (void **) &logical_monitor, NULL))
@@ -990,17 +999,13 @@ config_apply (CcDisplayConfigDBus *self,
 
   cc_display_config_dbus_ensure_non_offset_coords (self);
 
-  retval = g_dbus_connection_call_sync (self->connection,
-                                        "org.gnome.Mutter.DisplayConfig",
-                                        "/org/gnome/Mutter/DisplayConfig",
-                                        "org.gnome.Mutter.DisplayConfig",
-                                        "ApplyMonitorsConfig",
-                                        build_apply_parameters (self, method),
-                                        NULL,
-                                        G_DBUS_CALL_FLAGS_NO_AUTO_START,
-                                        -1,
-                                        NULL,
-                                        error);
+  retval = g_dbus_proxy_call_sync (self->proxy,
+                                   "ApplyMonitorsConfig",
+                                   build_apply_parameters (self, method),
+                                   G_DBUS_CALL_FLAGS_NO_AUTO_START,
+                                   -1,
+                                   NULL,
+                                   error);
   return retval != NULL;
 }
 
@@ -1049,6 +1054,9 @@ cc_display_config_dbus_equal (CcDisplayConfig *pself,
   CcDisplayConfigDBus *other = CC_DISPLAY_CONFIG_DBUS (pother);
   GList *l;
 
+  g_return_val_if_fail (pself, FALSE);
+  g_return_val_if_fail (pother, FALSE);
+
   cc_display_config_dbus_ensure_non_offset_coords (self);
   cc_display_config_dbus_ensure_non_offset_coords (other);
 
@@ -1066,11 +1074,15 @@ cc_display_config_dbus_equal (CcDisplayConfig *pself,
       if (m1->underscanning != m2->underscanning)
         return FALSE;
 
-      if (!cc_display_mode_dbus_equal (CC_DISPLAY_MODE_DBUS (m1->current_mode),
-                                       CC_DISPLAY_MODE_DBUS (m2->current_mode)))
+      if (!cc_display_logical_monitor_equal (m1->logical_monitor, m2->logical_monitor))
         return FALSE;
 
-      if (!cc_display_logical_monitor_equal (m1->logical_monitor, m2->logical_monitor))
+      /* Modes should not be compared if both monitors have no logical monitor. */
+      if (m1->logical_monitor == NULL && m2->logical_monitor == NULL)
+        continue;
+
+      if (!cc_display_mode_dbus_equal (CC_DISPLAY_MODE_DBUS (m1->current_mode),
+                                       CC_DISPLAY_MODE_DBUS (m2->current_mode)))
         return FALSE;
     }
 
@@ -1193,6 +1205,80 @@ cc_display_config_dbus_is_layout_logical (CcDisplayConfig *pself)
   return self->layout_mode == CC_DISPLAY_LAYOUT_MODE_LOGICAL;
 }
 
+static gboolean
+is_scaled_mode_allowed (CcDisplayConfigDBus *self,
+                        CcDisplayMode       *pmode,
+                        double               scale)
+{
+  gint width, height;
+  CcDisplayModeDBus *mode = CC_DISPLAY_MODE_DBUS (pmode);
+
+  if (!cc_display_mode_dbus_is_supported_scale (pmode, scale))
+    return FALSE;
+
+  /* Do the math as if the monitor is always in landscape mode. */
+  width = round (mode->width / scale);
+  height = round (mode->height / scale);
+
+  return (MAX (width, height) >= self->min_width &&
+          MIN (width, height) >= self->min_height);
+}
+
+static gboolean
+is_scale_allowed_by_active_monitors (CcDisplayConfigDBus *self,
+                                     CcDisplayMode       *mode,
+                                     double               scale)
+{
+  GList *l;
+
+  for (l = self->monitors; l != NULL; l = l->next)
+    {
+      CcDisplayMonitorDBus *m = CC_DISPLAY_MONITOR_DBUS (l->data);
+
+      if (!cc_display_monitor_is_active (CC_DISPLAY_MONITOR (m)))
+        continue;
+
+      if (!is_scaled_mode_allowed (self, mode, scale))
+        return FALSE;
+    }
+
+  return TRUE;
+}
+
+static void
+cc_display_config_dbus_set_minimum_size (CcDisplayConfig *pself,
+                                         int              width,
+                                         int              height)
+{
+  CcDisplayConfigDBus *self = CC_DISPLAY_CONFIG_DBUS (pself);
+
+  g_assert (width >= 0 && height >= 0);
+
+  self->min_width = width;
+  self->min_height = height;
+}
+
+static gboolean
+cc_display_config_dbus_is_scaled_mode_valid (CcDisplayConfig *pself,
+                                             CcDisplayMode   *mode,
+                                             double           scale)
+{
+  CcDisplayConfigDBus *self = CC_DISPLAY_CONFIG_DBUS (pself);
+
+  if (self->global_scale_required || cc_display_config_is_cloning (pself))
+    return is_scale_allowed_by_active_monitors (self, mode, scale);
+
+  return is_scaled_mode_allowed (self, mode, scale);
+}
+
+static gboolean
+cc_display_config_dbus_get_panel_orientation_managed (CcDisplayConfig *pself)
+{
+  CcDisplayConfigDBus *self = CC_DISPLAY_CONFIG_DBUS (pself);
+
+  return self->panel_orientation_managed;
+}
+
 static void
 cc_display_config_dbus_init (CcDisplayConfigDBus *self)
 {
@@ -1295,6 +1381,7 @@ construct_monitors (CcDisplayConfigDBus *self,
       CcDisplayLogicalMonitor *logical_monitor;
       g_autoptr(GVariantIter) monitor_specs = NULL;
       const gchar *s1, *s2, *s3, *s4;
+      gboolean primary;
 
       if (!g_variant_iter_next (logical_monitors, "@"LOGICAL_MONITOR_FORMAT, &variant))
         break;
@@ -1305,7 +1392,7 @@ construct_monitors (CcDisplayConfigDBus *self,
                      &logical_monitor->y,
                      &logical_monitor->scale,
                      &logical_monitor->rotation,
-                     &logical_monitor->primary,
+                     &primary,
                      &monitor_specs,
                      NULL);
 
@@ -1324,11 +1411,14 @@ construct_monitors (CcDisplayConfigDBus *self,
 
       if (g_hash_table_size (logical_monitor->monitors) > 0)
         {
-          if (logical_monitor->primary)
+          if (primary)
             {
+              CcDisplayMonitorDBus *m = NULL;
               GHashTableIter iter;
               g_hash_table_iter_init (&iter, logical_monitor->monitors);
-              g_hash_table_iter_next (&iter, (void **) &self->primary, NULL);
+              g_hash_table_iter_next (&iter, (void **) &m, NULL);
+
+              cc_display_config_dbus_set_primary (self, m);
             }
         }
       else
@@ -1343,12 +1433,49 @@ construct_monitors (CcDisplayConfigDBus *self,
 }
 
 static void
+update_panel_orientation_managed (CcDisplayConfigDBus *self)
+{
+  g_autoptr(GVariant) v = NULL;
+  gboolean panel_orientation_managed = FALSE;
+
+  if (self->proxy != NULL)
+    {
+      v = g_dbus_proxy_get_cached_property (self->proxy, "PanelOrientationManaged");
+      if (v)
+        {
+          panel_orientation_managed = g_variant_get_boolean (v);
+        }
+    }
+
+  if (panel_orientation_managed == self->panel_orientation_managed)
+    return;
+
+  self->panel_orientation_managed = panel_orientation_managed;
+  g_signal_emit_by_name (self, "panel-orientation-managed", self->panel_orientation_managed);
+}
+
+static void
+proxy_properties_changed_cb (GDBusProxy          *proxy,
+                             GVariant            *changed_properties,
+                             GStrv                invalidated_properties,
+                             CcDisplayConfigDBus *self)
+{
+  GVariantDict dict;
+
+  g_variant_dict_init (&dict, changed_properties);
+
+  if (g_variant_dict_contains (&dict, "PanelOrientationManaged"))
+    update_panel_orientation_managed (self);
+}
+
+static void
 cc_display_config_dbus_constructed (GObject *object)
 {
   CcDisplayConfigDBus *self = CC_DISPLAY_CONFIG_DBUS (object);
   g_autoptr(GVariantIter) monitors = NULL;
   g_autoptr(GVariantIter) logical_monitors = NULL;
   g_autoptr(GVariantIter) props = NULL;
+  g_autoptr(GError) error = NULL;
 
   g_variant_get (self->state,
                  CURRENT_STATE_FORMAT,
@@ -1388,6 +1515,21 @@ cc_display_config_dbus_constructed (GObject *object)
     }
 
   construct_monitors (self, monitors, logical_monitors);
+
+  self->proxy = g_dbus_proxy_new_sync (self->connection,
+                                       G_DBUS_PROXY_FLAGS_NONE,
+                                       NULL,
+                                       "org.gnome.Mutter.DisplayConfig",
+                                       "/org/gnome/Mutter/DisplayConfig",
+                                       "org.gnome.Mutter.DisplayConfig",
+                                       NULL,
+                                       &error);
+  if (error)
+    g_warning ("Could not create DisplayConfig proxy: %s", error->message);
+
+  g_signal_connect (self->proxy, "g-properties-changed",
+                    G_CALLBACK (proxy_properties_changed_cb), self);
+  update_panel_orientation_managed (self);
 
   G_OBJECT_CLASS (cc_display_config_dbus_parent_class)->constructed (object);
 }
@@ -1441,6 +1583,7 @@ cc_display_config_dbus_finalize (GObject *object)
 
   g_clear_pointer (&self->state, g_variant_unref);
   g_clear_object (&self->connection);
+  g_clear_object (&self->proxy);
 
   g_list_foreach (self->monitors, (GFunc) g_object_unref, NULL);
   g_clear_pointer (&self->monitors, g_list_free);
@@ -1470,6 +1613,10 @@ cc_display_config_dbus_class_init (CcDisplayConfigDBusClass *klass)
   parent_class->set_cloning = cc_display_config_dbus_set_cloning;
   parent_class->get_cloning_modes = cc_display_config_dbus_get_cloning_modes;
   parent_class->is_layout_logical = cc_display_config_dbus_is_layout_logical;
+  parent_class->is_scaled_mode_valid = cc_display_config_dbus_is_scaled_mode_valid;
+  parent_class->set_minimum_size = cc_display_config_dbus_set_minimum_size;
+  parent_class->get_panel_orientation_managed =
+    cc_display_config_dbus_get_panel_orientation_managed;
 
   pspec = g_param_spec_variant ("state",
                                 "GVariant",

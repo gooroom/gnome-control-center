@@ -154,6 +154,13 @@ struct _CcDisplayConfigClass
                                  gboolean          clone);
   GList*   (*get_cloning_modes) (CcDisplayConfig  *self);
   gboolean (*is_layout_logical) (CcDisplayConfig  *self);
+  void     (*set_minimum_size)  (CcDisplayConfig  *self,
+                                 int               width,
+                                 int               height);
+  gboolean (*is_scaled_mode_valid) (CcDisplayConfig  *self,
+                                    CcDisplayMode    *mode,
+                                    double            scale);
+  gboolean (* get_panel_orientation_managed) (CcDisplayConfig    *self);
 };
 
 
@@ -169,7 +176,19 @@ gboolean          cc_display_config_is_cloning              (CcDisplayConfig    
 void              cc_display_config_set_cloning             (CcDisplayConfig    *config,
                                                              gboolean            clone);
 GList*            cc_display_config_get_cloning_modes       (CcDisplayConfig    *config);
+
+void              cc_display_config_set_mode_on_all_outputs (CcDisplayConfig *config,
+                                                             CcDisplayMode   *mode);
+
 gboolean          cc_display_config_is_layout_logical       (CcDisplayConfig    *self);
+void              cc_display_config_set_minimum_size        (CcDisplayConfig    *self,
+                                                             int                 width,
+                                                             int                 height);
+gboolean          cc_display_config_is_scaled_mode_valid    (CcDisplayConfig    *self,
+                                                             CcDisplayMode      *mode,
+                                                             double              scale);
+gboolean          cc_display_config_get_panel_orientation_managed
+                                                            (CcDisplayConfig    *self);
 
 const char*       cc_display_monitor_get_display_name       (CcDisplayMonitor   *monitor);
 gboolean          cc_display_monitor_is_active              (CcDisplayMonitor   *monitor);
@@ -220,6 +239,7 @@ void              cc_display_monitor_set_usable             (CcDisplayMonitor  *
 int               cc_display_monitor_get_ui_number          (CcDisplayMonitor  *monitor);
 const char*       cc_display_monitor_get_ui_name            (CcDisplayMonitor  *monitor);
 const char*       cc_display_monitor_get_ui_number_name     (CcDisplayMonitor  *monitor);
+char*             cc_display_monitor_dup_ui_number_name     (CcDisplayMonitor  *monitor);
 
 void              cc_display_mode_get_resolution            (CcDisplayMode     *mode,
                                                              int               *width,

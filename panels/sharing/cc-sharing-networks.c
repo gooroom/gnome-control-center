@@ -134,8 +134,8 @@ cc_sharing_update_networks (CcSharingNetworks *self)
 }
 
 static void
-cc_sharing_networks_remove_network (GtkWidget         *button,
-				    CcSharingNetworks *self)
+cc_sharing_networks_remove_network (CcSharingNetworks *self,
+                                    GtkWidget         *button)
 {
   GtkWidget *row;
   g_autoptr(GError) error = NULL;
@@ -159,11 +159,10 @@ cc_sharing_networks_remove_network (GtkWidget         *button,
 }
 
 static gboolean
-cc_sharing_networks_enable_network (GtkSwitch *widget,
+cc_sharing_networks_enable_network (CcSharingNetworks *self,
 				    gboolean   state,
-				    gpointer   user_data)
+                                    GtkSwitch *widget)
 {
-  CcSharingNetworks *self = user_data;
   g_autoptr(GError) error = NULL;
   gboolean ret;
 
@@ -209,6 +208,7 @@ cc_sharing_networks_new_row (const char        *uuid,
 
   row = gtk_list_box_row_new ();
   box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_widget_show (box);
   gtk_container_set_border_width (GTK_CONTAINER (box), 3);
   gtk_widget_set_margin_start (box, 6);
   gtk_container_add (GTK_CONTAINER (row), box);
@@ -222,29 +222,30 @@ cc_sharing_networks_new_row (const char        *uuid,
   }
 
   w = gtk_image_new_from_icon_name (icon_name, GTK_ICON_SIZE_MENU);
+  gtk_widget_show (w);
   gtk_widget_set_margin_end (w, 12);
   gtk_container_add (GTK_CONTAINER (box), w);
 
   /* Label */
   w = gtk_label_new (network_name);
+  gtk_widget_show (w);
   gtk_widget_set_margin_end (w, 12);
   gtk_container_add (GTK_CONTAINER (box), w);
 
   /* Remove button */
   w = gtk_button_new_from_icon_name ("window-close-symbolic", GTK_ICON_SIZE_SMALL_TOOLBAR);
+  gtk_widget_show (w);
   gtk_button_set_relief (GTK_BUTTON (w), GTK_RELIEF_NONE);
   gtk_widget_set_margin_top (w, 3);
   gtk_widget_set_margin_bottom (w, 3);
   gtk_widget_set_margin_end (w, 12);
   gtk_widget_set_valign (w, GTK_ALIGN_CENTER);
   gtk_box_pack_end (GTK_BOX (box), w, FALSE, FALSE, 0);
-  g_signal_connect (G_OBJECT (w), "clicked",
-		    G_CALLBACK (cc_sharing_networks_remove_network), self);
+  g_signal_connect_object (G_OBJECT (w), "clicked",
+                           G_CALLBACK (cc_sharing_networks_remove_network), self, G_CONNECT_SWAPPED);
   g_object_set_data (G_OBJECT (w), "row", row);
 
   g_object_set_data_full (G_OBJECT (row), "uuid", g_strdup (uuid), g_free);
-
-  gtk_widget_show_all (row);
 
   return row;
 }
@@ -256,34 +257,36 @@ cc_sharing_networks_new_current_row (CcSharingNetworks *self)
 
   row = gtk_list_box_row_new ();
   box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_widget_show (box);
   gtk_container_set_border_width (GTK_CONTAINER (box), 3);
   gtk_widget_set_margin_start (box, 6);
   gtk_container_add (GTK_CONTAINER (row), box);
 
   /* Icon */
   w = gtk_image_new_from_icon_name ("image-missing", GTK_ICON_SIZE_MENU);
+  gtk_widget_show (w);
   gtk_widget_set_margin_end (w, 12);
   gtk_container_add (GTK_CONTAINER (box), w);
   self->current_icon = w;
 
   /* Label */
   w = gtk_label_new ("");
+  gtk_widget_show (w);
   gtk_container_add (GTK_CONTAINER (box), w);
   gtk_widget_set_margin_end (w, 12);
   self->current_label = w;
 
   w = gtk_switch_new ();
+  gtk_widget_show (w);
   gtk_widget_set_margin_top (w, 3);
   gtk_widget_set_margin_bottom (w, 3);
   gtk_widget_set_margin_end (w, 12);
   gtk_widget_set_valign (w, GTK_ALIGN_CENTER);
   gtk_box_pack_end (GTK_BOX (box), w, FALSE, FALSE, 0);
-  g_signal_connect (G_OBJECT (w), "state-set",
-		    G_CALLBACK (cc_sharing_networks_enable_network), self);
+  g_signal_connect_object (G_OBJECT (w), "state-set",
+                           G_CALLBACK (cc_sharing_networks_enable_network), self, G_CONNECT_SWAPPED);
   self->current_switch = w;
   g_object_set_data (G_OBJECT (w), "row", row);
-
-  gtk_widget_show_all (box);
 
   return row;
 }
@@ -295,17 +298,17 @@ cc_sharing_networks_new_no_network_row (CcSharingNetworks *self)
 
   row = gtk_list_box_row_new ();
   box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_widget_show (box);
   gtk_container_set_border_width (GTK_CONTAINER (box), 12);
   gtk_container_add (GTK_CONTAINER (row), box);
 
   /* Label */
   w = gtk_label_new (_("No networks selected for sharing"));
+  gtk_widget_show (w);
   gtk_widget_set_hexpand (w, TRUE);
   gtk_widget_set_halign (w, GTK_ALIGN_CENTER);
   gtk_style_context_add_class (gtk_widget_get_style_context (w), "dim-label");
   gtk_container_add (GTK_CONTAINER (box), w);
-
-  gtk_widget_show_all (box);
 
   return row;
 }
@@ -380,6 +383,7 @@ cc_sharing_update_networks_box (CcSharingNetworks *self)
 				       net->network_name,
 				       net->carrier_type,
 				       self);
+    gtk_widget_show (row);
     gtk_list_box_insert (GTK_LIST_BOX (self->listbox), row, -1);
   }
 
@@ -396,9 +400,7 @@ cc_sharing_update_networks_box (CcSharingNetworks *self)
 }
 
 static void
-current_network_changed (GObject           *object,
-			 GParamSpec        *pspec,
-			 CcSharingNetworks *self)
+current_network_changed (CcSharingNetworks *self)
 {
   cc_sharing_update_networks (self);
   cc_sharing_update_networks_box (self);
@@ -429,8 +431,8 @@ cc_sharing_networks_constructed (GObject *object)
   cc_sharing_update_networks (self);
   cc_sharing_update_networks_box (self);
 
-  g_signal_connect (self->proxy, "notify::current-network",
-		    G_CALLBACK (current_network_changed), self);
+  g_signal_connect_object (self->proxy, "notify::current-network",
+                           G_CALLBACK (current_network_changed), self, G_CONNECT_SWAPPED);
 }
 
 static void
@@ -555,7 +557,7 @@ cc_sharing_networks_class_init (CcSharingNetworksClass *klass)
                                                       G_PARAM_READABLE));
 
   gtk_widget_class_set_template_from_resource (widget_class,
-                                               "/org/gnome/control-center/sharing/networks.ui");
+                                               "/org/gnome/control-center/sharing/cc-sharing-networks.ui");
 
   gtk_widget_class_bind_template_child (widget_class, CcSharingNetworks, listbox);
 }

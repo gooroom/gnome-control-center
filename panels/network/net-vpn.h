@@ -19,43 +19,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __NET_VPN_H
-#define __NET_VPN_H
+#pragma once
 
-#include <glib-object.h>
+#include <gtk/gtk.h>
 #include <NetworkManager.h>
-
-#include "net-object.h"
 
 G_BEGIN_DECLS
 
-#define NET_TYPE_VPN          (net_vpn_get_type ())
-#define NET_VPN(o)            (G_TYPE_CHECK_INSTANCE_CAST ((o), NET_TYPE_VPN, NetVpn))
-#define NET_VPN_CLASS(k)      (G_TYPE_CHECK_CLASS_CAST((k), NET_TYPE_VPN, NetVpnClass))
-#define NET_IS_VPN(o)         (G_TYPE_CHECK_INSTANCE_TYPE ((o), NET_TYPE_VPN))
-#define NET_IS_VPN_CLASS(k)   (G_TYPE_CHECK_CLASS_TYPE ((k), NET_TYPE_VPN))
-#define NET_VPN_GET_CLASS(o)  (G_TYPE_INSTANCE_GET_CLASS ((o), NET_TYPE_VPN, NetVpnClass))
+G_DECLARE_FINAL_TYPE (NetVpn, net_vpn, NET, VPN, GtkBox)
 
-typedef struct _NetVpnPrivate         NetVpnPrivate;
-typedef struct _NetVpn                NetVpn;
-typedef struct _NetVpnClass           NetVpnClass;
+NetVpn       *net_vpn_new                (NMClient     *client,
+                                          NMConnection *connection);
 
-struct _NetVpn
-{
-         NetObject               parent;
-         NetVpnPrivate          *priv;
-};
+NMConnection *net_vpn_get_connection     (NetVpn       *vpn);
 
-struct _NetVpnClass
-{
-        NetObjectClass               parent_class;
-};
 
-GType            net_vpn_get_type               (void);
-void             net_vpn_set_show_separator     (NetVpn   *self,
-                                                 gboolean  show_separator);
+void          net_vpn_set_show_separator (NetVpn       *vpn,
+                                          gboolean      show_separator);
 
 G_END_DECLS
-
-#endif /* __NET_VPN_H */
-

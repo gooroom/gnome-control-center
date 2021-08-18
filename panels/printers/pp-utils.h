@@ -17,8 +17,7 @@
  *
  */
 
-#ifndef __PP_UTILS_H__
-#define __PP_UTILS_H__
+#pragma once
 
 #include <gtk/gtk.h>
 #include <cups/cups.h>
@@ -81,11 +80,6 @@ typedef struct
   gsize                 num_of_manufacturers;
 } PPDList;
 
-typedef struct
-{
-  GList *devices;
-} PpDevicesList;
-
 gchar      *get_tag_value (const gchar *tag_string,
                            const gchar *tag_name);
 
@@ -139,7 +133,7 @@ gchar      *printer_get_hostname (cups_ptype_t  printer_type,
                                   const gchar  *device_uri,
                                   const gchar  *printer_uri);
 
-typedef void (*PSPCallback) (gchar    *printer_name,
+typedef void (*PSPCallback) (const gchar *printer_name,
                              gboolean  success,
                              gpointer  user_data);
 
@@ -242,11 +236,9 @@ void        printer_add_option_async (const gchar   *printer_name,
                                       PAOCallback    callback,
                                       gpointer       user_data);
 
-void         pp_devices_list_free (PpDevicesList *result);
-
 const gchar *get_page_size_from_locale (void);
 
-typedef void (*GCDCallback) (GList          *devices,
+typedef void (*GCDCallback) (GPtrArray      *devices,
                              gboolean        finished,
                              gboolean        cancelled,
                              gpointer        user_data);
@@ -258,7 +250,7 @@ void        get_cups_devices_async (GCancellable *cancellable,
 gchar      *guess_device_hostname (PpPrintDevice *device);
 
 gchar      *canonicalize_device_name (GList         *device_names,
-                                      GList         *local_cups_devices,
+                                      GPtrArray     *local_cups_devices,
                                       cups_dest_t   *dests,
                                       gint           num_of_dests,
                                       PpPrintDevice *device);
@@ -266,5 +258,3 @@ gchar      *canonicalize_device_name (GList         *device_names,
 void        shift_string_left (gchar *str);
 
 G_END_DECLS
-
-#endif /* __PP_UTILS_H */

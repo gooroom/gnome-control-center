@@ -131,9 +131,6 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="use_action_appearance">False</property>
-                <accessibility>
-                  <relation type="labelled-by" target="xhairs-section-heading"/>
-                </accessibility>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -360,6 +357,7 @@
                                         <property name="active">True</property>
                                         <property name="draw_indicator">True</property>
                                         <property name="use_underline">True</property>
+                                        <signal name="toggled" handler="mouse_tracking_radio_toggled_cb" object="ZoomOptions" swapped="yes"/>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -379,6 +377,7 @@
                                         <property name="draw_indicator">True</property>
                                         <property name="group">centered_radio</property>
                                         <property name="use_underline">True</property>
+                                        <signal name="toggled" handler="mouse_tracking_radio_toggled_cb" object="ZoomOptions" swapped="yes"/>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -398,6 +397,7 @@
                                         <property name="draw_indicator">True</property>
                                         <property name="group">centered_radio</property>
                                         <property name="use_underline">True</property>
+                                        <signal name="toggled" handler="mouse_tracking_radio_toggled_cb" object="ZoomOptions" swapped="yes"/>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -579,9 +579,6 @@
                                     <property name="use_underline">True</property>
                                     <property name="mnemonic_widget">crosshair_length_slider</property>
                                     <property name="width_chars">12</property>
-                                    <accessibility>
-                                      <relation type="label-for" target="crosshair_length_slider"/>
-                                    </accessibility>
                                     <attributes>
                                       <attribute name="scale" value="1.25"/>
                                     </attributes>
@@ -719,9 +716,6 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="use_action_appearance">False</property>
-                                <accessibility>
-                                  <relation type="labelled-by" target="xhairs-section-heading"/>
-                                </accessibility>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -832,9 +826,6 @@
                                     <property name="justify">right</property>
                                     <property name="use_underline">True</property>
                                     <property name="mnemonic_widget">inverse_enabled_switch</property>
-                                    <accessibility>
-                                      <relation type="label-for" target="inverse_enabled_switch"/>
-                                    </accessibility>
                                     <attributes>
                                       <attribute name="scale" value="1.25"/>
                                     </attributes>
@@ -856,9 +847,6 @@
                                     <property name="use_underline">True</property>
                                     <property name="mnemonic_widget">brightness_slider</property>
                                     <property name="width_chars">12</property>
-                                    <accessibility>
-                                      <relation type="label-for" target="brightness_slider"/>
-                                    </accessibility>
                                     <attributes>
                                       <attribute name="scale" value="1.25"/>
                                     </attributes>
@@ -879,9 +867,6 @@
                                     <property name="justify">right</property>
                                     <property name="use_underline">True</property>
                                     <property name="mnemonic_widget">contrast_slider</property>
-                                    <accessibility>
-                                      <relation type="label-for" target="contrast_slider"/>
-                                    </accessibility>
                                     <attributes>
                                       <attribute name="scale" value="1.25"/>
                                     </attributes>
@@ -902,9 +887,6 @@
                                     <property name="justify">right</property>
                                     <property name="use_underline">True</property>
                                     <property name="mnemonic_widget">grayscale_slider</property>
-                                    <accessibility>
-                                      <relation type="label-for" target="grayscale_slider"/>
-                                    </accessibility>
                                     <attributes>
                                       <attribute name="scale" value="1.25"/>
                                     </attributes>
@@ -993,9 +975,6 @@
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="use_action_appearance">False</property>
-                                        <accessibility>
-                                          <relation type="labelled-by" target="xhairs-section-heading"/>
-                                        </accessibility>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1053,7 +1032,7 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkLabel" id="brighness_high_label">
+                                      <object class="GtkLabel" id="brightness_high_label">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="xalign">0</property>

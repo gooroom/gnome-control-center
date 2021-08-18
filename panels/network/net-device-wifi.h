@@ -19,42 +19,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __NET_DEVICE_WIFI_H
-#define __NET_DEVICE_WIFI_H
+#pragma once
 
-#include <glib-object.h>
-
-#include "net-device.h"
+#include <gtk/gtk.h>
+#include <shell/cc-panel.h>
+#include <NetworkManager.h>
 
 G_BEGIN_DECLS
 
-#define NET_TYPE_DEVICE_WIFI          (net_device_wifi_get_type ())
-#define NET_DEVICE_WIFI(o)            (G_TYPE_CHECK_INSTANCE_CAST ((o), NET_TYPE_DEVICE_WIFI, NetDeviceWifi))
-#define NET_DEVICE_WIFI_CLASS(k)      (G_TYPE_CHECK_CLASS_CAST((k), NET_TYPE_DEVICE_WIFI, NetDeviceWifiClass))
-#define NET_IS_DEVICE_WIFI(o)         (G_TYPE_CHECK_INSTANCE_TYPE ((o), NET_TYPE_DEVICE_WIFI))
-#define NET_IS_DEVICE_WIFI_CLASS(k)   (G_TYPE_CHECK_CLASS_TYPE ((k), NET_TYPE_DEVICE_WIFI))
-#define NET_DEVICE_WIFI_GET_CLASS(o)  (G_TYPE_INSTANCE_GET_CLASS ((o), NET_TYPE_DEVICE_WIFI, NetDeviceWifiClass))
+G_DECLARE_FINAL_TYPE (NetDeviceWifi, net_device_wifi, NET, DEVICE_WIFI, GtkStack)
 
-typedef struct _NetDeviceWifiPrivate   NetDeviceWifiPrivate;
-typedef struct _NetDeviceWifi          NetDeviceWifi;
-typedef struct _NetDeviceWifiClass     NetDeviceWifiClass;
+NetDeviceWifi *net_device_wifi_new               (CcPanel       *panel,
+                                                  NMClient      *client,
+                                                  NMDevice      *device);
 
-struct _NetDeviceWifi
-{
-         NetDevice                       parent;
-         NetDeviceWifiPrivate           *priv;
-};
+NMDevice      *net_device_wifi_get_device        (NetDeviceWifi *device);
 
-struct _NetDeviceWifiClass
-{
-        NetDeviceClass                   parent_class;
-};
+void           net_device_wifi_set_title         (NetDeviceWifi *device,
+                                                  const gchar   *title);
 
-GType            net_device_wifi_get_type          (void) G_GNUC_CONST;
-GtkWidget       *net_device_wifi_get_header_widget (NetDeviceWifi *device_wifi);
-GtkWidget       *net_device_wifi_get_title_widget  (NetDeviceWifi *device_wifi);
+GtkWidget     *net_device_wifi_get_header_widget (NetDeviceWifi *device);
+
+GtkWidget     *net_device_wifi_get_title_widget  (NetDeviceWifi *device);
+
+void           net_device_wifi_turn_off_hotspot  (NetDeviceWifi *self);
 
 G_END_DECLS
-
-#endif /* __NET_DEVICE_WIFI_H */
 

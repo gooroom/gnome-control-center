@@ -22,6 +22,7 @@ sources = files(
   'bolt-device.c',
   'bolt-enums.c',
   'bolt-error.c',
+  'bolt-names.c',
   'bolt-proxy.c',
   'bolt-str.c',
   'bolt-time.c',
@@ -61,7 +62,6 @@ deps = common_deps + [
 ]
 
 cflags += [
-  '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir),
   '-DBINDIR="@0@"'.format(control_center_bindir)
 ]
 

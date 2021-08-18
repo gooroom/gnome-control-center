@@ -1,8 +1,8 @@
 project(
   'gnome-control-center', 'c',
-        version : '3.30.3',
+        version : '3.38.4',
         license : 'GPL2+',
-  meson_version : '>= 0.43.0'
+  meson_version : '>= 0.51.0'
 )
 
 control_center_prefix = get_option('prefix')
@@ -30,8 +30,8 @@ enable_tracing = get_option('tracing')
 
 config_h = configuration_data()
 
-py3 = import('python3')
-python = py3.find_python()
+py = import('python')
+python = py.find_installation('python3')
 
 config_h.set_quoted('TEST_NM_PYTHON', python.path())
 
@@ -41,6 +41,7 @@ set_defines = [
   ['PACKAGE', meson.project_name()],
   ['PACKAGE_VERSION', meson.project_version()],
   ['VERSION', meson.project_version()],
+  ['PROFILE', get_option('profile')],
   # i18n
   ['GETTEXT_PACKAGE', control_center_gettext]
 ]
@@ -92,30 +93,48 @@ libgvc = subproject(
   default_options: [
     'static=true',
     'alsa=false',
+    'package_name=' + control_center_gettext,
+    'package_version=' + meson.project_version(),
   ]
 )
 libgvc_dep = libgvc.get_variable('libgvc_dep')
+
+libhandy_dep = dependency('libhandy-1', version: '>= 0.90.0', required: false)
+if not libhandy_dep.found()
+  libhandy = subproject(
+    'libhandy',
+    default_options: [
+      'examples=false',
+      'glade_catalog=disabled',
+      'introspection=disabled',
+      'tests=false',
+      'vapi=false',
+    ]
+  )
+  libhandy_dep = libhandy.get_variable('libhandy_dep')
+endif
 
 goa_req_version = '>= 3.25.3'
 pulse_req_version = '>= 2.0'
 
 accounts_dep = dependency('accountsservice', version: '>= 0.6.39')
-clutter_gtk_dep = dependency('clutter-gtk-1.0', required: false)
 colord_dep = dependency('colord', version: '>= 0.1.34')
 gdk_pixbuf_dep = dependency('gdk-pixbuf-2.0', version: '>= 2.23.0')
 gio_dep = dependency('gio-2.0')
-glib_dep = dependency('glib-2.0', version: '>= 2.53.0')
+glib_dep = dependency('glib-2.0', version: '>= 2.56.0')
 gnome_desktop_dep = dependency('gnome-desktop-3.0', version: '>= 3.27.90')
-gnome_settings_dep = dependency('gnome-settings-daemon', version: '>= 3.25.90')
+gnome_settings_dep = dependency('gnome-settings-daemon', version: '>= 3.27.90')
 goa_dep = dependency('goa-1.0', version: goa_req_version)
-gsettings_desktop_dep = dependency('gsettings-desktop-schemas', version: '>= 3.27.2')
+gsettings_desktop_dep = dependency('gsettings-desktop-schemas', version: '>= 3.37.1')
 libxml_dep = dependency('libxml-2.0')
-polkit_gobject_dep = dependency('polkit-gobject-1', version: '>= 0.103')
+polkit_gobject_dep = dependency('polkit-gobject-1', version: '>= 0.114')
 pulse_dep = dependency('libpulse', version: pulse_req_version)
 pulse_mainloop_dep = dependency('libpulse-mainloop-glib', version: pulse_req_version)
-upower_glib_dep = dependency('upower-glib', version: '>= 0.99.6')
+upower_glib_dep = dependency('upower-glib', version: '>= 0.99.8')
+gudev_dep = dependency('gudev-1.0', version: '>= 232')
 x11_dep = dependency('x11')
 xi_dep = dependency('xi', version: '>= 1.2')
+epoxy_dep = dependency('epoxy')
 
 m_dep = cc.find_library('m')
 
@@ -123,6 +142,7 @@ common_deps = [
   gio_dep,
   glib_dep,
   gsettings_desktop_dep,
+  libhandy_dep,
   dependency('gio-unix-2.0'),
   dependency('gthread-2.0'),
   dependency('gtk+-3.0', version: '>= 3.22.20')
@@ -135,7 +155,7 @@ assert(cups_dep.found(), 'CUPS 1.4 or newer not found')
 # https://bugzilla.gnome.org/show_bug.cgi?id=696766
 cups_cflags = []
 if cups_dep.version().version_compare('>= 1.6')
-  cups_cflags += '-D_PPD_DEPRECATED=""'
+  cups_cflags += '-D_PPD_DEPRECATED='
 endif
 
 # cups headers
@@ -148,13 +168,14 @@ foreach header: check_headers
   assert(cc.has_header(header[1], args: cups_cflags), 'CUPS headers not found: ' + header[1])
 endforeach
 
+config_h.set10('HAVE_CUPS_HTTPCONNECT2',
+               cc.has_function('httpConnect2', dependencies: cups_dep),
+               description: 'Define if httpConnect2() is available in CUPS')
+
 # Optional dependency for the user accounts panel
 enable_cheese = get_option('cheese')
 if enable_cheese
-  assert(clutter_gtk_dep.found(), 'cheese support requested, but clutter-gtk library is not available. Use -Dcheese=false to build without it.')
-
   cheese_deps = [
-    clutter_gtk_dep,
     dependency('cheese', version: '>= 3.28.0'),
     dependency('cheese-gtk', version: '>= 3.5.91')
   ]
@@ -170,26 +191,33 @@ endif
 config_h.set('HAVE_IBUS', enable_ibus,
              description: 'Defined if IBus support is enabled')
 
-# wayland
-enable_wayland = get_option('wayland')
-if enable_wayland
-  wayland_deps = [
-    dependency('gdk-wayland-3.0'),
-    dependency('gudev-1.0')
-  ]
-endif
-config_h.set('HAVE_WAYLAND', enable_wayland,
-             description: 'Define to 1 if Wayland is enabled')
-
 # thunderbolt
 config_h.set10('HAVE_FN_EXPLICIT_BZERO',
                cc.has_function('explicit_bzero', prefix: '''#include <string.h>'''),
                description: 'Define if explicit_bzero is available')
 
+# Snap support
+enable_snap = get_option('snap')
+if enable_snap
+  snapd_glib_deps = [
+    dependency('snapd-glib', version: '>= 1.57')
+  ]
+endif
+config_h.set('HAVE_SNAP', enable_snap,
+             description: 'Define to 1 if Snap support is enabled')
+
+# malcontent support
+enable_malcontent = get_option('malcontent')
+if enable_malcontent
+  malcontent_dep = dependency('malcontent-0', version: '>= 0.7.0')
+endif
+config_h.set('HAVE_MALCONTENT', enable_malcontent,
+             description: 'Define to 1 if malcontent support is enabled')
+
 if host_is_linux
   # network manager
   network_manager_deps = [
-    dependency('libnm', version: '>= 1.10.0'),
+    dependency('libnm', version: '>= 1.20.0'),
     dependency('libnma', version: '>= 1.8.0'),
     dependency('mm-glib', version: '>= 0.7')
   ]
@@ -203,15 +231,10 @@ if host_is_linux_not_s390
   # gnome-bluetooth
   gnome_bluetooth_dep = dependency('gnome-bluetooth-1.0', version: '>= 3.18.2')
 
-  # Wacom
-  assert(clutter_gtk_dep.found(), 'clutter-gtk library is required for wacom support, but is not available.')
-
   libwacom_dep = dependency('libwacom', version: '>= 0.7')
 
   wacom_deps = [
-    clutter_gtk_dep,
     libwacom_dep,
-    dependency('clutter-1.0', version: '>= 1.11.3'),
   ]
   config_h.set('HAVE_WACOM_3D_STYLUS', libwacom_dep.version().version_compare('>= 0.27'),
                description: 'Define to 1 if libwacom provides definition for 3D styli')
@@ -229,12 +252,6 @@ config_h.set('HAVE_WACOM', host_is_linux_not_s390,
              description: 'Define to 1 if Wacom is supportted')
 config_h.set('BUILD_THUNDERBOLT', host_is_linux_not_s390,
              description: 'Define to 1 to build the Thunderbolt panel')
-
-# Check for info panel
-gnome_session_libexecdir = get_option('gnome_session_libexecdir')
-if gnome_session_libexecdir == ''
-  gnome_session_libexecdir = control_center_libexecdir
-endif
 
 gnome = import('gnome')
 i18n = import('i18n')
@@ -260,7 +277,10 @@ subdir('po')
 subdir('panels')
 subdir('shell')
 subdir('search-provider')
-subdir('tests')
+
+if get_option('tests')
+  subdir('tests')
+endif
 
 if get_option('documentation')
   subdir('man')
@@ -276,8 +296,8 @@ output += '\n        ' + meson.project_name() + ' - ' + meson.project_version() 
 output += '    ===================================\n'
 output += ' Options \n'
 output += '     Documentation .............................. ' + get_option('documentation').to_string() + '\n'
+output += '     Build Tests ................................ ' + get_option('tests').to_string() + '\n'
 output += '     Tracing .................................... ' + enable_tracing.to_string() + '\n'
-output += '     gnome-session libexecdir ................... ' + gnome_session_libexecdir + '\n'
 output += '     Optimized .................................. ' + control_center_optimized.to_string() + '\n'
 output += ' Panels \n'
 output += '     GNOME Bluetooth (Bluetooth panel) .......... ' + host_is_linux_not_s390.to_string() + '\n'
@@ -285,6 +305,7 @@ output += '     Cheese (Users panel webcam support) ........ ' + enable_cheese.t
 output += '     IBus (Region panel IBus support) ........... ' + enable_ibus.to_string() + '\n'
 output += '     NetworkManager (Network panel) ............. ' + host_is_linux.to_string() + '\n'
 output += '     Wacom (Wacom tablet panel) ................. ' + host_is_linux_not_s390.to_string() + '\n'
-output += '     Wayland .................................... ' + enable_wayland.to_string() + '\n'
+output += '     Snap support ............................... ' + enable_snap.to_string() + '\n'
+output += '     Malcontent support ......................... ' + enable_malcontent.to_string() + '\n'
 
 message(output)

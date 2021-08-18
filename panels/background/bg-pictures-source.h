@@ -19,9 +19,7 @@
  *
  */
 
-
-#ifndef _BG_PICTURES_SOURCE_H
-#define _BG_PICTURES_SOURCE_H
+#pragma once
 
 #include <gtk/gtk.h>
 #include "bg-source.h"
@@ -32,7 +30,7 @@ G_BEGIN_DECLS
 #define BG_TYPE_PICTURES_SOURCE (bg_pictures_source_get_type ())
 G_DECLARE_FINAL_TYPE (BgPicturesSource, bg_pictures_source, BG, PICTURES_SOURCE, BgSource)
 
-BgPicturesSource *bg_pictures_source_new            (GtkWindow *window);
+BgPicturesSource *bg_pictures_source_new            (GtkWidget *widget);
 char             *bg_pictures_source_get_cache_path (void);
 char             *bg_pictures_source_get_unique_path(const char *uri);
 gboolean          bg_pictures_source_add            (BgPicturesSource     *bg_source,
@@ -46,5 +44,3 @@ gboolean          bg_pictures_source_is_known       (BgPicturesSource *bg_source
 const char * const * bg_pictures_get_support_content_types (void);
 
 G_END_DECLS
-
-#endif /* _BG_PICTURES_SOURCE_H */

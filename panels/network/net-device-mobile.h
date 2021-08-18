@@ -19,41 +19,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __NET_DEVICE_MOBILE_H
-#define __NET_DEVICE_MOBILE_H
+#pragma once
 
-#include <glib-object.h>
+#include <gtk/gtk.h>
 #include <NetworkManager.h>
-
-#include "net-device.h"
 
 G_BEGIN_DECLS
 
-#define NET_TYPE_DEVICE_MOBILE          (net_device_mobile_get_type ())
-#define NET_DEVICE_MOBILE(o)            (G_TYPE_CHECK_INSTANCE_CAST ((o), NET_TYPE_DEVICE_MOBILE, NetDeviceMobile))
-#define NET_DEVICE_MOBILE_CLASS(k)      (G_TYPE_CHECK_CLASS_CAST((k), NET_TYPE_DEVICE_MOBILE, NetDeviceMobileClass))
-#define NET_IS_DEVICE_MOBILE(o)         (G_TYPE_CHECK_INSTANCE_TYPE ((o), NET_TYPE_DEVICE_MOBILE))
-#define NET_IS_DEVICE_MOBILE_CLASS(k)   (G_TYPE_CHECK_CLASS_TYPE ((k), NET_TYPE_DEVICE_MOBILE))
-#define NET_DEVICE_MOBILE_GET_CLASS(o)  (G_TYPE_INSTANCE_GET_CLASS ((o), NET_TYPE_DEVICE_MOBILE, NetDeviceMobileClass))
+G_DECLARE_FINAL_TYPE (NetDeviceMobile, net_device_mobile, NET, DEVICE_MOBILE, GtkBox)
 
-typedef struct _NetDeviceMobilePrivate         NetDeviceMobilePrivate;
-typedef struct _NetDeviceMobile                NetDeviceMobile;
-typedef struct _NetDeviceMobileClass           NetDeviceMobileClass;
+NetDeviceMobile *net_device_mobile_new          (NMClient        *client,
+                                                 NMDevice        *device,
+                                                 GDBusObject     *modem);
 
-struct _NetDeviceMobile
-{
-         NetDevice                       parent;
-         NetDeviceMobilePrivate         *priv;
-};
+NMDevice          *net_device_mobile_get_device (NetDeviceMobile *device);
 
-struct _NetDeviceMobileClass
-{
-        NetDeviceClass                   parent_class;
-};
-
-GType            net_device_mobile_get_type             (void);
+void               net_device_mobile_set_title  (NetDeviceMobile *device,
+                                                 const gchar     *title);
 
 G_END_DECLS
-
-#endif /* __NET_DEVICE_MOBILE_H */
-

@@ -1,68 +1,526 @@
-===============
-Version 3.30.3
-===============
+================
+Version 3.38.4
+================
 
-- Translation updates
+- Updated translations
+
+User Accounts:
+- Properly handle claiming errors if we're already claiming.
+- Always call EnrollStop on enrollment complete.
+
+================
+Version 3.38.3
+================
+
+- Updated translations
+
+Display:
+- Fix crash when unable to get display configuration.
+
+Network:
+- Fix smal leak getting WiFi secrets.
+
+Printers:
+- Fix small leaks in new printer dialog.
+
+User Accounts:
+- Fix crash showing error in fingerprint dialog.
+
+================
+Version 3.38.2
+================
+
+- Updated translations
+
+Applications:
+- Fix NULL hash table being unreffed.
+
+Keyboard:
+- fix gtk_widget_get_can_default assertion error.
+
+Network:
+- Correctly detect when ethernet devices are hotplugged.
+
+Printers:
+- Make printers panel have a smaller minimum width.
+- Fix leak of printer name in callbacks.
+
+Sharing:
+- Disable Tracker 3.
+
+Sound:
+- Update libgvc to add support for recent UCM related changes in ALSA and
+  PulseAudio.
+
+Users:
+- Fix free of const string.
+
+Wacom:
+- Fix a critical warning if loading a cursor fails.
+
+================
+Version 3.38.1
+================
+
+- Updated translations
+
+Keyboard
+- Fix behavior of "Replace" when adding custom shortcut
+
+Sound
+- Update the profile list after getting the signal from gvc
+- Fix subwoofer slider
+
+================
+Version 3.38.0
+================
+
+- Updated translations
+
+================
+Version 3.37.92
+================
+
+- Updated translations
+
+Display
+- Show screen orientation setting even when accelerometer is present
+
+Wacom
+- Group pad/stylus devices together with the group name
+
+================
+Version 3.37.90
+================
+
+- Rename Universal to Accessibility
+- Updated translations
+- Clean CI jobs
+- Adapt to libhandy-1
+
+Network
+- Add support for Enhanced Open Wi-Fi security
+- Fix connection editor blanking when removing manual entry
+- Small fixes
+
+Thunderbolt
+- Plug some memory leaks
+
+User Accounts
+- Show "Take a picture" button only when cam is available
+
+================
+Version 3.37.3
+================
+
+- Update various panels with more modern GTK practices
+- Improve how time periods are displayed
+- Rework CI images to use FreeDesktop-style templates
+- Improve Settings icon
+- Updated translations
+
+Applications
+- Integrate with parental controls
+
+Date & Time
+- Add new time editor UI
+
+Keyboard
+- Various cleanups
+
+Lock Screen
+- Add USB protection entry when available
+
+Power
+- Add option to show battery percentage
+- Various smaller UI adjustments
+
+Printers
+- Do not authenticate SMB servers when search field is edited
+
+Sharing
+- Set label for checkbox properly
+- Use gnome-remote-desktop instead of Vino on X11
+
+Sound
+- Fix translation of "System Sounds"
+- Stop non-interactive profile changes from triggering changed events
+
+User Accounts
+- Always show permissions bar, even when no users are listed
+- Use custom setting to override faces
+- New Fingerprint dialog and various related improvements
+- Integrate with parental controls
+
+================
+Version 3.36.1
+================
+
+- Update man page for info panel change
+- Updated translations
+
+Display
+- Fix resolution options getting stuck in a low resolution
+
+Sound
+- Remove unused files
+
+================
+Version 3.36.0
+================
+
+- Updated translations
+
+================
+Version 3.35.92
+================
+
+- Updated translations
+
+Applications
+- Update icon
+
+Background
+- Remove split desktop and lock screen wallpapers
+- Improve visuals of the background icons
+
+Network
+- Make VPN gear buttons consistent with oter buttons
+
+================
+Version 3.35.91
+================
+
+- Share GCancellable code
+- Updated translations
+
+Background
+- Remove unused GCancellable
+
+Power
+- Fix mobile broadband switch logic
+
+Sharing
+- Remember password on remote desktop sharing
+
+Thunderbolt
+- Fix GCancellable leak
+
+User Accounts
+- Always generate user avatars
+
+================
+Version 3.35.90
+================
+
+- New sidebar panel order and grouping
+- Introduce CcPermissionInfoBar
+- More code style updates
+- Updated translations
+
+Applications
+- Add "Run in Background" switch
+- Add "Set Desktop Background" switch
+- Show snap packages
+
+Network
+- Add SAE support
+- Many code refactorings
+- Switch to use GtkTemplate
+
+Power
+- Hide power button the chassis is handset
+
+Printers
+- Use CcPermissionInfoBar
+
+Region & Language
+- New design for the Formats dialog
+
+User Accounts
+- Use CcPermissionInfoBar
+- Improved layout
+
+================
+Version 3.35.2
+================
+
+- Tighten up code style
+- Improve timezone for various countries
+- Replace deprecated logging functions with modern equivalents
+- Updated translations
+
+Background
+- Update clock in both preview modes
+
+Date & Time
+- Allow changing the timezone when auto-update is prohibited
+
+Display
+- Replace CC_DISPLAY_*_GET_PRIVATE
+
+Info
+- Implement new design
+- Add windowing system field
+
+Network
+- Add new hotspot creation dialog
+- Major cleanups and code refactorings
+- Plug various memory leaks
+
+Privacy
+- Drop the panel and replace it by various subpanels
+
+Search
+- Make rows and its elements reachable via keyboard
+
+Sharing
+- Set new shared folder visible as soon as it gets added
+
+Sound
+- Remove leftover canberra-gtk header inclusion
+
+Universal Access
+- Make rows and its elements reachable via keyboard
+
+User Accounts
+- Use 'pw usershow' to check username validity on FreeBSD
+
+
+================
+Version 3.34.0.1
+================
+
+Sound
+- Fix sliders not behaving properly
+
+
+================
+Version 3.34.0
+================
+
+- Updated translations
+
+================
+Version 3.33.90
+================
+
+- Updated translations
+
+Background:
+- Clarify remove background button
 
 Display:
 - Various bugfixes
 
-Network:
-- Move AP list population into an idle handler
-
-Power:
-- Fix device label alignment
-
-Thunderbolt:
-- Fix double free in bolt client
-
-Universal Access:
-- Reverse Repeat Keys Speed direction
+Search:
+- Introduce Drag n' Drop
+- Visual polishment
 
 
-===============
-Version 3.30.2
-===============
+================
+Version 3.33.3
+================
 
-- Translation updates
+- Various minor improvements from the Every Detail Matters session
+- Add shadows to application icons
+- Documented Communication Guidelines
+- Development builds with Flatpak working again
+- Updated translations
+
+Background:
+- Redesigned panel
 
 Display:
-- Hide unsupported resolutions again
-- Improve snapping
-- Stop night light dialog being destroyed twice
+- Move Night Light to a tab, instead of a dialog
+
+Keyboard Shortcuts:
+- Panel renamed from "Keyboard"
+- Minor UI adjustments
+
+Mouse & Touchpad:
+- Reinstate keyboard navitation
+
+Power:
+- Don't treat all batteries as laptop batteries
+
+Sharing:
+- Use a HdyLeaflet
+
+User Accounts:
+- Present the default avatar in the avatar popover
+
+Wacom:
+- Ensure calibrator UI CSS only applies to its UI
+
+
+================
+Version 3.32.1
+================
+
+- Add shadows to application icons
+- Updated translations
+
+Applications:
+- Fix wrong IDs being passed to portal permission store
+
+Display:
+- Various bugfixes to multimonitor setups
+
+Mouse & Touchpad:
+- Sync touchpad scrolling switch states correctly
+
+Network:
+- Only show Bluetooth devices in Bluetooth section
 
 Online Accounts:
-- Track the lifecycle of CcGoaPanel across async calls
-
-Region:
-- Fix double-free when closing the input chooser dialog
+- Fix invisible widgets
 
 Wi-Fi:
-- Disable periodic scan only when Wi-Fi is disabled
+- Fix connection names with markup not showing up
+
+
+================
+Version 3.32.0.1
+================
+
+- Emergency release with a fix for broken translations and the Display
+  panel
 
 
 ===============
-Version 3.30.1
+Version 3.32.0
 ===============
 
 - Translation updates
-- Fix crash in the object cache system
 
-Color:
-- Fix fallout from GtkTemplate port
+
+===============
+Version 3.31.92
+===============
+
+- Translation updates
+- CI improvements
+- Revert making Settings responsive; it needs more polish to reach the
+  quality we want.
+
+User Accounts:
+- Improve behavior when dealing with very long names
+- Fix crashes
+- Remove custom file size limit for avatars
+- Allow bigger custom avatars
+
+
+===============
+Version 3.31.90
+===============
+
+- Make Settings and various panels responsive
+- Various accessibility fixes
+- Translation updates
+
+Printers:
+- Various cleanups
+
+Region and Language:
+- Make rows reordetable with drag and drop
+
+Sound:
+- Redesign the Sound panel
+
+User Accounts:
+- Allow ‘Remove User’ button to be focused
+- Round user images
+
+
+===============
+Version 3.31.4
+===============
+
+- Introduce the new Applications panel
+- Panels can now expose a custom sidebar widget
+- Improve CI image building scripts
+- Translation updates
+
+Applications:
+- Introduce the new Applications panel
+
+Bluetooth:
+- Cleanup and reorganize code
+
+Display:
+- Add Night Light slider to set temperature
+
+Network:
+- Allow Wi-Fi panel to reach narrower sizes
+- Cleanups and smaller performance improvement preparations
+
+Notifications:
+- Use libhandy's HdyColumn
+
+Online Accounts:
+- Use libhandy's HdyColumn
 
 Power:
-- Do not crash when canceling KDB brightness proxy creation
+- Label PENDING_CHARGE state as "Not Charging"
 
-Region:
-- Do not release locale keys in IM hash table
-- Plug leaking GFile objects
-- Replace tab characters by whitespaces
-- Fix language section not marked as insensitive
-- Cancel async permission when panel is closed
+Printers:
+- Cleanups and memory leaks plugs
+
+Privacy:
+- Use libhandy's HdyColumn
+
+Thunderbolt:
+- Fix double-free
+
+User Accounts:
+- Rename classes
+
+Wacom:
+- Map Wacom-driver-specific generic IDs to 0
+
+
+===============
+Version 3.31.2
+===============
+
+- Use X-GNOME-UsesNotifications on various desktop files
+- Introduce new icon
+- Add interative test panels
+- Translation updates
+
+Date & Time:
+- Grey out automatic timezone
+
+Display:
+- Correctly add minor axis to snapping
+- Correctly snap on various situations
+
+Network:
+- Cleanup many classes
+
+Online Accounts:
+- Track lifecycle of CcGoaPanel across async calls
+
+Privacy:
+- Use templates
+
+Region and Language:
+- Use a popover instead of a dialog for input options
+- Redesign language chooser widget
+- Plug various leaks
+- Major cleanups
 
 Sharing:
-- Bind hostname entry from UI
+- Bind hostname entry
+
+User Accounts:
+- Use templates
+- Do not crash when libpwquality fails
+
+Wacom:
+- Port calibrator UI to GTK
+- Remove clutter-gtk dependency
 
 
 ===============

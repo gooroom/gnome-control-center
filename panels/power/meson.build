@@ -17,9 +17,16 @@ i18n.merge_file(
   install_dir: control_center_desktopdir
 )
 
-sources = files('cc-power-panel.c')
+sources = files(
+  'cc-brightness-scale.c',
+  'cc-power-panel.c'
+)
 
-resource_data = files('power.ui')
+sources += gnome.mkenums_simple(
+  'cc-brightness-scale-types',
+  sources: ['cc-brightness-scale.h'])
+
+resource_data = files('cc-power-panel.ui')
 
 sources += gnome.compile_resources(
   'cc-' + cappletname + '-resources',
@@ -33,8 +40,6 @@ deps = common_deps + [
   gnome_settings_dep,
   upower_glib_dep
 ]
-
-cflags += '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir)
 
 if host_is_linux
   deps += network_manager_deps

@@ -81,7 +81,7 @@ cc_wacom_button_row_update_shortcut (CcWacomButtonRow        *row,
 {
   guint                    keyval;
   GdkModifierType          mask;
-  char                    *shortcut;
+  g_autofree gchar        *shortcut = NULL;
 
   if (action_type != G_DESKTOP_PAD_BUTTON_ACTION_KEYBINDING)
     return;
@@ -96,8 +96,6 @@ cc_wacom_button_row_update_shortcut (CcWacomButtonRow        *row,
                     "key-value", keyval,
                     "key-mods", mask,
                     NULL);
-
-      g_free (shortcut);
     }
 }
 
@@ -153,10 +151,9 @@ change_button_action_type (CcWacomButtonRow        *row,
 }
 
 static void
-on_key_shortcut_edited (GsdWacomKeyShortcutButton *shortcut_button,
-                        CcWacomButtonRow    *row)
+on_key_shortcut_edited (CcWacomButtonRow *row)
 {
-  char *custom_key;
+  g_autofree gchar *custom_key = NULL;
   guint keyval;
   GdkModifierType mask;
 
@@ -172,28 +169,24 @@ on_key_shortcut_edited (GsdWacomKeyShortcutButton *shortcut_button,
   custom_key = gtk_accelerator_name (keyval, mask);
 
   g_settings_set_string (row->settings, KEYBINDING_KEY, custom_key);
-
-  g_free (custom_key);
 }
 
 static void
-on_key_shortcut_cleared (GsdWacomKeyShortcutButton *key_shortcut_button,
-                         CcWacomButtonRow    *row)
+on_key_shortcut_cleared (CcWacomButtonRow *row)
 {
   change_button_action_type (row, G_DESKTOP_PAD_BUTTON_ACTION_NONE);
   cc_wacom_button_row_update_action (row, G_DESKTOP_PAD_BUTTON_ACTION_NONE);
 }
 
 static void
-on_row_action_combo_box_changed (GtkComboBox      *combo,
-                                 CcWacomButtonRow *row)
+on_row_action_combo_box_changed (CcWacomButtonRow *row)
 {
   GDesktopPadButtonAction type;
   GtkTreeModel *model;
   GtkListBox *list_box;
   GtkTreeIter iter;
 
-  if (!gtk_combo_box_get_active_iter (combo, &iter))
+  if (!gtk_combo_box_get_active_iter (row->action_combo, &iter))
     return;
 
   /* Select the row where we changed the combo box (if not yet selected) */
@@ -201,23 +194,21 @@ on_row_action_combo_box_changed (GtkComboBox      *combo,
   if (list_box && gtk_list_box_get_selected_row (list_box) != GTK_LIST_BOX_ROW (row))
     gtk_list_box_select_row (list_box, GTK_LIST_BOX_ROW (row));
 
-  model = gtk_combo_box_get_model (combo);
+  model = gtk_combo_box_get_model (row->action_combo);
   gtk_tree_model_get (model, &iter, ACTION_TYPE_COLUMN, &type, -1);
 
   change_button_action_type (row, type);
 }
 
 static gboolean
-on_key_shortcut_button_press_event (GsdWacomKeyShortcutButton  *button,
-                                    GdkEventButton       *event,
-                                    GtkListBoxRow        *row)
+on_key_shortcut_button_press_event (CcWacomButtonRow *row)
 {
   GtkListBox *list_box;
 
   /* Select the row where we pressed the button (if not yet selected) */
   list_box = GTK_LIST_BOX (gtk_widget_get_parent (GTK_WIDGET (row)));
-  if (list_box && gtk_list_box_get_selected_row (list_box) != row)
-    gtk_list_box_select_row (list_box, row);
+  if (list_box && gtk_list_box_get_selected_row (list_box) != GTK_LIST_BOX_ROW (row))
+    gtk_list_box_select_row (list_box, GTK_LIST_BOX_ROW (row));
 
   return FALSE;
 }
@@ -238,7 +229,7 @@ cc_wacom_button_row_new (guint      button,
 {
   CcWacomButtonRow        *row;
   GtkWidget               *grid, *combo, *label, *shortcut_button;
-  char *name = NULL;
+  g_autofree gchar        *name = NULL;
 
   row = CC_WACOM_BUTTON_ROW (g_object_new (CC_WACOM_TYPE_BUTTON_ROW, NULL));
 
@@ -260,29 +251,30 @@ cc_wacom_button_row_new (guint      button,
   gtk_grid_attach (GTK_GRID (grid), combo, 1, 0, 1, 1);
   gtk_widget_show (combo);
   row->action_combo = GTK_COMBO_BOX (combo);
-  g_signal_connect (combo, "changed",
-                    G_CALLBACK (on_row_action_combo_box_changed), row);
+  g_signal_connect_object (combo, "changed",
+                           G_CALLBACK (on_row_action_combo_box_changed), row, G_CONNECT_SWAPPED);
 
   shortcut_button = gsd_wacom_key_shortcut_button_new ();
   g_object_set (shortcut_button, "mode", GSD_WACOM_KEY_SHORTCUT_BUTTON_MODE_ALL, NULL);
   gtk_grid_attach (GTK_GRID (grid), shortcut_button, 2, 0, 1, 1);
   gtk_widget_show (shortcut_button);
   row->key_shortcut_button = GSD_WACOM_KEY_SHORTCUT_BUTTON (shortcut_button);
-  g_signal_connect (shortcut_button, "key-shortcut-cleared",
-                    G_CALLBACK (on_key_shortcut_cleared),
-                    row);
-  g_signal_connect (shortcut_button, "key-shortcut-edited",
-                    G_CALLBACK (on_key_shortcut_edited),
-                    row);
-  g_signal_connect (shortcut_button, "button-press-event",
-                    G_CALLBACK (on_key_shortcut_button_press_event),
-                    row);
+  g_signal_connect_object (shortcut_button, "key-shortcut-cleared",
+                           G_CALLBACK (on_key_shortcut_cleared),
+                           row,
+                           G_CONNECT_SWAPPED);
+  g_signal_connect_object (shortcut_button, "key-shortcut-edited",
+                           G_CALLBACK (on_key_shortcut_edited),
+                           row,
+                           G_CONNECT_SWAPPED);
+  g_signal_connect_object (shortcut_button, "button-press-event",
+                           G_CALLBACK (on_key_shortcut_button_press_event),
+                           row,
+                           G_CONNECT_SWAPPED);
 
   gtk_container_add (GTK_CONTAINER (row), grid);
 
   cc_wacom_button_row_update (CC_WACOM_BUTTON_ROW (row));
-
-  g_free (name);
 
   return GTK_WIDGET (row);
 }
