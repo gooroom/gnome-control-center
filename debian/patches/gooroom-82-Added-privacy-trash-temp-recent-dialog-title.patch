@@ -1,0 +1,157 @@
+diff --git a/panels/privacy/cc-privacy-panel.c b/panels/privacy/cc-privacy-panel.c
+index cf152b8..2d3a805 100644
+--- a/panels/privacy/cc-privacy-panel.c
++++ b/panels/privacy/cc-privacy-panel.c
+@@ -79,7 +79,7 @@ struct _CcPrivacyPanel
+ 
+ CC_PANEL_REGISTER (CcPrivacyPanel, cc_privacy_panel)
+ 
+-static gboolean run_warning (GtkWindow *parent, char *prompt, char *test, char *button_title);
++static gboolean run_warning (GtkWindow *parent, char *title, char *prompt, char *test, char *button_title);
+ 
+ static char *
+ get_os_name (void)
+@@ -933,7 +933,8 @@ clear_recent (CcPrivacyPanel *self)
+   GtkWidget *dialog;
+ 
+   dialog = WID ("recent_dialog");
+-  result = run_warning (GTK_WINDOW (dialog), _("Clear all items in Recent?"),
++  result = run_warning (GTK_WINDOW (dialog), _("Clear Recent"),
++                        _("Clear all items in Recent?"),
+                         _("All items in the Recent will be cleared."),
+                         _("_Clear Recent"));
+ 
+@@ -1053,7 +1054,7 @@ set_purge_after_value_for_combo (GtkComboBox    *combo_box,
+ }
+ 
+ static gboolean
+-run_warning (GtkWindow *parent, char *prompt, char *text, char *button_title)
++run_warning (GtkWindow *parent, char *title, char *prompt, char *text, char *button_title)
+ {
+   GtkWidget *dialog;
+   GtkWidget *button;
+@@ -1063,6 +1064,8 @@ run_warning (GtkWindow *parent, char *prompt, char *text, char *button_title)
+                                    GTK_MESSAGE_WARNING,
+                                    GTK_BUTTONS_NONE,
+                                    NULL);
++
++  gtk_window_set_title (GTK_WINDOW (dialog), title);
+   g_object_set (dialog,
+                 "text", prompt,
+                 "secondary-text", text,
+@@ -1089,7 +1092,8 @@ empty_trash (CcPrivacyPanel *self)
+   GtkWidget *dialog;
+ 
+   dialog = WID ("trash_dialog");
+-  result = run_warning (GTK_WINDOW (dialog), _("Empty all items from Trash?"),
++  result = run_warning (GTK_WINDOW (dialog), _("Empty Trash"),
++                        _("Empty all items from Trash?"),
+                         _("All items in the Trash will be permanently deleted."),
+                         _("_Empty Trash"));
+ 
+@@ -1114,7 +1118,8 @@ purge_temp (CcPrivacyPanel *self)
+   GtkWidget *dialog;
+ 
+   dialog = WID ("trash_dialog");
+-  result = run_warning (GTK_WINDOW (dialog), _("Delete all the temporary files?"),
++  result = run_warning (GTK_WINDOW (dialog), _("Purge Temporary Files"),
++                        _("Delete all the temporary files?"),
+                         _("All the temporary files will be permanently deleted."),
+                         _("_Purge Temporary Files"));
+ 
+diff --git a/po/ko.po b/po/ko.po
+index 34d0647..4d37e92 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -5009,50 +5009,62 @@ msgid "Location Services"
+ msgstr "위치 서비스"
+ 
+ #: panels/privacy/cc-privacy-panel.c:936
++msgid "Clear Recent"
++msgstr "최근 기록 비우기"
++
++#: panels/privacy/cc-privacy-panel.c:937
+ msgid "Clear all items in Recent?"
+ msgstr "모든 최근 기록을 비우시겠습니까?"
+ 
+-#: panels/privacy/cc-privacy-panel.c:937
++#: panels/privacy/cc-privacy-panel.c:938
+ msgid "All items in the Recent will be cleared."
+ msgstr "모든 최근 기록을 완전히 정리합니다."
+ 
+-#: panels/privacy/cc-privacy-panel.c:938
++#: panels/privacy/cc-privacy-panel.c:939
+ msgid "_Clear Recent"
+ msgstr "최근 기록 비우기(_C)"
+ 
+-#: panels/privacy/cc-privacy-panel.c:955 panels/privacy/privacy.ui:127
++#: panels/privacy/cc-privacy-panel.c:956 panels/privacy/privacy.ui:127
+ msgid "Usage & History"
+ msgstr "사용 내역"
+ 
+-#: panels/privacy/cc-privacy-panel.c:1084
++#: panels/privacy/cc-privacy-panel.c:1095
++msgid "Empty Trash"
++msgstr "휴지통 비우기"
++
++#: panels/privacy/cc-privacy-panel.c:1096
+ msgid "Empty all items from Trash?"
+ msgstr "휴지통의 모든 항목을 비우시겠습니까?"
+ 
+-#: panels/privacy/cc-privacy-panel.c:1085
++#: panels/privacy/cc-privacy-panel.c:1097
+ msgid "All items in the Trash will be permanently deleted."
+ msgstr "휴지통의 모든 항목을 완전히 삭제합니다."
+ 
+-#: panels/privacy/cc-privacy-panel.c:1086
++#: panels/privacy/cc-privacy-panel.c:1098
+ msgid "_Empty Trash"
+ msgstr "휴지통 비우기(_E)"
+ 
+-#: panels/privacy/cc-privacy-panel.c:1109
++#: panels/privacy/cc-privacy-panel.c:1121
++msgid "Purge Temporary Files"
++msgstr "임시 파일 지우기"
++
++#: panels/privacy/cc-privacy-panel.c:1122
+ msgid "Delete all the temporary files?"
+ msgstr "모든 임시 파일을 지우시겠습니까?"
+ 
+-#: panels/privacy/cc-privacy-panel.c:1110
++#: panels/privacy/cc-privacy-panel.c:1123
+ msgid "All the temporary files will be permanently deleted."
+ msgstr "모든 임시 파일을 완전히 삭제합니다."
+ 
+-#: panels/privacy/cc-privacy-panel.c:1111
++#: panels/privacy/cc-privacy-panel.c:1124
+ msgid "_Purge Temporary Files"
+ msgstr "임시 파일 지우기(_P)"
+ 
+-#: panels/privacy/cc-privacy-panel.c:1133 panels/privacy/privacy.ui:432
++#: panels/privacy/cc-privacy-panel.c:1146 panels/privacy/privacy.ui:432
+ msgid "Purge Trash & Temporary Files"
+ msgstr "휴지통 및 임시 파일 지우기"
+ 
+-#: panels/privacy/cc-privacy-panel.c:1173 panels/privacy/privacy.ui:637
++#: panels/privacy/cc-privacy-panel.c:1186 panels/privacy/privacy.ui:637
+ msgid "Software Usage"
+ msgstr "소프트웨어 사용"
+ 
+@@ -5061,7 +5073,7 @@ msgid "Problem Reporting"
+ msgstr "문제점 보고"
+ 
+ #. translators: '%s' is the distributor's name, such as 'Fedora'
+-#: panels/privacy/cc-privacy-panel.c:1228
++#: panels/privacy/cc-privacy-panel.c:1241
+ #, c-format
+ msgid ""
+ "Sending reports of technical problems helps us improve %s. Reports are sent "
+@@ -5070,7 +5082,7 @@ msgstr ""
+ "기술적인 문제점에 대한 보고서를 보내면 %s 개선에 도움이 됩니다. 보고서는 익명"
+ "으로 전송되고 개인 정보는 가려집니다."
+ 
+-#: panels/privacy/cc-privacy-panel.c:1240 panels/privacy/privacy.ui:719
++#: panels/privacy/cc-privacy-panel.c:1253 panels/privacy/privacy.ui:719
+ msgid "Privacy Policy"
+ msgstr "개인 정보 보호 정책"
+ 
