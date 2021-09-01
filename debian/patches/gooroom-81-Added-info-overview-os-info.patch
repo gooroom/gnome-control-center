@@ -1,0 +1,284 @@
+diff --git a/panels/info/cc-info-overview-panel.c b/panels/info/cc-info-overview-panel.c
+index 9df2cfe..2da56e7 100644
+--- a/panels/info/cc-info-overview-panel.c
++++ b/panels/info/cc-info-overview-panel.c
+@@ -64,6 +64,7 @@ typedef struct
+   GtkWidget      *memory_label;
+   GtkWidget      *processor_label;
+   GtkWidget      *os_type_label;
++  GtkWidget      *os_info_label;
+   GtkWidget      *disk_label;
+   GtkWidget      *graphics_label;
+   GtkWidget      *virt_type_label;
+@@ -791,7 +792,8 @@ info_overview_panel_setup_overview (CcInfoOverviewPanel *self)
+   g_autofree char *memory_text = NULL;
+   g_autofree char *cpu_text = NULL;
+   g_autofree char *os_type_text = NULL;
+-  g_autofree char *os_name_text = NULL;
++  g_autofree char *os_info_text = NULL;
++  g_autofree char *contents = NULL;
+   CcInfoOverviewPanelPrivate *priv = cc_info_overview_panel_get_instance_private (self);
+ 
+   res = load_gnome_version (&priv->gnome_version,
+@@ -804,6 +806,29 @@ info_overview_panel_setup_overview (CcInfoOverviewPanel *self)
+       gtk_label_set_text (GTK_LABEL (priv->version_label), text);
+     }
+ 
++  g_file_get_contents ("/etc/lsb-release", &contents, NULL, NULL);
++
++  if (contents) {
++    guint i = 0;
++    gchar **lines = g_strsplit (contents, "\n", -1);
++    for (i = 0; lines[i] != NULL; i++) {
++      if (g_str_has_prefix (lines[i], "DISTRIB_DESCRIPTION=")) {
++        gchar **tokens = g_strsplit (lines[i], "=", -1);
++        if (tokens[1]) {
++          os_info_text = g_strdelimit (g_strdup(tokens[1]), "\"",' ');
++          g_strstrip (os_info_text);
++        }
++        g_strfreev (tokens);
++        break;
++      }
++    }
++    g_strfreev (lines);
++  }
++
++  if (os_info_text) {
++    gtk_label_set_text (GTK_LABEL (priv->os_info_label), os_info_text);
++  }
++
+   glibtop_get_mem (&mem);
+   memory_text = g_format_size_full (mem.total, G_FORMAT_SIZE_IEC_UNITS);
+   gtk_label_set_text (GTK_LABEL (priv->memory_label), memory_text ? memory_text : "");
+@@ -906,6 +931,7 @@ cc_info_overview_panel_class_init (CcInfoOverviewPanelClass *klass)
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, memory_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, processor_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, os_type_label);
++  gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, os_info_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, disk_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, graphics_label);
+   gtk_widget_class_bind_template_child_private (widget_class, CcInfoOverviewPanel, virt_type_label);
+diff --git a/panels/info/info-overview.ui b/panels/info/info-overview.ui
+index a837649..2cfc33c 100644
+--- a/panels/info/info-overview.ui
++++ b/panels/info/info-overview.ui
+@@ -37,6 +37,22 @@
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
++            <child>
++              <object class="GtkLabel" id="label9">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
++                <property name="xalign">1</property>
++                <property name="label" translatable="yes">OS info</property>
++                <property name="mnemonic_widget">os_info_label</property>
++                <style>
++                 <class name="dim-label"/>
++                </style>
++              </object>
++              <packing>
++                <property name="top-attach">1</property>
++                <property name="left-attach">1</property>
++              </packing>
++            </child>
+             <child>
+               <object class="GtkLabel" id="label5">
+                 <property name="visible">True</property>
+@@ -49,7 +65,7 @@
+                 </style>
+               </object>
+               <packing>
+-                <property name="top-attach">1</property>
++                <property name="top-attach">2</property>
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
+@@ -65,7 +81,7 @@
+                 </style>
+               </object>
+               <packing>
+-                <property name="top-attach">2</property>
++                <property name="top-attach">3</property>
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
+@@ -80,7 +96,7 @@
+                 </style>
+               </object>
+               <packing>
+-                <property name="top-attach">3</property>
++                <property name="top-attach">4</property>
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
+@@ -96,7 +112,7 @@
+                 </style>
+               </object>
+               <packing>
+-                <property name="top-attach">4</property>
++                <property name="top-attach">5</property>
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
+@@ -112,7 +128,7 @@
+                 </style>
+               </object>
+               <packing>
+-                <property name="top-attach">5</property>
++                <property name="top-attach">6</property>
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
+@@ -128,7 +144,7 @@
+                 </style>
+               </object>
+               <packing>
+-                <property name="top-attach">6</property>
++                <property name="top-attach">7</property>
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
+@@ -144,7 +160,7 @@
+                 </style>
+               </object>
+               <packing>
+-                <property name="top-attach">7</property>
++                <property name="top-attach">8</property>
+                 <property name="left-attach">1</property>
+               </packing>
+             </child>
+@@ -160,7 +176,7 @@
+               </packing>
+             </child>
+             <child>
+-              <object class="GtkLabel" id="memory_label">
++              <object class="GtkLabel" id="os_info_label">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+                 <property name="xalign">0</property>
+@@ -173,7 +189,7 @@
+               </packing>
+             </child>
+             <child>
+-              <object class="GtkLabel" id="processor_label">
++              <object class="GtkLabel" id="memory_label">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+                 <property name="xalign">0</property>
+@@ -186,7 +202,7 @@
+               </packing>
+             </child>
+             <child>
+-              <object class="GtkLabel" id="graphics_label">
++              <object class="GtkLabel" id="processor_label">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+                 <property name="xalign">0</property>
+@@ -199,7 +215,7 @@
+               </packing>
+             </child>
+             <child>
+-              <object class="GtkLabel" id="version_label">
++              <object class="GtkLabel" id="graphics_label">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+                 <property name="xalign">0</property>
+@@ -212,7 +228,7 @@
+               </packing>
+             </child>
+             <child>
+-              <object class="GtkLabel" id="os_type_label">
++              <object class="GtkLabel" id="version_label">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+                 <property name="xalign">0</property>
+@@ -225,7 +241,7 @@
+               </packing>
+             </child>
+             <child>
+-              <object class="GtkLabel" id="virt_type_label">
++              <object class="GtkLabel" id="os_type_label">
+                 <property name="visible">True</property>
+                 <property name="can_focus">False</property>
+                 <property name="xalign">0</property>
+@@ -237,6 +253,19 @@
+                 <property name="left-attach">2</property>
+               </packing>
+             </child>
++            <child>
++              <object class="GtkLabel" id="virt_type_label">
++                <property name="visible">True</property>
++                <property name="can_focus">False</property>
++                <property name="xalign">0</property>
++                <property name="label">Unknown</property>
++                <property name="selectable">True</property>
++              </object>
++              <packing>
++                <property name="top-attach">7</property>
++                <property name="left-attach">2</property>
++              </packing>
++            </child>
+             <child>
+               <object class="GtkLabel" id="disk_label">
+                 <property name="visible">True</property>
+@@ -246,7 +275,7 @@
+                 <property name="selectable">True</property>
+               </object>
+               <packing>
+-                <property name="top-attach">7</property>
++                <property name="top-attach">8</property>
+                 <property name="left-attach">2</property>
+               </packing>
+             </child>
+diff --git a/po/ko.po b/po/ko.po
+index dc5c8ec..34d0647 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -1587,19 +1587,23 @@ msgstr "영상(_V)"
+ msgid "_Photos"
+ msgstr "사진(_P)"
+ 
+-#: panels/info/info-overview.ui:58
++#: panels/info/info-overview.ui:29
+ msgid "Device name"
+ msgstr "장치 이름"
+ 
+-#: panels/info/info-overview.ui:74
++#: panels/info/info-overview.ui:45
++msgid "OS info"
++msgstr "운영체제 정보"
++
++#: panels/info/info-overview.ui:61
+ msgid "Memory"
+ msgstr "메모리"
+ 
+-#: panels/info/info-overview.ui:90
++#: panels/info/info-overview.ui:77
+ msgid "Processor"
+ msgstr "프로세서"
+ 
+-#: panels/info/info-overview.ui:106
++#: panels/info/info-overview.ui:93
+ msgid "Graphics"
+ msgstr "그래픽"
+ 
+@@ -1609,15 +1613,15 @@ msgid "OS name"
+ msgstr "운영체제 이름"
+ 
+ #. To translators: this field contains the distro type
+-#: panels/info/info-overview.ui:137
++#: panels/info/info-overview.ui:124
+ msgid "OS type"
+ msgstr "운영체제 종류"
+ 
+-#: panels/info/info-overview.ui:153
++#: panels/info/info-overview.ui:140
+ msgid "Virtualization"
+ msgstr "가상화"
+ 
+-#: panels/info/info-overview.ui:169
++#: panels/info/info-overview.ui:156
+ msgid "Disk"
+ msgstr "디스크"
+ 
