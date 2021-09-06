@@ -6,3 +6,4 @@ Revert-build-Bump-build-dependency-on-polkit.patch
 # Gooroom
 gooroom-01-add-font-feature.patch
 gooroom-02-add-themes-feature.patch
+gooroom-03-add-white-list-feature.patch
