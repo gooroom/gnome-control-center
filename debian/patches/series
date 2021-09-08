@@ -10,3 +10,4 @@ gooroom-03-add-white-list-feature.patch
 gooroom-04-all-fixes.patch
 gooroom-05-cutomize-font-chooser-from-gtk.patch
 gooroom-06-fixed-wifi-panel-title-bar.patch
+gooroom-07-removed-always-show-universial-access-menu.patch
