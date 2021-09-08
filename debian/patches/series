@@ -18,3 +18,4 @@ gooroom-11-Modified-display-minimum-size.patch
 gooroom-12-Update-po.ko-Disabled-high-contrast-and-scale-display.patch
 gooroom-13-Updated-translation-ko-file-and-change-xml-file.patch
 gooroom-14-Fixed-search-entry-completion-in-datetime.patch
+gooroom-15-Updated-ko-po-and-email-default-mime-on-context-menu.patch
