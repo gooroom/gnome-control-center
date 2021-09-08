@@ -20,3 +20,4 @@ gooroom-13-Updated-translation-ko-file-and-change-xml-file.patch
 gooroom-14-Fixed-search-entry-completion-in-datetime.patch
 gooroom-15-Updated-ko-po-and-email-default-mime-on-context-menu.patch
 gooroom-16-Disabled-speaker-test-in-sound-panel.patch
+gooroom-17-Removed-clean-head-printer.patch
