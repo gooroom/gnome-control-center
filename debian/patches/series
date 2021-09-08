@@ -27,3 +27,4 @@ gooroom-20-Fixed-preview-text-in-font-chooser-widget.patch
 gooroom-21-Removed-local-user-auto-login.patch
 gooroom-22-Change-default-background-style-to-zoom.patch
 gooroom-23-Added-Lock-screen-theme.patch
+gooroom-24-Fixed-theme-panel.patch
