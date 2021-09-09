@@ -30,3 +30,6 @@ gooroom-23-Added-Lock-screen-theme.patch
 gooroom-24-Fixed-theme-panel.patch
 gooroom-25-Fixed-duplicated-shortcut-key.patch
 gooroom-26-Fixed-date-time-setting-error.patch
+gooroom-27-Added-xsessionrc.patch
+gooroom-28-Fixed-it-display-always-new-font-dialog.patch
+gooroom-29-Fixed-wifi-panel-title.patch
