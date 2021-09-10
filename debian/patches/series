@@ -66,3 +66,4 @@ gooroom-59-Fixed-locale-setting-error.patch
 gooroom-60-Fixed-background-lock-screen-apply.patch
 gooroom-61-Fixed-hangul-searching-in-GtkSearchEntry.patch
 gooroom-62-Deleted-info-default-apps-panel.patch
+gooroom-63-Added-background-image-selection-message.patch
