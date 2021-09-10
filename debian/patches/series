@@ -60,3 +60,4 @@ gooroom-53-fix-effects-sound-error.patch
 gooroom-54-restrict-Korean-input-when-changing-password.patch
 gooroom-55-Dont-change-gsettings-values-when-timeout-values-are-zero.patch
 gooroom-56-Hide-printer-search-button-if-empty.patch
+gooroom-57-Printer-Searching-Issue-Fixed.patch
