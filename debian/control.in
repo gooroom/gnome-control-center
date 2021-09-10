@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Debian GNOME Maintainers <pkg-gnome-maintainers@lists.alioth.debian.org>
 Uploaders: @GNOME_TEAM@
 Build-Depends: debhelper-compat (= 12),
-               libaccountsservice-dev (>= 0.6.39),
+               libaccountsservice-dev (>= 0.6.45-2+grm2u2),
                desktop-file-utils,
                gnome-pkg-tools (>= 0.10),
                gnome-settings-daemon-dev (>= 3.29.90.1),
@@ -67,6 +67,7 @@ Package: gnome-control-center
 Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
+         accountsservice (>= 0.6.45-2+grm2u2),
          accountsservice,
          apg,
          colord (>= 0.1.30),
