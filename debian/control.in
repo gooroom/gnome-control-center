@@ -68,7 +68,6 @@ Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          accountsservice (>= 0.6.45-2+grm2u2),
-         accountsservice,
          apg,
          colord (>= 0.1.30),
          desktop-base (>= 10.0.0),

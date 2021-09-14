@@ -75,3 +75,4 @@ gooroom-68-Added-privacy-trash-temp-recent-dialog-title.patch
 gooroom-69-Updated-year-ui-to-combobox.patch
 gooroom-70-Added-gooroom-new-theme.patch
 gooroom-71-Enabled-universial-access-repeat-key-setting.patch
+gooroom-72-Fixed-region-panel-force-quit-error.patch
