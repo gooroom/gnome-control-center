@@ -78,3 +78,4 @@ gooroom-71-Enabled-universial-access-repeat-key-setting.patch
 gooroom-72-Fixed-region-panel-force-quit-error.patch
 gooroom-73-Fixed-font-chooser-widget-error.patch
 gooroom-74-Updated-universial-access-row-click-assist-visible-depends-on-xdg-session-type.patch
+gooroom-75-Updated-local-user-cannot-update-device-name.patch

@@ -1,0 +1,13 @@
+diff --git a/panels/info-overview/cc-info-overview-panel.ui b/panels/info-overview/cc-info-overview-panel.ui
+index b95e4be..97d8cfe 100644
+--- a/panels/info-overview/cc-info-overview-panel.ui
++++ b/panels/info-overview/cc-info-overview-panel.ui
+@@ -218,7 +218,7 @@
+           </object>
+         </child>
+         <child>
+-          <object class="GtkEntry" id="device_name_entry">
++          <object class="CcHostnameEntry" id="device_name_entry">
+             <property name="visible">True</property>
+             <signal name="changed" handler="on_device_name_entry_changed" swapped="yes"/>
+           </object>
