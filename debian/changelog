@@ -1,3 +1,15 @@
+gnome-control-center (1:3.30.3-2~deb10u1+grm2u17) gooroom-2.0; urgency=medium
+
+  [ heejun.jang ]
+  * [fac7a34e] [Bug:3540]Updated a11y keyboard repeat keys scale minimum value
+  * [702995d3] [Bug:3531]Fixed display panel resolution unexosed
+  * [9763d031] [Bug:3546]Updated mouse test click section
+  * [309ec896] Added info overview os info
+  * [655b07f0] [Bug:3628,3629,3630]Added privacy trash temp recent dialog title
+  * [a9cbe497] [Bug:3859,3860]Updated datetime year ui to combobox
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Fri, 01 Oct 2021 19:50:58 +0900
+
 gnome-control-center (1:3.30.3-2~deb10u1+grm2u16) gooroom-2.0; urgency=medium
 
   [ boyeon.choi ]
