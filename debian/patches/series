@@ -80,3 +80,4 @@ gooroom-73-Fixed-font-chooser-widget-error.patch
 gooroom-74-Updated-universial-access-row-click-assist-visible-depends-on-xdg-session-type.patch
 gooroom-75-Updated-local-user-cannot-update-device-name.patch
 gooroom-76-update-gooroom-theme.patch
+gooroom-77-Fixed-printers-do-not-show-error.patch

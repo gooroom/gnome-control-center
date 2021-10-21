@@ -1,0 +1,12 @@
+diff --git a/panels/printers/cc-printers-panel.c b/panels/printers/cc-printers-panel.c
+index 331f177..f61c7ea 100644
+--- a/panels/printers/cc-printers-panel.c
++++ b/panels/printers/cc-printers-panel.c
+@@ -785,6 +785,7 @@ add_printer_entry (CcPrintersPanel *self,
+   gtk_widget_show_all (content);
+ 
+   g_hash_table_insert (self->printer_entries, g_strdup (printer.name), printer_entry);
++  gtk_list_box_invalidate_filter (GTK_LIST_BOX (content));
+ }
+ 
+ static void
