@@ -85,3 +85,4 @@ gooroom-78-Updated-power-suspend-on-combo-box.patch
 gooroom-79-Updated-device-name-rename-button-sensitivity.patch
 gooroom-80-Updated-display-join-resolution-to-select-current-resolution.patch
 gooroom-81-Updated-show-help-button-depends-on-yelp-installed.patch
+gooroom-82-Fixed-staticanalysis-severity-high-issue-uninitialized-variables.patch
