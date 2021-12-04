@@ -1,3 +1,91 @@
+gnome-control-center (1:3.38.4-1+grm3u1) unstable; urgency=medium
+
+  [ heejun.jang ]
+  * [50216e61] Added Font Features
+  * [c3dfebbc] Added Themes Features
+  * [c59f6c36] Added WhiteList Features
+  * [9aa3fa19] Fixed overall error
+  * [d19c80d2] [Bug:2028,2030,2033,2040,2058]Customize gtk font chooser
+  * [0b8dbbcb] [Bug:2055] Fixed Wi-Fi header title. Fixed header title to appear even if there is no Wi-Fi firmware. and fixed shell-loader code
+  * [90276b9b] [Bug:2018]Removed always show universial access menu
+  * [0106cb1a] Show disconnected title in wifi panel
+  * [beed657f] Hidden search, sharing, online-accounts
+  * [660e8160] Fixed Theme load
+  * [a9e527e9] Modified display minimum size
+  * [ffaddb7f] Update sources regarding copyright and control file
+  * [52d9aca7] [Bug:2386] Added rygel library for auto trash feature
+  * [2ca3ea8c] [Bug:2091] Update ko.po Disabled high contrast
+  * [379d4aa4] [Bug:2326] Updated translation ko file for keyboard panel, add rygel, rygel-tracker in control.in, Updated 01-screenshot.xml.in
+  * [44efe285] [Bug:2410] Fixed search entry in datetime panel
+  * [b1b747c3] [Bug:2421, 2436] 1. Updated ko.po 2. Fixed email default mime on context menu
+  * [20be5c4f] [Bug:2067] Disabled speaker test in sound panel
+  * [611e1daf] Removed clean head printer and applied gooroom-adjust.py
+  * [7a003848] [Bug:2409] Fixed color.ui file in color panel
+  * [489b0ea4] [Bug:2022] Change combo items in power panel
+  * [51a8b675] [Bug:2054] Fixed preview text in font chooser widget
+  * [cc3293aa] [Bug:2458] Added patch to remove local user auto login
+  * [aa4f3c9b] [Bug:2483]Changed default background style to zoom
+  * [365001f8] [Bug: 2482,2485] Added Lock screen theme and Change power korean language
+  * [65d5de9c] Fixed theme panel
+  * [75a100d6] [Bug:2488] Fixed duplicated shortcut key
+  * [e569d5d6] [Bug:2621,2629,2632] Fixed date time setting error
+  * [73216367] Added xsessionrc file Fixed it display always new font dialog Fixed wifi panel title
+  * [e0ddec3d] Changed background and themes panel ui
+  * [4eb01ce2] [Bug:2962] Fixed the header bar typos in the Add image window
+  * [3f3d90cf] [Bug: 2525,2973,2974] 1.Add clear recent history notification 2.Fix user-accounts-icon
+  * [09e3ced6] [Bug:2975] Add clear user-accounts password verify entry
+  * [af4c9ee1] [Bug:2965,2967] Fix device keyboard custom-keysetting
+  * [a0527281] [Bug:3076,3081] Fixed region logout button
+  * [e9ffb834] [Bug:3137]Fixed color profile problem message
+  * [2cb5bc4a] [Bug:2984]Fixed font underline problem
+  * [fe209655] [Bug:3131]Fixed color profile apply all users
+  * [c15b8122] [Bug:3065]Changed user accounts add error message
+  * [58b55b00] [Bug:2614,2616]Changed wacom panel test settings button
+  * [009c3f8a] [Bug:2933]Fixed power brightness bar
+  * [17ef8522] [Bug:2590] Fixed the issue that day_spinbutton is not clicked when the value is max
+  * [7cdc67db] [Bug:2554]Added keyboard shortcut setting close button
+  * [5768d7d8] [Bug:2600,2606]Added network wifi header button sensitive and change gnome online accounts to recommend
+  * [72dd7088] Added user accounts home directory encryption
+  * [d584bf8d] [Bug:3102] Added keyboard shortcut setting guide message
+  * [19de0b19] [Bug:2586] Translated some city names
+  * [23f1f9c9] [Bug:2602]Added no known wifi message
+  * [05b1be42] [Bug:2983]Updated keyboard shortcut
+  * [b904a26d] [Bug:2562]Added printer options translation
+  * [ed0d0d14] Added accountsservice dependency version
+  * [0b2a4681] [Bug:2564]Fixed GSlice memory error
+  * [71a73393] [Bug:3059] fix effects sound error
+  * [354cd9c5] [Bug:2064] Restrict Korean input when changing password
+  * [101c973f] Don't change gsettings values when timeout values are zero
+  * [94c95eca] [Bug:3360]Hide printer search button if empty
+  * [826e781f] [Bug:3358] Printer Searching Issue Fixed.
+  * [fb2e1b07] Exception handled for [Bug:3359]Shorten purge trash id adapting time
+  * [feedc5b0] 언어 및 로케일 설정오류 수정 및 최초 언어 설정시 다시시작 알림이 노출되지 않는 버그 수정
+  * [a268bd10] [Bug:3389]Fixed background lock screen apply
+  * [d33c9055] GtkSearchEntry를 사용하는 곳에서 한글로 검색시 조합중인 문자열은 검색이 되지 않는 버그 수정
+  * [e457758b] [Bug:3393]Deleted info default apps panel
+  * [ff6a82c0] [Bug:3412]Added background image selection message
+  * [ab89fa37] [Bug:3519]Updated user accounts delete button sensitive
+  * [76d288f7] [Bug:3540]Updated a11y keyboard repeat keys scale minimum value
+  * [270cd8b3] [Bug:3546]Updated mouse test click section
+  * [a20a0dc8] Added info overview os info
+  * [0187bb30] [Bug:3628,3629,3630]Added privacy trash temp recent dialog title
+  * [1b276e10] [Bug:3859,3860]Updated datetime year ui to combobox
+  * [16883953] Added Goorom new Theme
+  * [f9f3887b] Enable universial access repeat key setting
+  * [e18a0e95] Fixed region panel force quit error
+  * [319c3552] Fixed font chooser widget error
+  * [51024e55] [Bug:3891]Updated universial access row click assist visible depends on xdg session type
+  * [f72c15f4] [Bug:3958]Updated local user cannot update device name
+  * [e3d7be3d] Update gooroom theme
+  * [e49fa4ae] [Bug:4072,4076]Fixed printers do not show error
+  * [c56051fd] [Bug:4169]Updated power suspend on combo box
+  * [d9dde903] [Bug:4229]Updated device name rename button sensitivity
+  * [c721edbb] [Bug:4162,3986]Updated display join resolution to select current resolution & display join translation
+  * [5894c69f] Updated show help button depends on yelp installed
+  * [56187594] Fixed StaticAnalysis Severity High Issue - Uninitialized Variable
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Sat, 04 Dec 2021 20:15:08 +0900
+
 gnome-control-center (1:3.38.4-1) unstable; urgency=medium
 
   * New upstream release
