@@ -88,3 +88,4 @@ gooroom-81-Updated-show-help-button-depends-on-yelp-installed.patch
 gooroom-82-Fixed-staticanalysis-severity-high-issue-uninitialized-variables.patch
 gooroom-83-Updated-show-locate-pointer-menu-depends-on-gnome-shell-installed.patch
 gooroom-84-Updated-change-language-logout-button-message.patch
+gooroom-85-Added-universial-access-repeat-key-delay-time-delay-speed-scale-color.patch
