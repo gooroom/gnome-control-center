@@ -89,3 +89,4 @@ gooroom-82-Fixed-staticanalysis-severity-high-issue-uninitialized-variables.patc
 gooroom-83-Updated-show-locate-pointer-menu-depends-on-gnome-shell-installed.patch
 gooroom-84-Updated-change-language-logout-button-message.patch
 gooroom-85-Added-universial-access-repeat-key-delay-time-delay-speed-scale-color.patch
+gooroom-86-Updated-keyboard-shortcut-button-do-not-show-default-null-value.patch
