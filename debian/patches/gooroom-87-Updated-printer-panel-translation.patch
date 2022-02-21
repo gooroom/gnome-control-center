@@ -1,0 +1,13 @@
+diff --git a/po/ko.po b/po/ko.po
+index d2b39a9..c6bb379 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -5380,7 +5380,7 @@ msgstr "다시 시작"
+ #. Translators: This button adds new printer.
+ #: panels/printers/printers.ui:12
+ msgid "Add…"
+-msgstr "추가…"
++msgstr "프린터 추가…"
+ 
+ #: panels/printers/printers.ui:186
+ msgid "No printers"
