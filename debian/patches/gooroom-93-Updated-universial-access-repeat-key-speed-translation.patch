@@ -1,0 +1,13 @@
+diff --git a/po/ko.po b/po/ko.po
+index 083bc25..05699a9 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -6429,7 +6429,7 @@ msgstr "반복 키 지연시간"
+ #: panels/universal-access/cc-ua-panel.ui:1611
+ #: panels/universal-access/cc-ua-panel.ui:1746
+ msgid "Speed"
+-msgstr "속도"
++msgstr "입력 주기"
+ 
+ #: panels/universal-access/cc-ua-panel.ui:1650
+ msgid "Repeat keys speed"
