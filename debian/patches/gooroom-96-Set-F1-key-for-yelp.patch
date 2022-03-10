@@ -1,0 +1,34 @@
+diff --git a/shell/cc-application.c b/shell/cc-application.c
+index 74e1277..1365275 100644
+--- a/shell/cc-application.c
++++ b/shell/cc-application.c
+@@ -33,6 +33,7 @@
+ #include "cc-panel-loader.h"
+ #include "cc-window.h"
+ 
++#define GOOROOM_YELP_ADJUSTMENTS "/usr/share/gooroom-yelp-adjustments"
+ struct _CcApplication
+ {
+   GtkApplication  parent;
+@@ -217,7 +218,7 @@ static void
+ cc_application_startup (GApplication *application)
+ {
+   CcApplication *self = CC_APPLICATION (application);
+-//  const gchar *help_accels[] = { "F1", NULL };
++  const gchar *help_accels[] = { "F1", NULL };
+ 
+   g_action_map_add_action_entries (G_ACTION_MAP (self),
+                                    cc_app_actions,
+@@ -228,8 +229,10 @@ cc_application_startup (GApplication *application)
+ 
+   hdy_init ();
+ 
+-//  gtk_application_set_accels_for_action (GTK_APPLICATION (application),
+-//                                         "app.help", help_accels);
++  if (g_file_test (GOOROOM_YELP_ADJUSTMENTS, G_FILE_TEST_EXISTS)) {
++    gtk_application_set_accels_for_action (GTK_APPLICATION (application),
++                                           "app.help", help_accels);
++  }
+ 
+   self->model = cc_shell_model_new ();
+   self->window = cc_window_new (GTK_APPLICATION (application), self->model);
