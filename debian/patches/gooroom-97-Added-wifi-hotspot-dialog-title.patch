@@ -1,0 +1,27 @@
+diff --git a/panels/network/cc-wifi-hotspot-dialog.c b/panels/network/cc-wifi-hotspot-dialog.c
+index 019c914..c0b3e78 100644
+--- a/panels/network/cc-wifi-hotspot-dialog.c
++++ b/panels/network/cc-wifi-hotspot-dialog.c
+@@ -455,6 +455,7 @@ cc_wifi_hotspot_dialog_init (CcWifiHotspotDialog *self)
+ 
+   gtk_widget_init_template (GTK_WIDGET (self));
+ 
++  gtk_window_set_title (GTK_WINDOW (self), _("Hotspot Setting"));
+   title = g_strdup_printf ("<big><b>%s</b></big>", _("Turn On Wi-Fi Hotspot?"));
+   gtk_message_dialog_set_markup (GTK_MESSAGE_DIALOG (self), title);
+ }
+diff --git a/po/ko.po b/po/ko.po
+index e92fb8f..29c2dd3 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -2766,6 +2766,10 @@ msgid "Must have a minimum of 8 characters"
+ msgstr "길이가 최소 8자가 되야 합니다"
+ 
+ #: panels/network/cc-wifi-hotspot-dialog.c:458
++msgid "Hotspot Setting"
++msgstr "와이파이 핫스팟 설정"
++
++#: panels/network/cc-wifi-hotspot-dialog.c:459
+ msgid "Turn On Wi-Fi Hotspot?"
+ msgstr "와이파이 핫스팟을 켜시겠습니까?"
+ 
