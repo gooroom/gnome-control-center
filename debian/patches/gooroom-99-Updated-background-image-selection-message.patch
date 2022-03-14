@@ -1,0 +1,34 @@
+diff --git a/panels/background/cc-background-chooser.c b/panels/background/cc-background-chooser.c
+index 6cb82df..44569ef 100644
+--- a/panels/background/cc-background-chooser.c
++++ b/panels/background/cc-background-chooser.c
+@@ -141,8 +141,8 @@ on_file_dialog_response_cb (GtkDialog           *dialog,
+       if (g_strcmp0 (image_name, tmp_image_name) == 0) {
+ 
+         result = run_warning (dialog, _("Add the selected image file?"),
+-                              _("The file which has same name already exists."),
+-                              _("_Add"));
++                              _("The image which has same name already exists. Replace old image to currently selected image."),
++                              _("_Replace"));
+ 
+         if (result) 
+           bg_recent_source_remove_item (chooser->recent_source, tmp_item);
+diff --git a/po/ko.po b/po/ko.po
+index 68fa606..f194da1 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -1212,8 +1212,12 @@ msgid "Add the selected image file?"
+ msgstr "선택하신 이미지 파일을 추가하시겠습니까?"
+ 
+ #: panels/background/cc-background-chooser.c:146
+-msgid "The file which has same name already exists."
+-msgstr "동일한 이름을 가진 파일이 이미 존재합니다."
++msgid ""
++"The image which has same name already exists. "
++"Replace old image to currently selected image."
++msgstr ""
++"동일한 이름을 가진 이미지가 이미 존재합니다. "
++"예전 이미지를 선택한 이미지로 변경합니다."
+ 
+ #: panels/common/cc-permission-infobar.ui:20
+ msgid "Unlock…"
