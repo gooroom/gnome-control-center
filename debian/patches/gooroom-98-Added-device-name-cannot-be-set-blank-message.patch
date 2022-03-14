@@ -1,0 +1,47 @@
+diff --git a/panels/info-overview/cc-info-overview-panel.c b/panels/info-overview/cc-info-overview-panel.c
+index 8e4fe2b..5662061 100644
+--- a/panels/info-overview/cc-info-overview-panel.c
++++ b/panels/info-overview/cc-info-overview-panel.c
+@@ -808,6 +808,7 @@ open_hostname_edit_dialog (CcInfoOverviewPanel *self)
+   gtk_entry_set_text (self->device_name_entry, hostname);
+   gtk_widget_grab_focus (GTK_WIDGET (self->device_name_entry));
+ 
++edit:
+   response = gtk_dialog_run (self->hostname_editor);
+   gtk_widget_hide (GTK_WIDGET (self->hostname_editor));
+ 
+@@ -818,6 +819,19 @@ open_hostname_edit_dialog (CcInfoOverviewPanel *self)
+    * listens to changes and updates hostname on change.
+    */
+   hostname = gtk_entry_get_text (self->device_name_entry);
++  if (g_strcmp0 (hostname, "") == 0) {
++    GtkDialog *dialog;
++    dialog = gtk_message_dialog_new (toplevel,
++                                     GTK_DIALOG_DESTROY_WITH_PARENT,
++                                     GTK_MESSAGE_ERROR,
++                                     GTK_BUTTONS_CLOSE,
++                                     _("Device Name cannot be blank (\"\")."));
++
++    gtk_window_set_title (GTK_WINDOW (dialog), _("Error"));
++    gtk_dialog_run (GTK_DIALOG (dialog));
++    gtk_widget_destroy (dialog);
++    goto edit;
++  }
+   gtk_entry_set_text (GTK_ENTRY (self->hostname_entry), hostname);
+ }
+ 
+diff --git a/po/ko.po b/po/ko.po
+index 29c2dd3..68fa606 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -1858,6 +1858,10 @@ msgctxt "Windowing system (Wayland, X11, or Unknown)"
+ msgid "Unknown"
+ msgstr "알 수 없음"
+ 
++#: panels/info-overview/cc-info-overview-panel.c:827
++msgid "Device Name cannot be blank (\"\")."
++msgstr "장치 이름은 공백(\"\")이 될 수 없습니다."
++
+ #: panels/info-overview/cc-info-overview-panel.ui:52
+ msgid "Device Name"
+ msgstr "장치 이름"
