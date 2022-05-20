@@ -1,0 +1,31 @@
+diff --git a/panels/network/cc-wifi-hotspot-dialog.c b/panels/network/cc-wifi-hotspot-dialog.c
+index c0b3e78..5b10385 100644
+--- a/panels/network/cc-wifi-hotspot-dialog.c
++++ b/panels/network/cc-wifi-hotspot-dialog.c
+@@ -245,7 +245,10 @@ hotspot_entry_changed_cb (CcWifiHotspotDialog *self)
+     }
+   else
+     {
+-      error_label = _("Must have a minimum of 8 characters");
++      if (self->wpa_supported)
++          error_label = _("Must have a minimum of 8 characters");
++      else
++          error_label = _("Invalid password for WEP key type");
+       widget_set_error (GTK_WIDGET(self->password_entry));
+     }
+ 
+diff --git a/po/ko.po b/po/ko.po
+index f194da1..ccd929b 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -2773,6 +2773,10 @@ msgstr ""
+ msgid "Must have a minimum of 8 characters"
+ msgstr "길이가 최소 8자가 되야 합니다"
+ 
++#: panels/network/cc-wifi-hotspot-dialog.c:248
++msgid "Invalid password for WEP key type"
++msgstr "WEP 보안 인증에 적합하지 않은 암호입니다"
++
+ #: panels/network/cc-wifi-hotspot-dialog.c:458
+ msgid "Hotspot Setting"
+ msgstr "와이파이 핫스팟 설정"
