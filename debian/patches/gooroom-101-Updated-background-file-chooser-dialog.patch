@@ -1,0 +1,57 @@
+diff --git a/panels/background/cc-background-chooser.c b/panels/background/cc-background-chooser.c
+index 44569ef..354a589 100644
+--- a/panels/background/cc-background-chooser.c
++++ b/panels/background/cc-background-chooser.c
+@@ -101,18 +101,27 @@ on_file_dialog_response_cb (GtkDialog           *dialog,
+ 
+   if (response == GTK_RESPONSE_ACCEPT) {
+     g_autofree gchar *filename = NULL;
++    g_autofree gchar *filename_utf8 = NULL;
+     GListStore *store;
+     guint i, j;
+     g_autofree gchar **filename_split = NULL;
++    g_autofree gchar **filename_utf8_split = NULL;
+     g_autofree gchar *image_name = NULL;
+     guint filename_split_length;
++    guint filename_utf8_split_length;
+   
+     result = response == GTK_RESPONSE_ACCEPT;
+ 
+     filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
++    filename_utf8 = g_filename_to_utf8 (gtk_file_chooser_get_uri (dialog), -1 , NULL, NULL, NULL);
+     filename_split = g_strsplit (filename, "/", -1);
++    filename_utf8_split = g_strsplit (filename_utf8, "/", -1);
+     filename_split_length = g_strv_length (filename_split) - 1;
+-    image_name = filename_split[filename_split_length];
++    filename_utf8_split_length = g_strv_length (filename_utf8_split) - 1;
++    if (g_strcmp0 (filename_split[filename_split_length], filename_utf8_split[filename_utf8_split_length]) == 0)
++      image_name = filename_split[filename_split_length];
++    else
++      image_name = filename_utf8_split[filename_utf8_split_length];
+   
+     store = bg_source_get_liststore (BG_SOURCE (chooser->recent_source));
+     
+@@ -140,7 +149,7 @@ on_file_dialog_response_cb (GtkDialog           *dialog,
+ 
+       if (g_strcmp0 (image_name, tmp_image_name) == 0) {
+ 
+-        result = run_warning (dialog, _("Add the selected image file?"),
++        result = run_warning (dialog, _("Change old image to the selected image?"),
+                               _("The image which has same name already exists. Replace old image to currently selected image."),
+                               _("_Replace"));
+ 
+diff --git a/po/ko.po b/po/ko.po
+index ccd929b..d0ad7a0 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -1208,8 +1208,8 @@ msgid "_Select"
+ msgstr "선택(_S)"
+ 
+ #: panels/background/cc-background-chooser.c:145
+-msgid "Add the selected image file?"
+-msgstr "선택하신 이미지 파일을 추가하시겠습니까?"
++msgid "Change old image to the selected image?"
++msgstr "예전 이미지를 선택하신 이미지로 변경하시겠습니까?"
+ 
+ #: panels/background/cc-background-chooser.c:146
+ msgid ""
