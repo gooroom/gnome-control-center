@@ -1,0 +1,79 @@
+diff --git a/panels/common/hostname-helper.c b/panels/common/hostname-helper.c
+index a8f7c41..e6d686a 100644
+--- a/panels/common/hostname-helper.c
++++ b/panels/common/hostname-helper.c
+@@ -18,10 +18,13 @@
+ 
+ #include <glib.h>
+ #include <glib/gi18n.h>
++#include <gio/gio.h>
+ #include <string.h>
+ 
+ #include "hostname-helper.h"
+ 
++#define HOSTNAME_URI "/etc/hostname"
++
+ static char *
+ allowed_chars (void)
+ {
+@@ -97,7 +100,7 @@ remove_duplicate_dashes (char *input)
+ 	return input;
+ }
+ 
+-#define CHECK	if (is_empty (result)) return g_strdup ("localhost")
++#define CHECK	if (is_empty (result)) return g_strdup (hostname)
+ 
+ char *
+ pretty_hostname_to_static (const char *pretty,
+@@ -106,10 +109,18 @@ pretty_hostname_to_static (const char *pretty,
+ 	g_autofree gchar *result = NULL;
+ 	g_autofree gchar *valid_chars = NULL;
+ 	g_autofree gchar *composed = NULL;
++        static GFile *gf = NULL;
++	g_autofree gchar *letter = NULL;
++	g_autofree gchar *hostname = NULL;
+ 
+ 	g_return_val_if_fail (pretty != NULL, NULL);
+ 	g_return_val_if_fail (g_utf8_validate (pretty, -1, NULL), NULL);
+ 
++        gf = g_file_new_for_path (HOSTNAME_URI);
++        g_file_load_contents (gf, NULL, &letter, NULL, NULL, NULL);
++
++        hostname = g_strndup (letter, sizeof(letter) - 1);
++
+ 	g_debug ("Input: '%s'", pretty);
+ 
+ 	composed = g_utf8_normalize (pretty, -1, G_NORMALIZE_ALL_COMPOSE);
+@@ -165,10 +176,18 @@ char *
+ pretty_hostname_to_ssid (const char *pretty)
+ {
+ 	const char *p, *prev;
++        static GFile *gf = NULL;
++        g_autofree gchar *letter = NULL;
++        g_autofree gchar *hostname = NULL;
++
++        gf = g_file_new_for_path (HOSTNAME_URI);
++        g_file_load_contents (gf, NULL, &letter, NULL, NULL, NULL);
++
++        hostname = g_strndup (letter, sizeof(letter) - 1);
+ 
+ 	if (pretty == NULL || *pretty == '\0') {
+ 		pretty = g_get_host_name ();
+-		if (g_strcmp0 (pretty, "localhost") == 0)
++		if (g_strcmp0 (pretty, hostname) == 0)
+ 			pretty = NULL;
+ 	}
+ 
+diff --git a/po/ko.po b/po/ko.po
+index d0ad7a0..1133bce 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -2445,7 +2445,7 @@ msgstr "화면이 잠겨 있을 때 새로운 USB 장치와 시스템의 상호
+ #: panels/lock/cc-lock-panel.ui:166
+ msgctxt "lock_screen"
+ msgid "Screen Turns Off"
+-msgstr "화면 끄기"
++msgstr "바로 잠금"
+ 
+ #. Translators: Option for "Lock screen after blank for" in "Screen Lock" dialog.
+ #: panels/lock/cc-lock-panel.ui:170
