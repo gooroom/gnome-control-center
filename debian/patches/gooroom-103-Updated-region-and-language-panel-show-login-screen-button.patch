@@ -1,0 +1,106 @@
+diff --git a/panels/region/cc-region-panel.c b/panels/region/cc-region-panel.c
+index 3248664..f9ef0ac 100644
+--- a/panels/region/cc-region-panel.c
++++ b/panels/region/cc-region-panel.c
+@@ -142,11 +142,16 @@ cc_region_panel_finalize (GObject *object)
+ static void
+ cc_region_panel_constructed (GObject *object)
+ {
++        gboolean can_acquire = FALSE;
+         CcRegionPanel *self = CC_REGION_PANEL (object);
+ 
+         G_OBJECT_CLASS (cc_region_panel_parent_class)->constructed (object);
+ 
+-        if (self->permission)
++        can_acquire = self->permission &&
++                (g_permission_get_allowed (self->permission) ||
++                 g_permission_get_can_acquire (self->permission));
++
++        if (can_acquire)
+                 cc_shell_embed_widget_in_header (cc_panel_get_shell (CC_PANEL (object)),
+                                                  GTK_WIDGET (self->login_button),
+                                                  GTK_POS_RIGHT);
+@@ -817,9 +822,13 @@ update_system_locale (CcRegionPanel *self)
+                 region = lang;
+         }
+ 
+-        g_free (self->system_language);
++        if (self->system_language) {
++            g_free (self->system_language);
++        }
+         self->system_language = g_strdup (messages);
+-        g_free (self->system_region);
++        if (self->system_region) {
++            g_free (self->system_region);
++        }
+         self->system_region = g_strdup (region);
+ 
+         update_language_label (self);
+@@ -834,7 +843,7 @@ localed_proxy_ready (GObject      *source,
+                      GAsyncResult *res,
+                      gpointer      data)
+ {
+-        CcRegionPanel *self = data;
++        CcRegionPanel *self = CC_REGION_PANEL (data);
+         GDBusProxy *proxy;
+         g_autoptr(GError) error = NULL;
+ 
+@@ -848,6 +857,7 @@ localed_proxy_ready (GObject      *source,
+ 
+         self->localed = proxy;
+ 
++        gtk_widget_set_visible (GTK_WIDGET (self->login_button), TRUE);
+         gtk_widget_set_sensitive (GTK_WIDGET (self->login_button), TRUE);
+ 
+         update_system_locale (self);
+@@ -860,6 +870,7 @@ locale_file_changed_cb (GFileMonitor      *monitor,
+                         GFileMonitorEvent  event_type,
+                         gpointer           user_data)
+ {
++        g_return_if_fail (CC_IS_REGION_PANEL (user_data));
+         CcRegionPanel *self = CC_REGION_PANEL (user_data);
+ 
+         switch (event_type)
+@@ -910,7 +921,7 @@ setup_login_button (CcRegionPanel *self)
+         g_autoptr(GDBusConnection) bus = NULL;
+         g_autoptr(GError) error = NULL;
+         GFile *file;
+-        GFileMonitor *monitor;
++        GFileMonitor *monitor = NULL;
+ 
+         self->permission = polkit_permission_new_sync ("org.gnome.controlcenter.update-locale", NULL, NULL, &error);
+         if (self->permission == NULL) {
+@@ -927,7 +938,7 @@ setup_login_button (CcRegionPanel *self)
+         } else {
+             g_signal_connect (monitor, "changed", G_CALLBACK (locale_file_changed_cb), self);
+         }
+-        g_object_unref (file);
++//        g_object_unref (file);
+ 
+         bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, NULL);
+         g_dbus_proxy_new (bus,
+@@ -1010,6 +1021,11 @@ cc_region_panel_init (CcRegionPanel *self)
+ 
+         self->user_manager = act_user_manager_get_default ();
+ 
++        self->language = NULL;
++        self->region = NULL;
++        self->system_language = NULL;
++        self->system_region = NULL;
++
+         g_dbus_proxy_new_for_bus (G_BUS_TYPE_SESSION,
+                                   G_DBUS_PROXY_FLAGS_NONE,
+                                   NULL,
+diff --git a/panels/region/org.gnome.controlcenter.region.policy.in.in b/panels/region/org.gnome.controlcenter.region.policy.in.in
+index 5bea441..b0bc860 100644
+--- a/panels/region/org.gnome.controlcenter.region.policy.in.in
++++ b/panels/region/org.gnome.controlcenter.region.policy.in.in
+@@ -9,7 +9,7 @@
+     <defaults>
+       <allow_any>no</allow_any>
+       <allow_inactive>no</allow_inactive>
+-      <allow_active>auth_admin_keep</allow_active>
++      <allow_active>no</allow_active>
+     </defaults>
+     <annotate key="org.freedesktop.policykit.exec.path">/usr/sbin/update-locale</annotate>
+   </action>
