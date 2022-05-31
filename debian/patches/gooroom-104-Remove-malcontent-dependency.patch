@@ -1,0 +1,376 @@
+diff --git a/meson.build b/meson.build
+index 572f42b..5f7f192 100644
+--- a/meson.build
++++ b/meson.build
+@@ -206,14 +206,6 @@ endif
+ config_h.set('HAVE_SNAP', enable_snap,
+              description: 'Define to 1 if Snap support is enabled')
+ 
+-# malcontent support
+-enable_malcontent = get_option('malcontent')
+-if enable_malcontent
+-  malcontent_dep = dependency('malcontent-0', version: '>= 0.7.0')
+-endif
+-config_h.set('HAVE_MALCONTENT', enable_malcontent,
+-             description: 'Define to 1 if malcontent support is enabled')
+-
+ if host_is_linux
+   # network manager
+   network_manager_deps = [
+@@ -306,6 +298,5 @@ output += '     IBus (Region panel IBus support) ........... ' + enable_ibus.to_
+ output += '     NetworkManager (Network panel) ............. ' + host_is_linux.to_string() + '\n'
+ output += '     Wacom (Wacom tablet panel) ................. ' + host_is_linux_not_s390.to_string() + '\n'
+ output += '     Snap support ............................... ' + enable_snap.to_string() + '\n'
+-output += '     Malcontent support ......................... ' + enable_malcontent.to_string() + '\n'
+ 
+ message(output)
+diff --git a/meson_options.txt b/meson_options.txt
+index 1b7b548..e76308e 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -7,4 +7,3 @@ option('tests', type: 'boolean', value: true, description: 'build tests')
+ option('tracing', type: 'boolean', value: false, description: 'add extra debugging information')
+ option('wayland', type: 'boolean', value: true, description: 'build with Wayland support')
+ option('profile', type: 'combo', choices: ['default','development'], value: 'default')
+-option('malcontent', type: 'boolean', value: false, description: 'build with malcontent support')
+diff --git a/panels/applications/cc-applications-panel.c b/panels/applications/cc-applications-panel.c
+index 8b632d4..9d7865f 100644
+--- a/panels/applications/cc-applications-panel.c
++++ b/panels/applications/cc-applications-panel.c
+@@ -26,9 +26,6 @@
+ #ifdef HAVE_SNAP
+ #include <snapd-glib/snapd-glib.h>
+ #endif
+-#ifdef HAVE_MALCONTENT
+-#include <libmalcontent/malcontent.h>
+-#endif
+ 
+ #include <gio/gdesktopappinfo.h>
+ 
+@@ -64,13 +61,6 @@ struct _CcApplicationsPanel
+   GtkLabel        *title_label;
+   GAppInfoMonitor *monitor;
+   gulong           monitor_id;
+-#ifdef HAVE_MALCONTENT
+-  GCancellable    *cancellable;
+-
+-  MctAppFilter    *app_filter;
+-  MctManager      *manager;
+-  guint            app_filter_id;
+-#endif
+ 
+   gchar           *current_app_id;
+   gchar           *current_portal_app_id;
+@@ -1680,9 +1670,6 @@ populate_applications (CcApplicationsPanel *self)
+   GList *l;
+ 
+   container_remove_all (GTK_CONTAINER (self->sidebar_listbox));
+-#ifdef HAVE_MALCONTENT
+-  g_signal_handler_block (self->manager, self->app_filter_id);
+-#endif
+ 
+   infos = g_app_info_get_all ();
+ 
+@@ -1695,11 +1682,6 @@ populate_applications (CcApplicationsPanel *self)
+       if (!g_app_info_should_show (info))
+         continue;
+ 
+-#ifdef HAVE_MALCONTENT
+-      if (!mct_app_filter_is_appinfo_allowed (self->app_filter, info))
+-        continue;
+-#endif
+-
+       row = GTK_WIDGET (cc_applications_row_new (info));
+       gtk_list_box_insert (self->sidebar_listbox, row, -1);
+ 
+@@ -1707,9 +1689,6 @@ populate_applications (CcApplicationsPanel *self)
+       if (g_strcmp0 (id, self->current_app_id) == 0)
+         gtk_list_box_select_row (self->sidebar_listbox, GTK_LIST_BOX_ROW (row));
+     }
+-#ifdef HAVE_MALCONTENT
+-  g_signal_handler_unblock (self->manager, self->app_filter_id);
+-#endif
+ }
+ 
+ static gint
+@@ -1743,16 +1722,6 @@ filter_sidebar_rows (GtkListBoxRow *row,
+   return g_strstr_len (app_name, -1, search_text) != NULL;
+ }
+ 
+-#ifdef HAVE_MALCONTENT
+-static void
+-app_filter_changed_cb (MctAppFilter        *app_filter,
+-                       uid_t               uid,
+-                       CcApplicationsPanel *self)
+-{
+-  populate_applications (self);
+-}
+-#endif
+-
+ static void
+ apps_changed (CcApplicationsPanel *self)
+ {
+@@ -1856,16 +1825,7 @@ static void
+ cc_applications_panel_finalize (GObject *object)
+ {
+   CcApplicationsPanel *self = CC_APPLICATIONS_PANEL (object);
+-#ifdef HAVE_MALCONTENT
+-  if (self->app_filter != NULL && self->app_filter_id != 0)
+-    {
+-      g_signal_handler_disconnect (self->manager, self->app_filter_id);
+-      self->app_filter_id = 0;
+-    }
+-  g_clear_pointer (&self->app_filter, mct_app_filter_unref);
+ 
+-  g_clear_object (&self->manager);
+-#endif
+   g_clear_object (&self->notification_settings);
+   g_clear_object (&self->location_settings);
+   g_clear_object (&self->privacy_settings);
+@@ -2031,10 +1991,6 @@ cc_applications_panel_init (CcApplicationsPanel *self)
+ {
+   g_autoptr(GtkStyleProvider) provider = NULL;
+   GtkListBoxRow *row;
+-#ifdef HAVE_MALCONTENT
+-  g_autoptr(GDBusConnection) system_bus = NULL;
+-  g_autoptr(GError) error = NULL;
+-#endif
+ 
+   g_resources_register (cc_applications_get_resource ());
+ 
+@@ -2091,31 +2047,6 @@ cc_applications_panel_init (CcApplicationsPanel *self)
+   self->location_settings = g_settings_new ("org.gnome.system.location");
+   self->privacy_settings = g_settings_new ("org.gnome.desktop.privacy");
+   self->search_settings = g_settings_new ("org.gnome.desktop.search-providers");
+-#ifdef HAVE_MALCONTENT
+-   /* FIXME: should become asynchronous */
+-  system_bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, self->cancellable, &error);
+-  if (system_bus == NULL)
+-    {
+-      g_warning ("Error getting system bus while setting up app permissions: %s", error->message);
+-      return;
+-    }
+-
+-  /* Load the user’s parental controls settings too, so we can filter the list. */
+-  self->manager = mct_manager_new (system_bus);
+-  self->app_filter = mct_manager_get_app_filter (self->manager,
+-                                                 getuid (),
+-                                                 MCT_GET_APP_FILTER_FLAGS_NONE,
+-                                                 self->cancellable,
+-                                                 &error);
+-  if (error)
+-    {
+-      g_warning ("Error retrieving app filter: %s", error->message);
+-      return;
+-    }
+-
+-  self->app_filter_id = g_signal_connect (self->manager, "app-filter-changed",
+-                                          G_CALLBACK (app_filter_changed_cb), self);
+-#endif
+   populate_applications (self);
+ 
+   self->monitor = g_app_info_monitor_get ();
+diff --git a/panels/applications/meson.build b/panels/applications/meson.build
+index d511bf6..4e324c3 100644
+--- a/panels/applications/meson.build
++++ b/panels/applications/meson.build
+@@ -45,10 +45,6 @@ if enable_snap
+   sources += files('cc-snap-row.c')
+ endif
+ 
+-if enable_malcontent
+-  deps += malcontent_dep
+-endif
+-
+ panels_libs += static_library(
+            cappletname,
+               sources : sources,
+diff --git a/panels/user-accounts/cc-user-panel.c b/panels/user-accounts/cc-user-panel.c
+index ff2dfb6..1ee5101 100644
+--- a/panels/user-accounts/cc-user-panel.c
++++ b/panels/user-accounts/cc-user-panel.c
+@@ -40,10 +40,6 @@
+ #define GNOME_DESKTOP_USE_UNSTABLE_API
+ #include <libgnome-desktop/gnome-languages.h>
+ 
+-#ifdef HAVE_MALCONTENT
+-#include <libmalcontent/malcontent.h>
+-#endif
+-
+ #include "cc-add-user-dialog.h"
+ #include "cc-avatar-chooser.h"
+ #include "cc-carousel.h"
+@@ -95,11 +91,6 @@ struct _CcUserPanel {
+         GtkRevealer     *notification_revealer;
+         GtkLabel        *password_button_label;
+         GtkWidget       *user_delete_dialog;
+-#ifdef HAVE_MALCONTENT
+-        GtkLabel        *parental_controls_button_label;
+-        GtkImage        *parental_control_go_next;
+-        GtkListBoxRow   *parental_controls_row;
+-#endif
+         GtkListBoxRow   *password_row;
+         CcPermissionInfobar *permission_infobar;
+         GtkButton       *remove_user_button;
+@@ -336,10 +327,6 @@ reload_users (CcUserPanel *self, ActUser *selected_user)
+         cc_carousel_select_item (self->carousel, item);
+ 
+         g_object_set (settings, "gtk-enable-animations", animations, NULL);
+-#ifdef HAVE_MALCONTENT
+-        /* Parental Controls row not to be shown for single user setups. */
+-        gtk_widget_set_visible (GTK_WIDGET (self->parental_controls_row), users_count > 1);
+-#endif
+ }
+ 
+ static gint
+@@ -869,41 +856,6 @@ is_ecryptfs_user (const gchar *user)
+ static void on_permission_changed (CcUserPanel *self);
+ static void full_name_edit_button_toggled (CcUserPanel *self);
+ 
+-#ifdef HAVE_MALCONTENT
+-static gboolean
+-is_parental_controls_enabled_for_user (ActUser *user)
+-{
+-        g_autoptr(MctManager) manager = NULL;
+-        g_autoptr(MctAppFilter) app_filter = NULL;
+-        g_autoptr(GDBusConnection) system_bus = NULL;
+-        g_autoptr(GError) error = NULL;
+-
+-        /* FIXME: should become asynchronous */
+-        system_bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
+-        if (system_bus == NULL) {
+-	        g_warning ("Error getting system bus while trying to show user details: %s", error->message);
+-	        return FALSE;
+-        }
+-
+-        manager = mct_manager_new (system_bus);
+-        app_filter = mct_manager_get_app_filter (manager,
+-                                                 act_user_get_uid (user),
+-                                                 MCT_GET_APP_FILTER_FLAGS_NONE,
+-                                                 NULL,
+-                                                 &error);
+-        if (error) {
+-                if (!g_error_matches (error, MCT_MANAGER_ERROR, MCT_MANAGER_ERROR_DISABLED))
+-                        g_warning ("Error retrieving app filter for user %s: %s",
+-                                   act_user_get_user_name (user),
+-                                   error->message);
+-
+-                return FALSE;
+-        }
+-
+-        return mct_app_filter_is_enabled (app_filter);
+-}
+-#endif
+-
+ static void
+ update_fingerprint_row_state (CcUserPanel *self, GParamSpec *spec, CcFingerprintManager *fingerprint_manager)
+ {
+@@ -1002,24 +954,6 @@ show_user (ActUser *user, CcUserPanel *self)
+         gtk_widget_set_visible (GTK_WIDGET (self->autologin_row), !show);
+         gtk_widget_set_visible (GTK_WIDGET (self->encrypt_home_check_label), show);
+ 
+-#ifdef HAVE_MALCONTENT
+-        /* Parental Controls: Unavailable if user is admin */
+-        if (act_user_get_account_type (user) == ACT_USER_ACCOUNT_TYPE_ADMINISTRATOR) {
+-                gtk_widget_hide (GTK_WIDGET (self->parental_control_go_next));
+-                /* TRANSLATORS: Status of Parental Controls setup */
+-                gtk_label_set_text (self->parental_controls_button_label, _("Unavailable"));
+-        } else {
+-                if (is_parental_controls_enabled_for_user (user))
+-                        /* TRANSLATORS: Status of Parental Controls setup */
+-                        gtk_label_set_text (self->parental_controls_button_label, _("Enabled"));
+-                else
+-                        /* TRANSLATORS: Status of Parental Controls setup */
+-                        gtk_label_set_text (self->parental_controls_button_label, _("Disabled"));
+-
+-                gtk_widget_show (GTK_WIDGET (self->parental_control_go_next));
+-        }
+-#endif
+-
+         /* Language: do not show for current user */
+         show = act_user_get_uid (user) != getuid();
+         gtk_widget_set_visible (GTK_WIDGET (self->language_row), show);
+@@ -1298,22 +1232,6 @@ show_history (CcUserPanel *self)
+         gtk_widget_destroy (GTK_WIDGET (dialog));
+ }
+ 
+-#ifdef HAVE_MALCONTENT
+-static void
+-spawn_malcontent_control (CcUserPanel *self)
+-{
+-        ActUser *user;
+-
+-        user = get_selected_user (self);
+-
+-        /* no-op if the user is administrator */
+-        if (act_user_get_account_type (user) != ACT_USER_ACCOUNT_TYPE_ADMINISTRATOR) {
+-                const gchar *argv[] = { "malcontent-control", NULL };
+-                g_spawn_async (NULL, (char **)argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL);
+-        }
+-}
+-#endif
+-
+ static void
+ activate_row (GtkListBox *box, GtkListBoxRow *row, CcUserPanel *self)
+ {
+@@ -1330,11 +1248,6 @@ activate_row (GtkListBox *box, GtkListBoxRow *row, CcUserPanel *self)
+                 show_history (self);
+         }
+ 
+-#ifdef HAVE_MALCONTENT
+-        if (row == self->parental_controls_row) {
+-		spawn_malcontent_control (self);
+-        }
+-#endif
+ }
+ 
+ static void
+@@ -1535,10 +1448,6 @@ on_permission_changed (CcUserPanel *self)
+ 
+                 gtk_widget_set_sensitive (GTK_WIDGET (self->last_login_row), TRUE);
+                 remove_unlock_tooltip (GTK_WIDGET (self->last_login_row));
+-#ifdef HAVE_MALCONTENT
+-                gtk_widget_set_sensitive (GTK_WIDGET (self->parental_controls_row), TRUE);
+-                remove_unlock_tooltip (GTK_WIDGET (self->parental_controls_row));
+-#endif
+         }
+         else {
+                 gtk_stack_set_visible_child (self->user_icon_stack, GTK_WIDGET (self->user_icon_image));
+@@ -1554,10 +1463,6 @@ on_permission_changed (CcUserPanel *self)
+ 
+                 gtk_widget_set_sensitive (GTK_WIDGET (self->last_login_row), FALSE);
+                 add_unlock_tooltip (GTK_WIDGET (self->last_login_row));
+-#ifdef HAVE_MALCONTENT
+-                gtk_widget_set_sensitive (GTK_WIDGET (self->parental_controls_row), FALSE);
+-                add_unlock_tooltip (GTK_WIDGET (self->parental_controls_row));
+-#endif
+         }
+ }
+ 
+@@ -1731,11 +1636,6 @@ cc_user_panel_class_init (CcUserPanelClass *klass)
+         gtk_widget_class_bind_template_child (widget_class, CcUserPanel, last_login_row);
+         gtk_widget_class_bind_template_child (widget_class, CcUserPanel, no_users_box);
+         gtk_widget_class_bind_template_child (widget_class, CcUserPanel, notification_revealer);
+-#ifdef HAVE_MALCONTENT
+-        gtk_widget_class_bind_template_child (widget_class, CcUserPanel, parental_controls_button_label);
+-        gtk_widget_class_bind_template_child (widget_class, CcUserPanel, parental_control_go_next);
+-        gtk_widget_class_bind_template_child (widget_class, CcUserPanel, parental_controls_row);
+-#endif
+         gtk_widget_class_bind_template_child (widget_class, CcUserPanel, password_button_label);
+         gtk_widget_class_bind_template_child (widget_class, CcUserPanel, password_row);
+         gtk_widget_class_bind_template_child (widget_class, CcUserPanel, permission_infobar);
+diff --git a/panels/user-accounts/meson.build b/panels/user-accounts/meson.build
+index fc91f73..68d9f05 100644
+--- a/panels/user-accounts/meson.build
++++ b/panels/user-accounts/meson.build
+@@ -188,10 +188,6 @@ if enable_cheese
+   deps += cheese_deps
+ endif
+ 
+-if enable_malcontent
+-  deps += malcontent_dep
+-endif
+-
+ cflags += [
+   '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir),
+   '-DHAVE_LIBPWQUALITY',
