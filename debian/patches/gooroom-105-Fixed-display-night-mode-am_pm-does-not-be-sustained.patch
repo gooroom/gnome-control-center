@@ -1,0 +1,124 @@
+diff --git a/panels/display/cc-night-light-page.c b/panels/display/cc-night-light-page.c
+index 91b0f4a..17137ad 100644
+--- a/panels/display/cc-night-light-page.c
++++ b/panels/display/cc-night-light-page.c
+@@ -62,6 +62,8 @@ struct _CcNightLightPage {
+   GDBusProxy          *proxy_color_props;
+   GCancellable        *cancellable;
+   gboolean             ignore_value_changed;
++  gdouble              prev_to_hours;
++  gdouble              prev_from_hours;
+   guint                timer_id;
+   GDesktopClockFormat  clock_format;
+ };
+@@ -113,6 +115,10 @@ dialog_adjustments_set_frac_hours (CcNightLightPage *self,
+   self->ignore_value_changed = TRUE;
+   gtk_adjustment_set_value (GTK_ADJUSTMENT (adj_hours), hours);
+   gtk_adjustment_set_value (GTK_ADJUSTMENT (adj_mins), mins);
++  if (self->adjustment_from_hours == GTK_ADJUSTMENT (adj_hours))
++    self->prev_from_hours = hours;
++  else
++    self->prev_to_hours = hours;
+   self->ignore_value_changed = FALSE;
+ 
+   gtk_widget_set_visible (GTK_WIDGET (stack), !is_24h);
+@@ -299,14 +305,61 @@ dialog_adjustments_get_frac_hours (CcNightLightPage *self,
+                                    GtkAdjustment    *adj_mins,
+                                    GtkStack         *stack)
+ {
++  gdouble hours;
+   gdouble value;
+ 
+-  value = gtk_adjustment_get_value (adj_hours);
++  hours = value = gtk_adjustment_get_value (adj_hours);
+   value += gtk_adjustment_get_value (adj_mins) / 60.0f;
+ 
+-  if (g_strcmp0 (gtk_stack_get_visible_child_name (stack), "pm") == 0)
++  if (self->adjustment_from_hours == adj_hours) {
++    if (self->prev_from_hours == 1 &&
++        hours == 12 &&
++        g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "am") == 0) {
++      value += 12.f;
++      goto out;
++    }
++    else if (self->prev_from_hours == 1 &&
++             hours == 12 &&
++             g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "pm") == 0)
++      goto out;
++    else if (self->prev_from_hours == 12 &&
++             hours == 11 &&
++             g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "am") == 0) {
++      value += 12.f;
++      goto out;
++    }
++    else if (self->prev_from_hours == 12 &&
++             hours == 11 &&
++             g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "pm") == 0)
++      goto out;
++  }
++  else if (self->adjustment_to_hours == adj_hours) {
++    if (self->prev_to_hours == 1 &&
++        hours == 12 &&
++        g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "am") == 0) {
++      value += 12.f;
++      goto out;
++    }
++    else if (self->prev_to_hours == 1 &&
++             hours == 12 &&
++             g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "pm") == 0) 
++      goto out;
++    else if (self->prev_to_hours == 12 &&
++             hours == 11 &&
++             g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "am") == 0) {
++      value += 12.f;
++      goto out;
++    }
++    else if (self->prev_to_hours == 12 &&
++             hours == 11 &&
++             g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "pm") == 0)
++      goto out;
++  }
++
++  if (g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "pm") == 0) 
+     value += 12.f;
+ 
++out:
+   return value;
+ }
+ 
+diff --git a/panels/display/cc-night-light-page.ui b/panels/display/cc-night-light-page.ui
+index 76de592..030d509 100644
+--- a/panels/display/cc-night-light-page.ui
++++ b/panels/display/cc-night-light-page.ui
+@@ -237,6 +237,7 @@
+                                         <property name="can_focus">True</property>
+                                         <property name="receives_default">True</property>
+                                         <property name="valign">center</property>
++                                        <property name="name">am</property>
+                                         <signal name="clicked" handler="dialog_am_pm_from_button_clicked_cb" object="CcNightLightPage" swapped="no" />
+                                         <style>
+                                           <class name="unpadded-button"/>
+@@ -250,6 +251,7 @@
+                                         <property name="can_focus">True</property>
+                                         <property name="receives_default">True</property>
+                                         <property name="valign">center</property>
++                                        <property name="name">pm</property>
+                                         <signal name="clicked" handler="dialog_am_pm_from_button_clicked_cb" object="CcNightLightPage" swapped="no" />
+                                         <style>
+                                           <class name="unpadded-button"/>
+@@ -340,6 +342,7 @@
+                                         <property name="can_focus">True</property>
+                                         <property name="receives_default">True</property>
+                                         <property name="valign">center</property>
++                                        <property name="name">am</property>
+                                         <signal name="clicked" handler="dialog_am_pm_to_button_clicked_cb" object="CcNightLightPage" swapped="no" />
+                                         <style>
+                                           <class name="unpadded-button"/>
+@@ -353,6 +356,7 @@
+                                         <property name="can_focus">True</property>
+                                         <property name="receives_default">True</property>
+                                         <property name="valign">center</property>
++                                        <property name="name">pm</property>
+                                         <signal name="clicked" handler="dialog_am_pm_to_button_clicked_cb" object="CcNightLightPage" swapped="no" />
+                                         <style>
+                                           <class name="unpadded-button"/>
