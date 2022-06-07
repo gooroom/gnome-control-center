@@ -1,0 +1,81 @@
+diff --git a/panels/usage/cc-usage-panel.ui b/panels/usage/cc-usage-panel.ui
+index 4ed2ec1..650e71a 100644
+--- a/panels/usage/cc-usage-panel.ui
++++ b/panels/usage/cc-usage-panel.ui
+@@ -132,7 +132,8 @@
+                   <object class="GtkLabel">
+                     <property name="visible">true</property>
+                     <property name="margin-top">18</property>
+-                    <property name="label" translatable="yes">Trash &amp; Temporary Files</property>
++                    <!--property name="label" translatable="yes">Trash &amp; Temporary Files</property-->
++                    <property name="label" translatable="yes">Trash</property>
+                     <property name="xalign">0</property>
+                     <attributes>
+                       <attribute name="weight" value="bold" />
+@@ -142,7 +143,8 @@
+                 <child>
+                   <object class="GtkLabel">
+                     <property name="visible">true</property>
+-                    <property name="label" translatable="yes">Trash and temporary files can sometimes include personal or sensitive information. Automatically deleting them can help to protect privacy.</property>
++                    <!--property name="label" translatable="yes">Trash and temporary files can sometimes include personal or sensitive information. Automatically deleting them can help to protect privacy.</property-->
++                    <property name="label" translatable="yes">Trash can sometimes include personal or sensitive information. Automatically deleting files in trash can help to protect privacy.</property>
+                     <property name="wrap">1</property>
+                     <property name="max-width-chars">50</property>
+                     <property name="xalign">0</property>
+@@ -170,7 +172,7 @@
+                     </child>
+                     <child>
+                       <object class="HdyActionRow">
+-                        <property name="visible">true</property>
++                        <property name="visible">false</property>
+                         <property name="title" translatable="yes">Automatically Delete Temporary _Files</property>
+                         <property name="activatable-widget">purge_temp_switch</property>
+                         <property name="use-underline">true</property>
+@@ -244,7 +246,7 @@
+                     </child>
+                     <child>
+                       <object class="GtkButton" id="purge_temp_button">
+-                        <property name="visible">true</property>
++                        <property name="visible">false</property>
+                         <property name="halign">end</property>
+                         <property name="valign">center</property>
+                         <property name="label" translatable="yes">_Delete Temporary Files…</property>
+diff --git a/po/ko.po b/po/ko.po
+index 1133bce..9744ff6 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -6885,16 +6885,28 @@ msgstr "파일 사용 내역 기간(_H)"
+ msgid "_Clear History…"
+ msgstr "기록 지우기(_C)…"
+ 
++##: panels/usage/cc-usage-panel.ui:135
++#msgid "Trash & Temporary Files"
++#msgstr "휴지통 및 임시 파일"
++
+ #: panels/usage/cc-usage-panel.ui:135
+-msgid "Trash & Temporary Files"
+-msgstr "휴지통 및 임시 파일"
++msgid "Trash"
++msgstr "휴지통"
++
++##: panels/usage/cc-usage-panel.ui:145
++#msgid ""
++#"Trash and temporary files can sometimes include personal or sensitive "
++#"information. Automatically deleting them can help to protect privacy."
++#msgstr ""
++#"휴지통 및 임시 파일에는 개인적이거나 민감한 정보가 들어 있을 수도 있습니다. "
++#"이 파일을 지우면 개인 정보 보호에 도움이 됩니다."
+ 
+ #: panels/usage/cc-usage-panel.ui:145
+ msgid ""
+-"Trash and temporary files can sometimes include personal or sensitive "
+-"information. Automatically deleting them can help to protect privacy."
+-msgstr ""
+-"휴지통 및 임시 파일에는 개인적이거나 민감한 정보가 들어 있을 수도 있습니다. "
++"Trash can sometimes include personal or sensitive information. "
++"Automatically deleting files in trash can help to protect privacy."
++msgstr ""  
++"휴지통에는 개인적이거나 민감한 정보가 들어 있을 수도 있습니다. "
+ "이 파일을 지우면 개인 정보 보호에 도움이 됩니다."
+ 
+ #: panels/usage/cc-usage-panel.ui:159
