@@ -1,0 +1,20 @@
+diff --git a/panels/info-overview/cc-info-overview-panel.c b/panels/info-overview/cc-info-overview-panel.c
+index 5662061..a5c0b6b 100644
+--- a/panels/info-overview/cc-info-overview-panel.c
++++ b/panels/info-overview/cc-info-overview-panel.c
+@@ -713,13 +713,13 @@ info_overview_panel_setup_overview (CcInfoOverviewPanel *self)
+   os_type_text = get_os_type ();
+   cc_list_row_set_secondary_label (self->os_type_row, os_type_text);
+ 
+-  g_file_get_contents ("/etc/lsb-release", &contents, NULL, NULL);
++  g_file_get_contents ("/etc/gooroom/info", &contents, NULL, NULL);
+ 
+   if (contents) {
+     guint i = 0;
+     gchar **lines = g_strsplit (contents, "\n", -1);
+     for (i = 0; lines[i] != NULL; i++) {
+-      if (g_str_has_prefix (lines[i], "DISTRIB_DESCRIPTION=")) {
++      if (g_str_has_prefix (lines[i], "DESCRIPTION=")) {
+         gchar **tokens = g_strsplit (lines[i], "=", -1);
+         if (tokens[1]) {
+           os_info_text = g_strdelimit (g_strdup(tokens[1]), "\"",' ');
