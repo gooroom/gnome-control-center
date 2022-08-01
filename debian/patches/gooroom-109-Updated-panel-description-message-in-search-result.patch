@@ -1,0 +1,94 @@
+diff --git a/po/ko.po b/po/ko.po
+index 9744ff6..6b7e058 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -358,7 +358,7 @@ msgstr "캐시 지우기…"
+ # 권한 이름
+ #: panels/applications/gnome-applications-panel.desktop.in.in:4
+ msgid "Control various application permissions and settings"
+-msgstr "여러가지 프로그램 권한과 설정 조정"
++msgstr "여러가지 프로그램 권한과 설정을 조정합니다"
+ 
+ #. FIXME
+ #. Translators: Search terms to find the Privacy panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+@@ -1553,7 +1553,7 @@ msgstr "기본 프로그램"
+ 
+ #: panels/default-apps/gnome-default-apps-panel.desktop.in.in:4
+ msgid "Configure Default Applications"
+-msgstr "기본 프로그램 설정"
++msgstr "기본 프로그램을 설정합니다"
+ 
+ #. Translators: Search terms to find the Default Applications panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/default-apps/gnome-default-apps-panel.desktop.in.in:19
+@@ -1586,7 +1586,7 @@ msgstr "진단"
+ 
+ #: panels/diagnostics/gnome-diagnostics-panel.desktop.in.in:4
+ msgid "Report your problems"
+-msgstr "문제점 보고하기"
++msgstr "문제점을 보고합니다"
+ 
+ #. FIXME
+ #. Translators: Search terms to find the Privacy panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+@@ -2555,7 +2555,7 @@ msgstr "화면 잠금"
+ 
+ #: panels/lock/gnome-lock-panel.desktop.in.in:4
+ msgid "Lock your screen"
+-msgstr "화면 잠그기"
++msgstr "화면을 잠급니다"
+ 
+ #. FIXME
+ #: panels/microphone/cc-microphone-panel.ui:34
+@@ -4797,7 +4797,7 @@ msgstr "프린터"
+ 
+ #: panels/printers/gnome-printers-panel.desktop.in.in:4
+ msgid "Add printers, view printer jobs and decide how you want to print"
+-msgstr "프린터 추가, 인쇄 작업 보기, 어떻게 인쇄할지 설정"
++msgstr "프린터 추가, 인쇄 작업 보기, 인쇄 방법을 결정할 수 있습니다"
+ 
+ #. Translators: Search terms to find the Printers panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/printers/gnome-printers-panel.desktop.in.in:16
+@@ -5588,7 +5588,7 @@ msgstr "지역 및 언어"
+ #: panels/region/gnome-region-panel.desktop.in.in:4
+ msgid ""
+ "Select your display language, formats, keyboard layouts and input sources"
+-msgstr "표시할 언어, 여러가지 형식, 키보드 배치, 입력 소스를 선택합니다."
++msgstr "표시할 언어, 여러가지 형식, 키보드 배치, 입력 소스를 선택합니다"
+ 
+ #. Translators: Search terms to find the Region and Language panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/region/gnome-region-panel.desktop.in.in:19
+@@ -5730,7 +5730,7 @@ msgstr "이동식 미디어"
+ 
+ #: panels/removable-media/gnome-removable-media-panel.desktop.in.in:4
+ msgid "Configure Removable Media settings"
+-msgstr "이동식 미디어 설정"
++msgstr "이동식 미디어 정책을 설정합니다"
+ 
+ #. Translators: Search terms to find the Removable Media panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/removable-media/gnome-removable-media-panel.desktop.in.in:19
+@@ -6618,7 +6618,7 @@ msgstr "크게"
+ 
+ #: panels/universal-access/gnome-universal-access-panel.desktop.in.in:4
+ msgid "Make it easier to see, hear, type, point and click"
+-msgstr "보기, 듣기, 타이핑, 누르기 편의 사항"
++msgstr "보기, 듣기, 타이핑, 누르기를 사용하기 쉽게 변경할 수 있습니다"
+ 
+ # 주의: 원문이 'Mouse' 키워드 중복
+ #. Translators: Search terms to find the Accessibility panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+@@ -7019,7 +7019,7 @@ msgstr "파일 사용 내역 및 휴지통"
+ 
+ #: panels/usage/gnome-usage-panel.desktop.in.in:4
+ msgid "Don't leave traces"
+-msgstr "흔적 남기지 않기"
++msgstr "흔적 남기지 않도록 설정할 수 있습니다"
+ 
+ #. FIXME
+ #: panels/user-accounts/cc-add-user-dialog.c:34
+@@ -7687,7 +7687,7 @@ msgstr "사용자"
+ 
+ #: panels/user-accounts/data/gnome-user-accounts-panel.desktop.in.in:4
+ msgid "Add or remove users and change your password"
+-msgstr "사용자 추가/제거 및 암호 바꾸기"
++msgstr "사용자 추가/제거 및 암호를 바꿀 수 있습니다"
+ 
+ #. Translators: Search terms to find the Users panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/user-accounts/data/gnome-user-accounts-panel.desktop.in.in:20
