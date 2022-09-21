@@ -115,3 +115,4 @@ gooroom-108-Add-yelp-address-and-move-thunderbolt-to-device.patch
 gooroom-109-Updated-panel-description-message-in-search-result.patch
 gooroom-110-Updated-user-accounts-panel-changed-signal-cb-function.patch
 gooroom-111-Updated-cc-time-editor-cursor-blink-position-and-time-change-interval.patch
+gooroom-112-Updated-datetime-auto-timezone-row-sensitive-policy.patch

@@ -1,0 +1,13 @@
+diff --git a/panels/datetime/cc-datetime-panel.c b/panels/datetime/cc-datetime-panel.c
+index 40cc495..054d517 100644
+--- a/panels/datetime/cc-datetime-panel.c
++++ b/panels/datetime/cc-datetime-panel.c
+@@ -806,7 +806,7 @@ on_permission_changed (CcDateTimePanel *self)
+ 
+   /* All the widgets but the lock button and the 24h setting */
+   gtk_widget_set_sensitive (self->auto_datetime_row, allowed);
+-  gtk_widget_set_sensitive (self->auto_timezone_row, allowed);
++  gtk_widget_set_sensitive (self->auto_timezone_row, allowed && location_allowed);
+   gtk_widget_set_sensitive (self->datetime_button, allowed);
+   gtk_widget_set_sensitive (self->timezone_button, allowed);
+ 
