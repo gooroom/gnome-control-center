@@ -1,0 +1,39 @@
+diff --git a/panels/user-accounts/cc-user-panel.c b/panels/user-accounts/cc-user-panel.c
+index 1ee5101..67158e4 100644
+--- a/panels/user-accounts/cc-user-panel.c
++++ b/panels/user-accounts/cc-user-panel.c
+@@ -350,11 +350,19 @@ user_compare (gconstpointer i,
+ }
+ 
+ static void
+-user_changed (CcUserPanel *self, ActUser *user)
++user_changed (CcUserPanel *self)
+ {
+         reload_users (self, self->selected_user);
+ }
+ 
++static void
++user_changed_cb (CcUserPanel *self, ActUser *user)
++{
++        g_signal_handlers_block_by_func (self->um, user_changed_cb, self);
++        g_timeout_add (100, user_changed, self);
++        g_signal_handlers_unblock_by_func (self->um, user_changed_cb, self);
++}
++
+ static void
+ add_user (CcUserPanel *self)
+ {
+@@ -1271,10 +1279,10 @@ users_loaded (CcUserPanel *self)
+                 gtk_widget_set_sensitive (GTK_WIDGET (self->accounts_box), FALSE);
+         }
+ 
+-        g_signal_connect_object (self->um, "user-changed", G_CALLBACK (user_changed), self, G_CONNECT_SWAPPED);
+-        g_signal_connect_object (self->um, "user-is-logged-in-changed", G_CALLBACK (user_changed), self, G_CONNECT_SWAPPED);
++        g_signal_connect_object (self->um, "user-changed", G_CALLBACK (user_changed_cb), self, G_CONNECT_SWAPPED);
++        g_signal_connect_object (self->um, "user-is-logged-in-changed", G_CALLBACK (user_changed_cb), self, G_CONNECT_SWAPPED);
+         g_signal_connect_object (self->um, "user-added", G_CALLBACK (user_added), self, G_CONNECT_SWAPPED);
+-        g_signal_connect_object (self->um, "user-removed", G_CALLBACK (user_changed), self, G_CONNECT_SWAPPED);
++        g_signal_connect_object (self->um, "user-removed", G_CALLBACK (user_changed_cb), self, G_CONNECT_SWAPPED);
+ 
+         reload_users (self, NULL);
+ }
