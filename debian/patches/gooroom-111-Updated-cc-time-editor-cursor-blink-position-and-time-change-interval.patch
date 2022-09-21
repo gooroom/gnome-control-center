@@ -1,0 +1,50 @@
+diff --git a/panels/common/cc-time-editor.c b/panels/common/cc-time-editor.c
+index 684a9cd..ba244db 100644
+--- a/panels/common/cc-time-editor.c
++++ b/panels/common/cc-time-editor.c
+@@ -122,22 +122,22 @@ editor_change_time_clicked_cb (CcTimeEditor *self,
+ 
+   if (button == self->hour_up_button)
+     {
+-      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 0);
++      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 1);
+       g_signal_emit_by_name (self->time_entry, "change-value", GTK_SCROLL_STEP_UP);
+     }
+   else if (button == self->hour_down_button)
+     {
+-      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 0);
++      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 1);
+       g_signal_emit_by_name (self->time_entry, "change-value", GTK_SCROLL_STEP_DOWN);
+     }
+   else if (button == self->minute_up_button)
+     {
+-      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 3);
++      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 4);
+       g_signal_emit_by_name (self->time_entry, "change-value", GTK_SCROLL_STEP_UP);
+     }
+   else if (button == self->minute_down_button)
+     {
+-      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 3);
++      gtk_editable_set_position (GTK_EDITABLE (self->time_entry), 4);
+       g_signal_emit_by_name (self->time_entry, "change-value", GTK_SCROLL_STEP_DOWN);
+     }
+ }
+@@ -177,12 +177,18 @@ editor_change_time_pressed_cb (CcTimeEditor *self,
+ {
+   g_assert (CC_IS_TIME_EDITOR (self));
+ 
++  if (self->clicked_button == button) {
++    goto done;
++  }
++
+   self->clicked_button = button;
+   /* Keep changing time until the press is released */
+   self->timer_id = g_timeout_add (TIMEOUT_INITIAL,
+                                   (GSourceFunc)editor_change_time_cb,
+                                   self);
+   editor_change_time_clicked_cb (self, button);
++
++done:
+   return FALSE;
+ }
+ 
