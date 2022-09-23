@@ -1,3 +1,12 @@
+gnome-control-center (1:3.38.4-1+grm3u7) unstable; urgency=medium
+
+  [ heejun.jang ]
+  * [f2b20d70] Updated user accounts panel changed signal cb function
+  * [c083b354] Updated cc-time-editor cursor blink position and time change interval
+  * [bd3c3bf9] Updated datetime auto-timezone row sensitive policy
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Fri, 23 Sep 2022 11:59:24 +0900
+
 gnome-control-center (1:3.38.4-1+grm3u6) unstable; urgency=medium
 
   [ heejun.jang ]
