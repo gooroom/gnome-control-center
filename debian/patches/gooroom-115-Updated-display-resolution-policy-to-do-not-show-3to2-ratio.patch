@@ -1,0 +1,25 @@
+diff --git a/panels/display/cc-display-config.c b/panels/display/cc-display-config.c
+index 08b4c48..49e0b99 100644
+--- a/panels/display/cc-display-config.c
++++ b/panels/display/cc-display-config.c
+@@ -630,6 +630,20 @@ cc_display_config_is_scaled_mode_valid (CcDisplayConfig *self,
+ {
+   g_return_val_if_fail (CC_IS_DISPLAY_CONFIG (self), FALSE);
+   g_return_val_if_fail (CC_IS_DISPLAY_MODE (mode), FALSE);
++
++  int w, h, ratio;
++
++  cc_display_mode_get_resolution (mode, &w, &h);
++  if (w && h) {
++    if (w > h)
++      ratio = w * 10 / h;
++    else
++      ratio = h * 10 / w;
++  }
++
++  if (ratio == 15)
++    return FALSE;
++
+   return CC_DISPLAY_CONFIG_GET_CLASS (self)->is_scaled_mode_valid (self, mode, scale);
+ }
+ 

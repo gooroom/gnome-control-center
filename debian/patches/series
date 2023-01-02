@@ -118,3 +118,4 @@ gooroom-111-Updated-cc-time-editor-cursor-blink-position-and-time-change-interva
 gooroom-112-Updated-datetime-auto-timezone-row-sensitive-policy.patch
 gooroom-113-Deleted-unused-panel-in-cc-panel-loader.patch
 gooroom-114-Updated-cc-time-editor-cursor-blink-position-when-change-time-and-resize-time-entry-when-big-font.patch
+gooroom-115-Updated-display-resolution-policy-to-do-not-show-3to2-ratio.patch
