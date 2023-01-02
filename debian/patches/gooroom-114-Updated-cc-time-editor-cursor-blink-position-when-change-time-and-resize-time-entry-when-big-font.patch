@@ -1,0 +1,31 @@
+diff --git a/panels/common/cc-time-entry.c b/panels/common/cc-time-entry.c
+index d989935..936f15f 100644
+--- a/panels/common/cc-time-entry.c
++++ b/panels/common/cc-time-entry.c
+@@ -75,13 +75,16 @@ static void
+ time_entry_fill_time (CcTimeEntry *self)
+ {
+   g_autofree gchar *str = NULL;
++  int current_pos = 0;
+ 
+   g_assert (CC_IS_TIME_ENTRY (self));
+ 
+   str = g_strdup_printf ("%02d∶%02d", self->hour, self->minute);
+ 
+   g_signal_handler_block (self, self->insert_text_id);
++  current_pos = gtk_editable_get_position (GTK_EDITABLE (self));
+   gtk_entry_set_text (GTK_ENTRY (self), str);
++  gtk_editable_set_position (GTK_EDITABLE (self), current_pos);
+   g_signal_handler_unblock (self, self->insert_text_id);
+ }
+ 
+@@ -400,6 +403,9 @@ cc_time_entry_constructed (GObject *object)
+ 
+   time_entry_fill_time (CC_TIME_ENTRY (object));
+ 
++  if (g_settings_get_double (g_settings_new ("org.gnome.desktop.interface"), "text-scaling-factor") > 1)
++    gtk_widget_set_size_request (GTK_WIDGET (object), 200, -1);
++
+   list = pango_attr_list_new ();
+ 
+   attribute = pango_attr_size_new (PANGO_SCALE * 32);

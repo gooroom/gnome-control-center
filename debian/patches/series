@@ -117,3 +117,4 @@ gooroom-110-Updated-user-accounts-panel-changed-signal-cb-function.patch
 gooroom-111-Updated-cc-time-editor-cursor-blink-position-and-time-change-interval.patch
 gooroom-112-Updated-datetime-auto-timezone-row-sensitive-policy.patch
 gooroom-113-Deleted-unused-panel-in-cc-panel-loader.patch
+gooroom-114-Updated-cc-time-editor-cursor-blink-position-when-change-time-and-resize-time-entry-when-big-font.patch
