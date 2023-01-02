@@ -1,0 +1,31 @@
+diff --git a/po/ko.po b/po/ko.po
+index 4bc2c7b..d11dd69 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -96,10 +96,14 @@ msgstr "파일 시스템"
+ #: panels/applications/cc-applications-panel.c:841
+ #: panels/keyboard/01-launchers.xml.in:6 shell/cc-window.c:279
+ #: shell/cc-window.c:933 shell/cc-window.ui:121
+-#: shell/gnome-control-center.desktop.in.in:3
++#: shell/gnome-control-center.desktop.in.in:2
+ msgid "Settings"
+ msgstr "설정"
+ 
++#: shell/gnome-control-center.desktop.in.in:3
++msgid "Modify system configuration."
++msgstr "시스템 설정을 변경합니다."
++
+ # 권한 이름
+ #: panels/applications/cc-applications-panel.c:841
+ msgid "Can change settings"
+diff --git a/shell/gnome-control-center.desktop.in.in b/shell/gnome-control-center.desktop.in.in
+index e876299..4244b7b 100644
+--- a/shell/gnome-control-center.desktop.in.in
++++ b/shell/gnome-control-center.desktop.in.in
+@@ -1,5 +1,6 @@
+ [Desktop Entry]
+ Name=Settings
++Comment=Modify system configuration.
+ # Translators: Do NOT translate or transliterate this text (this is an icon file name)!
+ Icon=org.gnome.Settings
+ Exec=gnome-control-center

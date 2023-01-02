@@ -122,3 +122,4 @@ gooroom-115-Updated-display-resolution-policy-to-do-not-show-3to2-ratio.patch
 gooroom-116-Updated-universial-access-typing-access-dialog-title.patch
 gooroom-117-Updated-remove-old-trash-files-depends-on-gsettings.patch
 gooroom-118-Updated-error-message-when-create-user.patch
+gooroom-119-Add-desktop-comment.patch
