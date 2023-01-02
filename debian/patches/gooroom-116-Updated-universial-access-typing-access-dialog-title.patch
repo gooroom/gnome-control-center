@@ -1,0 +1,28 @@
+diff --git a/panels/universal-access/cc-ua-panel.ui b/panels/universal-access/cc-ua-panel.ui
+index 810ee12..a68a1b2 100644
+--- a/panels/universal-access/cc-ua-panel.ui
++++ b/panels/universal-access/cc-ua-panel.ui
+@@ -1727,7 +1727,7 @@
+   <object class="GtkDialog" id="typing_dialog">
+     <property name="can_focus">False</property>
+     <property name="border_width">5</property>
+-    <property name="title" translatable="yes">Typing Assist</property>
++    <property name="title" translatable="yes">Typing Assist (AccessX)</property>
+     <property name="resizable">False</property>
+     <property name="modal">True</property>
+     <property name="type_hint">dialog</property>
+diff --git a/po/ko.po b/po/ko.po
+index 6b7e058..50c0312 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -6464,8 +6464,8 @@ msgid "Cursor blinking speed"
+ msgstr "커서 깜빡임 빠르기"
+ 
+ #: panels/universal-access/cc-ua-panel.ui:1819
+-msgid "Typing Assist"
+-msgstr "자판 도움"
++msgid "Typing Assist (AccessX)"
++msgstr "타이핑 도움(AccessX)"
+ 
+ #: panels/universal-access/cc-ua-panel.ui:1858
+ msgid "_Sticky Keys"
