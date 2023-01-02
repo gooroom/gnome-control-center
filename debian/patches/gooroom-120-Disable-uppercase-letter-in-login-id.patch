@@ -1,0 +1,60 @@
+diff --git a/panels/user-accounts/cc-add-user-dialog.c b/panels/user-accounts/cc-add-user-dialog.c
+index 0a26561..42cf256 100644
+--- a/panels/user-accounts/cc-add-user-dialog.c
++++ b/panels/user-accounts/cc-add-user-dialog.c
+@@ -24,6 +24,7 @@
+ #include <glib/gi18n.h>
+ #include <gtk/gtk.h>
+ #include <act/act.h>
++#include <ctype.h>
+ 
+ #include "cc-add-user-dialog.h"
+ #include "cc-realm-manager.h"
+@@ -1512,6 +1513,39 @@ enterprise_password_entry_changed_cb (CcAddUserDialog *self)
+         clear_entry_validation_error (self->enterprise_password_entry);
+ }
+ 
++static void
++insert_text_handler (GtkEntry *entry,
++                     const gchar *text,
++                     gint length,
++                     gint *position,
++                     gpointer data)
++{
++  GtkEditable *editable = GTK_EDITABLE (entry);
++  int i, count=0;
++  gchar *result = g_new (gchar, length);
++
++  for (i = 0; i < length; i++)
++  {
++    if (!isgraph (text[i]))
++      continue;
++    result[count++] = isupper (text[i]) ? tolower (text[i]) : text[i];
++  }
++
++  if (count > 0)
++  {
++    g_signal_handlers_block_by_func (G_OBJECT (editable),
++                                     G_CALLBACK (insert_text_handler),
++                                     data);
++    gtk_editable_insert_text (editable, result, count, position);
++    g_signal_handlers_unblock_by_func (G_OBJECT (editable),
++                                       G_CALLBACK (insert_text_handler),
++                                       data);
++  }
++
++  g_signal_stop_emission_by_name (G_OBJECT (editable), "insert_text");
++  g_free (result);
++}
++
+ static void
+ dialog_validate (CcAddUserDialog *self)
+ {
+@@ -1602,6 +1636,7 @@ cc_add_user_dialog_init (CcAddUserDialog *self)
+         g_object_set (G_OBJECT (self->local_password_entry), "im-module", "", NULL);
+         g_object_set (G_OBJECT (self->local_verify_entry), "im-module", "", NULL);
+         g_signal_connect_object (monitor, "network-changed", G_CALLBACK (on_network_changed), self, 0);
++        g_signal_connect (self->local_username_entry, "insert-text", G_CALLBACK (insert_text_handler), NULL);
+ 
+         join_init (self);
+ 
