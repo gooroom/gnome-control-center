@@ -120,3 +120,4 @@ gooroom-113-Deleted-unused-panel-in-cc-panel-loader.patch
 gooroom-114-Updated-cc-time-editor-cursor-blink-position-when-change-time-and-resize-time-entry-when-big-font.patch
 gooroom-115-Updated-display-resolution-policy-to-do-not-show-3to2-ratio.patch
 gooroom-116-Updated-universial-access-typing-access-dialog-title.patch
+gooroom-117-Updated-remove-old-trash-files-depends-on-gsettings.patch

@@ -1,0 +1,17 @@
+diff --git a/panels/usage/cc-usage-panel.c b/panels/usage/cc-usage-panel.c
+index 1fce984..e05295d 100644
+--- a/panels/usage/cc-usage-panel.c
++++ b/panels/usage/cc-usage-panel.c
+@@ -315,6 +315,12 @@ cc_usage_panel_init (CcUsagePanel *self)
+                    self->purge_trash_switch, "active",
+                    G_SETTINGS_BIND_DEFAULT);
+ 
++  g_settings_bind (self->privacy_settings,
++                   "remove-old-trash-files",
++                   self->purge_after_combo,
++                   "sensitive",
++                   G_SETTINGS_BIND_GET);
++
+   g_settings_bind (self->privacy_settings, "remove-old-temp-files",
+                    self->purge_temp_switch, "active",
+                    G_SETTINGS_BIND_DEFAULT);
