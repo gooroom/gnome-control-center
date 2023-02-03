@@ -1,3 +1,17 @@
+gnome-control-center (1:3.38.4-1+grm3u8) unstable; urgency=medium
+
+  [ heejun.jang ]
+  * [f8e20e96] Deleted unused panel in cc-panel-loader
+  * [9cc5656b] Updated cc-time-editor cursor blink position when change time and resize time entry when big font
+  * [6514fdf1] Updated display resolution policy to do not show 3to2 ratio
+  * [ae5fb44d] Updated universial-access typing access dialog title
+  * [367b6a4a] Updated remove old trash files depends on gsettings
+  * [bf73a2bf] Updated error message when create user
+  * [f2af5c4a] Add desktop comment
+  * [f4993d66] Disable uppercase letter in login-id
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Fri, 03 Feb 2023 16:40:13 +0900
+
 gnome-control-center (1:3.38.4-1+grm3u7) unstable; urgency=medium
 
   [ heejun.jang ]
