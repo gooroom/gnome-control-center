@@ -1,0 +1,17 @@
+diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
+index a3509b0..f35bd6f 100644
+--- a/shell/cc-panel-list.c
++++ b/shell/cc-panel-list.c
+@@ -199,7 +199,11 @@ switch_to_view (CcPanelList     *self,
+ 
+   CC_TRACE_MSG ("Switching to view: %d", view);
+ 
+-  self->previous_view = self->view;
++  // 현재 view가 privacy, devices, details인 경우 이전 버튼 입력시 main으로 가도록 변경
++  if (view == CC_PANEL_LIST_PRIVACY || view == CC_PANEL_LIST_DEVICES || view == CC_PANEL_LIST_DETAILS)
++    self->previous_view = CC_PANEL_LIST_MAIN;
++  else
++    self->previous_view = self->view;
+   self->view = view;
+ 
+   /*
