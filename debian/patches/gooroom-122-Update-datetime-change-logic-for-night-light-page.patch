@@ -1,0 +1,24 @@
+diff --git a/panels/display/cc-night-light-page.c b/panels/display/cc-night-light-page.c
+index 17137ad..a8bf882 100644
+--- a/panels/display/cc-night-light-page.c
++++ b/panels/display/cc-night-light-page.c
+@@ -325,7 +325,8 @@ dialog_adjustments_get_frac_hours (CcNightLightPage *self,
+     else if (self->prev_from_hours == 12 &&
+              hours == 11 &&
+              g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "am") == 0) {
+-      value += 12.f;
++      if (self->clock_format == G_DESKTOP_CLOCK_FORMAT_12H)
++        value += 12.f;
+       goto out;
+     }
+     else if (self->prev_from_hours == 12 &&
+@@ -347,7 +348,8 @@ dialog_adjustments_get_frac_hours (CcNightLightPage *self,
+     else if (self->prev_to_hours == 12 &&
+              hours == 11 &&
+              g_strcmp0 (gtk_widget_get_name (GTK_WIDGET (gtk_stack_get_visible_child (stack))), "am") == 0) {
+-      value += 12.f;
++      if (self->clock_format == G_DESKTOP_CLOCK_FORMAT_12H)
++        value += 12.f;
+       goto out;
+     }
+     else if (self->prev_to_hours == 12 &&

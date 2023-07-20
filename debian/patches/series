@@ -125,3 +125,4 @@ gooroom-118-Updated-error-message-when-create-user.patch
 gooroom-119-Add-desktop-comment.patch
 gooroom-120-Disable-uppercase-letter-in-login-id.patch
 gooroom-121-Update-cc-ua-panel-ui.patch
+gooroom-122-Update-datetime-change-logic-for-night-light-page.patch
