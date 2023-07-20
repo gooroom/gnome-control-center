@@ -1,0 +1,130 @@
+diff --git a/panels/universal-access/cc-ua-panel.ui b/panels/universal-access/cc-ua-panel.ui
+index a68a1b2..9d0b80b 100644
+--- a/panels/universal-access/cc-ua-panel.ui
++++ b/panels/universal-access/cc-ua-panel.ui
+@@ -136,7 +136,7 @@
+                                             <child>
+                                               <object class="GtkSwitch" id="value_large_text">
+                                                 <property name="visible">True</property>
+-                                                <property name="can_focus">True</property>
++                                                <property name="can_focus">False</property>
+                                                 <property name="margin_start">12</property>
+                                                 <property name="margin_end">12</property>
+                                                 <property name="margin_top">12</property>
+@@ -778,7 +778,7 @@
+                                             <child>
+                                               <object class="GtkSwitch" id="mouse_keys_switch">
+                                                 <property name="visible">True</property>
+-                                                <property name="can_focus">True</property>
++                                                <property name="can_focus">False</property>
+                                                 <property name="margin_start">12</property>
+                                                 <property name="margin_end">12</property>
+                                                 <property name="margin_top">12</property>
+@@ -818,7 +818,7 @@
+                                             <child>
+                                               <object class="GtkSwitch" id="locate_pointer_switch">
+                                                 <property name="visible">True</property>
+-                                                <property name="can_focus">True</property>
++                                                <property name="can_focus">False</property>
+                                                 <property name="margin">12</property>
+                                               </object>
+                                             </child>
+@@ -1104,7 +1104,7 @@
+                 <child>
+                   <object class="GtkSwitch" id="screen_reader_switch">
+                     <property name="visible">True</property>
+-                    <property name="can_focus">True</property>
++                    <property name="can_focus">False</property>
+                     <property name="halign">end</property>
+                   </object>
+                   <packing>
+@@ -1186,7 +1186,7 @@
+             <child>
+               <object class="GtkSwitch" id="sound_keys_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+               </object>
+               <packing>
+@@ -1289,7 +1289,7 @@
+             <child>
+               <object class="GtkSwitch" id="visual_alerts_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+               </object>
+               <packing>
+@@ -1375,7 +1375,7 @@
+         <child>
+           <object class="GtkSwitch" id="repeat_keys_switch">
+             <property name="visible">True</property>
+-            <property name="can_focus">True</property>
++            <property name="can_focus">False</property>
+             <property name="valign">center</property>
+           </object>
+           <packing>
+@@ -1593,7 +1593,7 @@
+         <child>
+           <object class="GtkSwitch" id="cursor_blinking_switch">
+             <property name="visible">True</property>
+-            <property name="can_focus">True</property>
++            <property name="can_focus">False</property>
+             <property name="valign">center</property>
+           </object>
+           <packing>
+@@ -2252,7 +2252,7 @@
+             <child>
+               <object class="GtkSwitch" id="typing_stickykeys_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+                 <property name="valign">start</property>
+                 <property name="hexpand">True</property>
+@@ -2267,7 +2267,7 @@
+             <child>
+               <object class="GtkSwitch" id="typing_slowkeys_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+                 <property name="valign">start</property>
+                 <property name="hexpand">True</property>
+@@ -2282,7 +2282,7 @@
+             <child>
+               <object class="GtkSwitch" id="typing_bouncekeys_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+                 <property name="valign">start</property>
+                 <property name="hexpand">True</property>
+@@ -2341,7 +2341,7 @@
+             <child>
+               <object class="GtkSwitch" id="typing_keyboard_toggle_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+                 <property name="valign">start</property>
+                 <property name="hexpand">True</property>
+@@ -2822,7 +2822,7 @@
+             <child>
+               <object class="GtkSwitch" id="pointing_secondary_click_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+                 <property name="valign">start</property>
+                 <property name="hexpand">True</property>
+@@ -2837,7 +2837,7 @@
+             <child>
+               <object class="GtkSwitch" id="pointing_hover_click_switch">
+                 <property name="visible">True</property>
+-                <property name="can_focus">True</property>
++                <property name="can_focus">False</property>
+                 <property name="halign">end</property>
+                 <property name="valign">start</property>
+                 <property name="hexpand">True</property>

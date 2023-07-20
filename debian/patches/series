@@ -124,3 +124,4 @@ gooroom-117-Updated-remove-old-trash-files-depends-on-gsettings.patch
 gooroom-118-Updated-error-message-when-create-user.patch
 gooroom-119-Add-desktop-comment.patch
 gooroom-120-Disable-uppercase-letter-in-login-id.patch
+gooroom-121-Update-cc-ua-panel-ui.patch
