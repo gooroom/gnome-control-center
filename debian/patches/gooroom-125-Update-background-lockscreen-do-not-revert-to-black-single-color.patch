@@ -1,0 +1,57 @@
+diff --git a/panels/background/cc-background-panel.c b/panels/background/cc-background-panel.c
+index 61f6626..eb3f2aa 100644
+--- a/panels/background/cc-background-panel.c
++++ b/panels/background/cc-background-panel.c
+@@ -116,6 +116,9 @@ struct _CcBackgroundPanel
+ 
+   BackgroundMode      background_mode;
+   BackgroundApply     applied_background;
++
++  gchar *ppcolor;
++  gchar *pscolor;
+ };
+ 
+ CC_PANEL_REGISTER (CcBackgroundPanel, cc_background_panel)
+@@ -467,9 +470,15 @@ on_type_changed (GtkComboBox       *combo_box,
+       CcBackgroundItem *prior_lock_background = NULL;
+ 
+       prior_lock_background = cc_background_item_new (panel->prior_lock_background_uri);
++      g_object_set (G_OBJECT (prior_lock_background),
++                              "primary-color", panel->ppcolor,
++                              "secondary-color", panel->pscolor,
++                              NULL);
+       set_background (panel, panel->lock_settings, prior_lock_background);
+ 
+       panel->prior_lock_background_uri = NULL;
++      panel->ppcolor = NULL;
++      panel->pscolor = NULL;
+       g_clear_object (&prior_lock_background);
+     }
+     else
+@@ -489,6 +498,8 @@ on_type_changed (GtkComboBox       *combo_box,
+     gtk_widget_set_visible (box, FALSE);
+ 
+     panel->applied_background = APPLY_ALL;
++    panel->ppcolor = g_settings_get_string (panel->lock_settings, WP_PCOLOR_KEY);
++    panel->pscolor = g_settings_get_string (panel->lock_settings, WP_SCOLOR_KEY);
+     panel->prior_lock_background_uri = g_strdup (cc_background_item_get_uri (panel->current_lock_background));
+     set_background (panel, panel->lock_settings, panel->current_background);
+   }
+@@ -618,6 +629,8 @@ cc_background_panel_dispose (GObject *object)
+   g_clear_object (&panel->default_prov);
+ 
+   g_clear_pointer (&panel->prior_lock_background_uri, g_free);
++  g_clear_pointer (&panel->ppcolor, g_free);
++  g_clear_pointer (&panel->pscolor, g_free);
+ 
+   G_OBJECT_CLASS (cc_background_panel_parent_class)->dispose (object);
+ }
+@@ -772,6 +785,8 @@ cc_background_panel_init (CcBackgroundPanel *panel)
+   g_signal_connect (panel->settings, "changed", G_CALLBACK (on_settings_changed), panel);
+   g_signal_connect (panel->lock_settings, "changed", G_CALLBACK (on_settings_changed), panel);
+ 
++  panel->ppcolor = NULL;
++  panel->pscolor = NULL;
+   /* Load the backgrounds */
+   reload_current_bg (panel, panel->settings);
+   update_preview (panel, panel->settings, NULL);

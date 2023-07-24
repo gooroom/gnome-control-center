@@ -128,3 +128,4 @@ gooroom-121-Update-cc-ua-panel-ui.patch
 gooroom-122-Update-datetime-change-logic-for-night-light-page.patch
 gooroom-123-Update-previous-menu-for-privacy-details-device-panel.patch
 gooroom-124-Update-pp-options-dialog-resizable.patch
+gooroom-125-Update-background-lockscreen-do-not-revert-to-black-single-color.patch
