@@ -1,0 +1,25 @@
+diff --git a/panels/sound/cc-level-bar.c b/panels/sound/cc-level-bar.c
+index 8d8b2c9..e27576f 100644
+--- a/panels/sound/cc-level-bar.c
++++ b/panels/sound/cc-level-bar.c
+@@ -183,6 +183,12 @@ close_stream (pa_stream *stream)
+   pa_stream_disconnect (stream);
+ }
+ 
++static
++cc_level_bar_flush (CcLevelBar *self)
++{
++  self->value = 0;
++}
++
+ static void
+ cc_level_bar_dispose (GObject *object)
+ {
+@@ -232,6 +238,7 @@ cc_level_bar_set_stream (CcLevelBar     *self,
+ 
+   if (stream == NULL)
+    {
++     cc_level_bar_flush (self);
+      gtk_widget_queue_draw (GTK_WIDGET (self));
+      return;
+    }
