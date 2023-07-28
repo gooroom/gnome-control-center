@@ -1,3 +1,15 @@
+gnome-control-center (1:3.38.4-1+grm3u9) unstable; urgency=medium
+
+  [ heejun.jang ]
+  * [fddfaa32] Update cc-ua-panel ui
+  * [db59c8b2] Update datetime change logic for night-light page
+  * [8fe16908] Update previous-menu for privacy, details, device panel
+  * [5cb48663] Update pp-options-dialog resizable
+  * [ce75a8af] Update background lockscreen do not revert to black single color
+  * [3c3eabdc] Update input device level bar to flush level value when input device removed
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Fri, 28 Jul 2023 09:31:30 +0900
+
 gnome-control-center (1:3.38.4-1+grm3u8) unstable; urgency=medium
 
   [ heejun.jang ]
