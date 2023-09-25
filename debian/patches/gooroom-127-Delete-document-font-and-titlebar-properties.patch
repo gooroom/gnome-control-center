@@ -1,0 +1,215 @@
+diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
+index 139fb9a..65ba92e 100644
+--- a/panels/font/cc-font-panel.c
++++ b/panels/font/cc-font-panel.c
+@@ -67,11 +67,11 @@ struct _CcFontPanel
+   GtkAdjustment     *focus_adjustment;
+ 
+   GtkWidget         *interface_text_btn;
+-  GtkWidget         *document_text_btn;
++//  GtkWidget         *document_text_btn;
+   GtkWidget         *mono_text_btn;
+-  GtkWidget         *titlebar_text_btn;
++//  GtkWidget         *titlebar_text_btn;
+ 
+-  GtkWidget         *hinting_cb;
++//  GtkWidget         *hinting_cb;
+   GtkWidget         *antialias_cb;
+ 
+   // remove feature. by ryong
+@@ -80,7 +80,7 @@ struct _CcFontPanel
+   GtkWidget         *font_list;
+   GtkWidget         *render_list;
+ 
+-  GtkListStore      *liststore_hinting;
++//  GtkListStore      *liststore_hinting;
+   GtkListStore      *liststore_antialias;
+ 
+   gboolean           is_updating;
+@@ -203,29 +203,29 @@ cc_font_panel_finalize (GObject *object)
+ {
+   CcFontPanel *panel = CC_FONT_PANEL (object);
+ 
+-  g_clear_object (&panel->liststore_hinting);
++//  g_clear_object (&panel->liststore_hinting);
+   g_clear_object (&panel->liststore_antialias);
+ 
+   G_OBJECT_CLASS (cc_font_panel_parent_class)->finalize (object);
+ }
+ 
+-static void
+-changed_hinting_cb (GtkWidget *widget, CcFontPanel *panel)
+-{
+-  GtkTreeIter iter;
+-  GtkTreeModel *model;
+-  gint value;
+-  gboolean ret;
+-
+-  ret = gtk_combo_box_get_active_iter (GTK_COMBO_BOX (widget), &iter);
+-  if (!ret)
+-    return;
+-
+-  model = gtk_combo_box_get_model (GTK_COMBO_BOX (widget));
+-  gtk_tree_model_get (model, &iter, COMBO_BOX_MODEL_VALUE, &value, -1);
+-
+-  g_settings_set_enum (panel->gsd_settings, "hinting", value);
+-}
++//static void
++//changed_hinting_cb (GtkWidget *widget, CcFontPanel *panel)
++//{
++//  GtkTreeIter iter;
++//  GtkTreeModel *model;
++//  gint value;
++//  gboolean ret;
++//
++//  ret = gtk_combo_box_get_active_iter (GTK_COMBO_BOX (widget), &iter);
++//  if (!ret)
++//    return;
++//
++//  model = gtk_combo_box_get_model (GTK_COMBO_BOX (widget));
++//  gtk_tree_model_get (model, &iter, COMBO_BOX_MODEL_VALUE, &value, -1);
++//
++//  g_settings_set_enum (panel->gsd_settings, "hinting", value);
++//}
+ 
+ static void
+ changed_antialias_cb (GtkWidget *widget, CcFontPanel *panel)
+@@ -278,18 +278,18 @@ init_gsd_combo_box_model (CcFontPanel *panel)
+   GtkListStore *store;
+   GtkTreeModel *model = NULL;
+ 
+-  panel->liststore_hinting = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
+-  model = GTK_TREE_MODEL (panel->liststore_hinting);
+-  for (i = 0; i < G_N_ELEMENTS (hinting_actions); i++)
+-  {
+-    gtk_list_store_insert_with_values (panel->liststore_hinting,
+-                                       NULL, -1,
+-                                       COMBO_BOX_MODEL_TEXT, _(hinting_actions[i].name),
+-                                       COMBO_BOX_MODEL_VALUE, hinting_actions[i].value,
+-                                       -1);
+-  }
+-
+-  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->hinting_cb), model);
++//  panel->liststore_hinting = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
++//  model = GTK_TREE_MODEL (panel->liststore_hinting);
++//  for (i = 0; i < G_N_ELEMENTS (hinting_actions); i++)
++//  {
++//    gtk_list_store_insert_with_values (panel->liststore_hinting,
++//                                       NULL, -1,
++//                                       COMBO_BOX_MODEL_TEXT, _(hinting_actions[i].name),
++//                                       COMBO_BOX_MODEL_VALUE, hinting_actions[i].value,
++//                                       -1);
++//  }
++//
++//  gtk_combo_box_set_model (GTK_COMBO_BOX (panel->hinting_cb), model);
+ 
+   panel->liststore_antialias = gtk_list_store_new (N_COLUMNS, G_TYPE_STRING, G_TYPE_INT);
+   model = GTK_TREE_MODEL (panel->liststore_antialias);
+@@ -377,7 +377,7 @@ cc_font_panel_init (CcFontPanel *panel)
+     return;
+   }
+ 
+-  panel->hinting_cb = WID ("hint-combobox");
++//  panel->hinting_cb = WID ("hint-combobox");
+   panel->antialias_cb = WID ("antialiasing-combobox");
+   panel->font_list = WID ("font-listbox");
+   panel->render_list = WID ("render-listbox");
+@@ -406,28 +406,28 @@ cc_font_panel_init (CcFontPanel *panel)
+   gtk_box_pack_start (GTK_BOX (WID ("mono-text-box")), w, FALSE, FALSE, 15);
+   g_settings_bind (panel->interface_settings, "monospace-font-name", w, "font", G_SETTINGS_BIND_DEFAULT);
+ 
+-  w = cc_font_button_new ();
+-  gtk_widget_set_valign (GTK_WIDGET (w), GTK_ALIGN_CENTER);
+-  gtk_box_pack_start (GTK_BOX (WID ("doc-text-box")), w, FALSE, FALSE, 15);
+-  g_settings_bind (panel->interface_settings, "document-font-name", w, "font", G_SETTINGS_BIND_DEFAULT);
++//  w = cc_font_button_new ();
++//  gtk_widget_set_valign (GTK_WIDGET (w), GTK_ALIGN_CENTER);
++//  gtk_box_pack_start (GTK_BOX (WID ("doc-text-box")), w, FALSE, FALSE, 15);
++//  g_settings_bind (panel->interface_settings, "document-font-name", w, "font", G_SETTINGS_BIND_DEFAULT);
+ 
+-  w = cc_font_button_new ();
+-  gtk_widget_set_valign (GTK_WIDGET (w), GTK_ALIGN_CENTER);
+-  gtk_box_pack_start (GTK_BOX (WID ("windowtitle-text-box")), w, FALSE, FALSE, 15);
+-  g_settings_bind (panel->wm_settings, "titlebar-font", w, "font", G_SETTINGS_BIND_DEFAULT);
++//  w = cc_font_button_new ();
++//  gtk_widget_set_valign (GTK_WIDGET (w), GTK_ALIGN_CENTER);
++//  gtk_box_pack_start (GTK_BOX (WID ("windowtitle-text-box")), w, FALSE, FALSE, 15);
++//  g_settings_bind (panel->wm_settings, "titlebar-font", w, "font", G_SETTINGS_BIND_DEFAULT);
+ 
+ 
+   // initialize gsd combo box
+   init_gsd_combo_box_model (panel);
+ 
+-  button_val = g_settings_get_enum (panel->gsd_settings, "hinting");
+-  set_value_for_combo (GTK_COMBO_BOX (panel->hinting_cb), button_val);
++//  button_val = g_settings_get_enum (panel->gsd_settings, "hinting");
++//  set_value_for_combo (GTK_COMBO_BOX (panel->hinting_cb), button_val);
+ 
+   button_val = g_settings_get_enum (panel->gsd_settings, "antialiasing");
+   set_value_for_combo (GTK_COMBO_BOX (panel->antialias_cb), button_val);
+ 
+-  g_signal_connect (panel->hinting_cb, "changed",
+-                    G_CALLBACK (changed_hinting_cb), panel);
++//  g_signal_connect (panel->hinting_cb, "changed",
++//                    G_CALLBACK (changed_hinting_cb), panel);
+   g_signal_connect (panel->antialias_cb, "changed",
+                     G_CALLBACK (changed_antialias_cb), panel);
+ 
+diff --git a/panels/font/font.ui b/panels/font/font.ui
+index e921e50..1579c5b 100644
+--- a/panels/font/font.ui
++++ b/panels/font/font.ui
+@@ -106,7 +106,7 @@
+                             </child>
+                           </object>
+                         </child>
+-                        <child>
++                        <!--child>
+                           <object class="GtkListBoxRow" id="doc-text-listboxrow">
+                             <property name="height_request">32</property>
+                             <property name="visible">True</property>
+@@ -145,7 +145,7 @@
+                               </object>
+                             </child>
+                           </object>
+-                        </child>
++                        </child-->
+                         <child>
+                           <object class="GtkListBoxRow" id="mono-text-listboxrow">
+                             <property name="height_request">32</property>
+@@ -186,7 +186,7 @@
+                             </child>
+                           </object>
+                         </child>
+-                        <child>
++                        <!--child>
+                           <object class="GtkListBoxRow" id="windowtitle-text-listboxrow">
+                             <property name="height_request">32</property>
+                             <property name="visible">True</property>
+@@ -225,7 +225,7 @@
+                               </object>
+                             </child>
+                           </object>
+-                        </child>
++                        </child-->
+                       </object>
+                     </child>
+                     <child type="label_item">
+@@ -268,7 +268,7 @@
+                         <property name="visible">True</property>
+                         <property name="can_focus">False</property>
+                         <property name="selection_mode">none</property>
+-                        <child>
++                        <!--child>
+                           <object class="GtkListBoxRow" id="hint-listboxrow">
+                             <property name="height_request">32</property>
+                             <property name="visible">True</property>
+@@ -317,7 +317,7 @@
+                               </object>
+                             </child>
+                           </object>
+-                        </child>
++                        </child-->
+                         <child>
+                           <object class="GtkListBoxRow" id="antialiasing-listboxrow">
+                             <property name="height_request">32</property>
