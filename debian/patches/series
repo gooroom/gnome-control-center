@@ -131,3 +131,4 @@ gooroom-124-Update-pp-options-dialog-resizable.patch
 gooroom-125-Update-background-lockscreen-do-not-revert-to-black-single-color.patch
 gooroom-126-Update-input-device-level-bar-flush-level-value-when-device-removed.patch
 gooroom-127-Delete-document-font-and-titlebar-properties.patch
+gooroom-128-Update-create-admin-policy-only-allow-create-with-password.patch
