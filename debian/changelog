@@ -1,3 +1,11 @@
+gnome-control-center (1:3.38.4-1+grm3u10) unstable; urgency=medium
+
+  [ heejun.jang ]
+  * [e240a451] Delete document font and titlebar properties
+  * [d1ac94e0] Update create admin policy only allow create with password
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Mon, 13 Nov 2023 16:21:32 +0900
+
 gnome-control-center (1:3.38.4-1+grm3u9) unstable; urgency=medium
 
   [ heejun.jang ]
