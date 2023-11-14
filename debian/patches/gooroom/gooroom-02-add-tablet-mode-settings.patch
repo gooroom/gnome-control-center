@@ -1,0 +1,2569 @@
+diff --git a/meson.build b/meson.build
+index 16d24ed..6d9939a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -236,6 +236,8 @@ config_h.set('BUILD_WWAN', host_is_linux,
+              description: 'Define to 1 to build the WWan panel')
+ config_h.set('HAVE_WWAN', host_is_linux,
+              description: 'Define to 1 if WWan is available')
++config_h.set('BUILD_TABLET', host_is_linux,
++             description: 'Define to 1 to build the Tablet panel')
+ 
+ if host_is_linux_not_s390
+   # gnome-bluetooth
+diff --git a/panels/meson.build b/panels/meson.build
+index a05a4ae..4eb372d 100644
+--- a/panels/meson.build
++++ b/panels/meson.build
+@@ -26,6 +26,7 @@ panels = [
+   'search',
+   'sharing',
+   'sound',
++  'tablet',
+   'universal-access',
+   'usage',
+   'user-accounts',
+diff --git a/panels/tablet/cc-tablet-panel.c b/panels/tablet/cc-tablet-panel.c
+new file mode 100644
+index 0000000..0baf998
+--- /dev/null
++++ b/panels/tablet/cc-tablet-panel.c
+@@ -0,0 +1,499 @@
++/*
++ * Copyright © 2011 Red Hat, Inc.
++ * Copyright © 2023 Gooroom <gooroom@gooroom.kr>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, see <http://www.gnu.org/licenses/>.
++ *
++ * Authors: Peter Hutterer <peter.hutterer@redhat.com>
++ *          Bastien Nocera <hadess@hadess.net>
++ *
++ */
++
++#include <config.h>
++
++#include <string.h>
++#include <gtk/gtk.h>
++#include <glib/gi18n-lib.h>
++
++#include "shell/cc-application.h"
++#include "shell/cc-debug.h"
++#include "cc-tablet-panel.h"
++#include "cc-tablet-resources.h"
++
++#define ETC_GOOROOM_TABLET_MODE    "/etc/gooroom/.tablet-mode"
++#define IIO_SENSOR_PROXY_SERVICE   "iio-sensor-proxy.service"
++
++struct _CcTabletPanel
++{
++	CcPanel           parent_instance;
++
++	GtkWidget        *sw_tablet_mode;
++	GtkWidget        *sw_auto_rotation;
++
++	gboolean          init_tablet_mode;
++	gboolean          init_auto_rotation;
++};
++
++CC_PANEL_REGISTER (CcTabletPanel, cc_tablet_panel)
++
++static gboolean tablet_mode_changed_cb (GtkSwitch *button, gboolean state, gpointer user_data);
++static gboolean auto_rotation_changed_cb (GtkSwitch *button, gboolean state, gpointer user_data);
++
++
++
++static gboolean
++get_object_path (gchar **object_path, const gchar *service_name)
++{           
++	GVariant   *variant;
++	GDBusProxy *proxy;
++	GError     *error = NULL;
++
++	proxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
++                                           G_DBUS_CALL_FLAGS_NONE, NULL,
++                                           "org.freedesktop.systemd1",
++                                           "/org/freedesktop/systemd1",
++                                           "org.freedesktop.systemd1.Manager", 
++                                           NULL, &error);
++
++	if (!proxy) {
++		g_error_free (error);
++		return FALSE;
++	}
++
++	variant = g_dbus_proxy_call_sync (proxy, "GetUnit",
++                                      g_variant_new ("(s)", service_name),
++                                      G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
++
++	if (!variant) {
++		g_error_free (error);
++	} else {
++		g_variant_get (variant, "(o)", object_path);
++		g_variant_unref (variant);
++	}
++
++	g_object_unref (proxy);
++
++	return TRUE;
++}
++
++static gboolean
++is_systemd_service_active (const gchar *service_name)
++{
++	gboolean ret = FALSE;
++
++	GVariant   *variant;
++	GDBusProxy *proxy;
++	GError     *error = NULL;
++	gchar      *obj_path = NULL;
++
++	get_object_path (&obj_path, service_name);
++	if (!obj_path) { 
++		goto done;
++	}
++
++	proxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM,
++                                           G_DBUS_CALL_FLAGS_NONE, NULL,
++                                           "org.freedesktop.systemd1",
++                                           obj_path,
++                                           "org.freedesktop.DBus.Properties",
++                                           NULL, &error);
++
++	if (!proxy) {
++		goto done;
++	}
++
++	variant = g_dbus_proxy_call_sync (proxy, "GetAll",
++                                      g_variant_new ("(s)", "org.freedesktop.systemd1.Unit"),
++                                      G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
++
++	if (variant) {
++		gchar *output = NULL;
++		GVariant *asv = g_variant_get_child_value(variant, 0);
++		GVariant *value = g_variant_lookup_value(asv, "ActiveState", NULL);
++		if(value && g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
++			output = g_variant_dup_string(value, NULL);
++			if (g_strcmp0 (output, "active") == 0) {
++				ret = TRUE;;
++			}
++			g_free (output);
++		}
++
++		g_variant_unref (variant);
++	}
++
++	g_object_unref (proxy);
++
++done:
++	if (error)
++		g_error_free (error);
++
++	return ret;
++}
++
++static gboolean
++launch_tablet_mode_switching_command (gboolean on)
++{
++	gboolean ret = FALSE;
++	GError *error = NULL;
++	gchar *pkexec, *cmdline;
++
++	pkexec = g_find_program_in_path ("pkexec");
++
++	if (on) {
++		cmdline = g_strdup_printf ("%s %s", pkexec, TABLET_MODE_CHANGE_HELPER);
++	} else {
++		cmdline = g_strdup_printf ("%s %s -d", pkexec, TABLET_MODE_CHANGE_HELPER);
++	}
++
++	ret = g_spawn_command_line_sync (cmdline, NULL, NULL, NULL, &error);
++	if (!ret) {
++		if (error) {
++			g_warning ("Error attempting to execute command: %s: %s", cmdline, error->message);
++			g_error_free (error);
++		} else {
++			g_warning ("Error attempting to execute command: %s", cmdline);
++		}
++	}
++
++	g_free (cmdline);
++
++	return ret; 
++}
++
++static gboolean
++launch_tablet_mode_ar_service_command (gboolean on)
++{
++	gboolean ret = FALSE;
++	GError *error = NULL;
++	gchar *pkexec, *cmdline;
++
++	pkexec = g_find_program_in_path ("pkexec");
++
++	if (on) {
++		cmdline = g_strdup_printf ("%s %s -a", pkexec, TABLET_MODE_AR_SERVICE_HELPER);
++	} else {
++		cmdline = g_strdup_printf ("%s %s -d", pkexec, TABLET_MODE_AR_SERVICE_HELPER);
++	}
++
++	ret = g_spawn_command_line_sync (cmdline, NULL, NULL, NULL, &error);
++	if (!ret) {
++		if (error) {
++			g_warning ("Error attempting to execute command: %s: %s", cmdline, error->message);
++			g_error_free (error);
++		} else {
++			g_warning ("Error attempting to execute command: %s", cmdline);
++		}
++	}
++
++	g_free (cmdline);
++
++	return ret;
++}
++
++static void
++switching_error_dialog_response_cb (GtkDialog *dialog,
++                                    gint       response_id,
++                                    gpointer   user_data)
++{
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	g_signal_handlers_block_by_func (self->sw_tablet_mode, tablet_mode_changed_cb, self);
++	gtk_switch_set_active (GTK_SWITCH (self->sw_tablet_mode), self->init_tablet_mode);
++	g_signal_handlers_unblock_by_func (self->sw_tablet_mode, tablet_mode_changed_cb, self);
++
++	gtk_window_destroy (GTK_WINDOW (dialog));
++}
++
++static void
++error_dialog_response_cb (GtkDialog *dialog,
++                          gint       response_id,
++                          gpointer   user_data)
++{
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	if (launch_tablet_mode_switching_command (self->init_tablet_mode)) {
++		g_signal_handlers_block_by_func (self->sw_tablet_mode, tablet_mode_changed_cb, self);
++		gtk_switch_set_active (GTK_SWITCH (self->sw_tablet_mode), self->init_tablet_mode);
++		g_signal_handlers_unblock_by_func (self->sw_tablet_mode, tablet_mode_changed_cb, self);
++	}
++
++	gtk_window_destroy (GTK_WINDOW (dialog));
++}
++
++static gboolean
++logout_idle_cb (gpointer user_data)
++{
++	gchar *logout_command = NULL, *cmdline = NULL;
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	logout_command = g_find_program_in_path ("gooroom-logout-command");
++	if (logout_command) {
++		cmdline = g_strdup_printf ("%s --logout --delay=500", logout_command);
++	} else {
++		logout_command = g_find_program_in_path ("gnome-session-quit");
++		if (logout_command) {
++			cmdline = g_strdup_printf ("%s --logout --force --no-prompt", logout_command);
++		}
++	}
++
++	if (cmdline) {
++		gboolean ret = FALSE;
++		GError *error = NULL;
++
++		ret = g_spawn_command_line_sync (cmdline, NULL, NULL, NULL, &error);
++		if (!ret) {
++			if (error) {
++				g_warning ("Error attempting to execute command: %s: %s", cmdline, error->message);
++				g_error_free (error);
++			} else {
++				g_warning ("Error attempting to execute command: %s", cmdline);
++			}
++		}
++		self->init_tablet_mode = !self->init_tablet_mode;
++		g_free (cmdline);
++	} else {
++		const gchar *msg;
++		GtkWidget *dialog;
++
++		msg = _("Not found logout command.\n"
++                "Install gooroom-logout or gnome-session-bin packages.");
++
++		dialog = gtk_message_dialog_new (NULL,
++                                         GTK_DIALOG_MODAL,
++                                         GTK_MESSAGE_ERROR,
++                                         GTK_BUTTONS_CLOSE,
++                                         NULL);
++
++		gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog), "%s", msg);
++		gtk_window_set_title (GTK_WINDOW (dialog), _("System Logout Error"));
++		gtk_window_present (GTK_WINDOW (dialog));
++
++		g_signal_connect (dialog, "response",
++                          G_CALLBACK (error_dialog_response_cb), self);
++	}
++
++	return FALSE;
++}
++
++static void
++tablet_mode_switching_dialog_response_cb (GtkDialog *dialog,
++                                          gint       response_id,
++                                          gpointer   user_data)
++{
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	if (response_id == GTK_RESPONSE_YES) {
++		g_idle_add ((GSourceFunc) logout_idle_cb, self);
++		goto done;
++	}
++
++	if (launch_tablet_mode_switching_command (self->init_tablet_mode)) {
++		g_signal_handlers_block_by_func (self->sw_tablet_mode, tablet_mode_changed_cb, self);
++		gtk_switch_set_active (GTK_SWITCH (self->sw_tablet_mode), self->init_tablet_mode);
++		g_signal_handlers_unblock_by_func (self->sw_tablet_mode, tablet_mode_changed_cb, self);
++	}
++
++done:
++	gtk_window_destroy (GTK_WINDOW (dialog));
++}
++
++
++static gboolean
++tablet_mode_changed_cb (GtkSwitch *button, gboolean state, gpointer user_data)
++{
++	GtkNative *native;
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	if (state == self->init_tablet_mode)
++		return FALSE;
++
++	native = gtk_widget_get_native (GTK_WIDGET (self));
++
++	if (launch_tablet_mode_switching_command (state)) {
++		GtkWidget *dialog;
++		const gchar *msg, *title;
++
++		if (state) {
++			title = _("Switching Tablet Mode");
++			msg = _("To switch to tablet mode, you must log in again.\n"
++                    "Would you like to log in again now?");
++		} else {
++			title = _("Switching Normal Mode");
++			msg = _("To switch to normal mode, you must log in again.\n"
++                    "Would you like to log in again now?");
++		}
++
++		dialog = gtk_message_dialog_new (GTK_WINDOW (native),
++                                         GTK_DIALOG_MODAL,
++                                         GTK_MESSAGE_ERROR,
++                                         GTK_BUTTONS_NONE,
++                                         NULL);
++		gtk_dialog_add_buttons (GTK_DIALOG (dialog),
++                                _("Yes"), GTK_RESPONSE_YES,
++                                _("No"), GTK_RESPONSE_NO,
++                                NULL);
++		gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_RESPONSE_YES);
++
++		gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog), "%s", msg);
++		gtk_window_set_title (GTK_WINDOW (dialog), title);
++		gtk_window_present (GTK_WINDOW (dialog));
++
++		g_signal_connect (dialog, "response",
++                          G_CALLBACK (tablet_mode_switching_dialog_response_cb), self);
++	} else {
++		GtkWidget *dialog;
++		const gchar *msg, *title;
++
++		if (state) {
++			title = _("Tablet Mode Switching Error");
++			msg = _("Failed to switch tablet mode.");
++		} else {
++			title = _("Normal Mode Switching Error");
++			msg = _("Failed to switch normal mode.");
++		}
++
++		dialog = gtk_message_dialog_new (GTK_WINDOW (native),
++                                         GTK_DIALOG_MODAL,
++                                         GTK_MESSAGE_ERROR,
++                                         GTK_BUTTONS_CLOSE,
++                                         NULL);
++
++		gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog), "%s", msg);
++		gtk_window_set_title (GTK_WINDOW (dialog), title);
++		gtk_window_present (GTK_WINDOW (dialog));
++
++		g_signal_connect (dialog, "response",
++                          G_CALLBACK (switching_error_dialog_response_cb), self);
++	}
++
++	return FALSE;
++}
++
++static void
++auto_rotation_switching_error_dialog_response_cb (GtkDialog *dialog,
++                                                  gint       response_id,
++                                                  gpointer   user_data)
++{
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	g_signal_handlers_block_by_func (self->sw_auto_rotation, auto_rotation_changed_cb, self);
++	gtk_switch_set_active (GTK_SWITCH (self->sw_auto_rotation), self->init_auto_rotation);
++	g_signal_handlers_unblock_by_func (self->sw_auto_rotation, auto_rotation_changed_cb, self);
++
++	gtk_window_destroy (GTK_WINDOW (dialog));
++}
++
++static gboolean
++auto_rotation_changed_cb (GtkSwitch *button, gboolean state, gpointer user_data)
++{
++	GtkNative *native;
++
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	if (state == self->init_auto_rotation)
++		return FALSE;
++
++	native = gtk_widget_get_native (GTK_WIDGET (self));
++
++	if (!launch_tablet_mode_ar_service_command (state)) {
++		GtkWidget *dialog;
++		const gchar *msg, *title;
++
++		if (state) {
++			title = _("Auto Rotation Activating Error");
++			msg = _("Failed to activate auto rotation.");
++		} else {
++			title = _("Auto Rotation Deactivating Error");
++			msg = _("Failed to deactivate auto rotation.");
++		}
++
++		dialog = gtk_message_dialog_new (GTK_WINDOW (native),
++                                         GTK_DIALOG_MODAL,
++                                         GTK_MESSAGE_ERROR,
++                                         GTK_BUTTONS_CLOSE,
++                                         NULL);
++		gtk_dialog_set_default_response (GTK_DIALOG (dialog), GTK_BUTTONS_CLOSE);
++
++		gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog), "%s", msg);
++		gtk_window_set_title (GTK_WINDOW (dialog), title);
++		gtk_window_present (GTK_WINDOW (dialog));
++
++		g_signal_connect (dialog, "response",
++                          G_CALLBACK (auto_rotation_switching_error_dialog_response_cb), self);
++	} else {
++		self->init_auto_rotation = state;
++	}
++
++	return FALSE;
++}
++
++static void
++cc_tablet_panel_dispose (GObject *object)
++{
++	G_OBJECT_CLASS (cc_tablet_panel_parent_class)->dispose (object);
++}
++
++//cc_tablet_panel_constructed (GObject *object)
++//{
++//	CcShell *shell;
++//	CcTabletPanel *self = CC_TABLET_PANEL (object);
++//
++//	G_OBJECT_CLASS (cc_tablet_panel_parent_class)->constructed (object);
++//}
++
++static const char *
++cc_tablet_panel_get_help_uri (CcPanel *panel)
++{
++  return "help:gnome-help/tablet";
++}
++
++static void
++cc_tablet_panel_class_init (CcTabletPanelClass *klass)
++{
++	GObjectClass *object_class = G_OBJECT_CLASS (klass);
++	CcPanelClass *panel_class = CC_PANEL_CLASS (klass);
++	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
++
++	object_class->dispose = cc_tablet_panel_dispose;
++//	object_class->constructed = cc_tablet_panel_constructed;
++
++	panel_class->get_help_uri = cc_tablet_panel_get_help_uri;
++
++	gtk_widget_class_set_template_from_resource (widget_class,
++                                                 "/org/gnome/control-center/tablet/cc-tablet-panel.ui");
++
++	gtk_widget_class_bind_template_child (widget_class, CcTabletPanel, sw_tablet_mode);
++	gtk_widget_class_bind_template_child (widget_class, CcTabletPanel, sw_auto_rotation);
++}
++
++static void
++cc_tablet_panel_init (CcTabletPanel *self)
++{
++	g_resources_register (cc_tablet_get_resource ());
++
++	gtk_widget_init_template (GTK_WIDGET (self));
++
++	self->init_tablet_mode = g_file_test (ETC_GOOROOM_TABLET_MODE, G_FILE_TEST_EXISTS);
++	self->init_auto_rotation = is_systemd_service_active (IIO_SENSOR_PROXY_SERVICE);
++
++	gtk_switch_set_active (GTK_SWITCH (self->sw_tablet_mode), self->init_tablet_mode);
++	gtk_switch_set_active (GTK_SWITCH (self->sw_auto_rotation), self->init_auto_rotation);
++	if (!self->init_tablet_mode)
++		gtk_widget_set_sensitive (self->sw_auto_rotation, FALSE);
++
++	g_signal_connect (self->sw_tablet_mode, "state-set", 
++                      G_CALLBACK (tablet_mode_changed_cb), self);
++	g_signal_connect (self->sw_auto_rotation, "state-set", 
++                      G_CALLBACK (auto_rotation_changed_cb), self);
++}
+diff --git a/panels/tablet/cc-tablet-panel.h b/panels/tablet/cc-tablet-panel.h
+new file mode 100644
+index 0000000..2349c36
+--- /dev/null
++++ b/panels/tablet/cc-tablet-panel.h
+@@ -0,0 +1,31 @@
++/*
++ * Copyright © 2011 Red Hat, Inc.
++ * Copyright © 2023 Gooroom <gooroom@gooroom.kr>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, see <http://www.gnu.org/licenses/>.
++ *
++ * Authors: Peter Hutterer <peter.hutterer@redhat.com>
++ *          Bastien Nocera <hadess@hadess.net>
++ */
++
++#pragma once
++
++#include <shell/cc-panel.h>
++
++G_BEGIN_DECLS
++
++#define CC_TYPE_TABLET_PANEL (cc_tablet_panel_get_type ())
++G_DECLARE_FINAL_TYPE (CcTabletPanel, cc_tablet_panel, CC, TABLET_PANEL, CcPanel)
++
++G_END_DECLS
+diff --git a/panels/tablet/cc-tablet-panel.ui b/panels/tablet/cc-tablet-panel.ui
+new file mode 100644
+index 0000000..19bf7ef
+--- /dev/null
++++ b/panels/tablet/cc-tablet-panel.ui
+@@ -0,0 +1,44 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!-- Generated with glade 3.40.0 -->
++<interface>
++  <requires lib="gtk+" version="3.12"/>
++  <template class="CcTabletPanel" parent="CcPanel">
++    <child type="content">
++      <object class="AdwPreferencesPage">
++        <child>
++          <object class="AdwPreferencesGroup">
++            <property name="title" translatable="yes">Tablet _Mode</property>
++            <child>
++              <object class="AdwActionRow">
++                <property name="title" translatable="yes">Enable Tablet Mode</property>
++                <property name="subtitle" translatable="yes">Changes will take effect on next login.</property>
++                <property name="activatable-widget">sw_tablet_mode</property>
++                <child type="suffix">
++                  <object class="GtkSwitch" id="sw_tablet_mode">
++                    <property name="valign">center</property>
++                  </object>
++                </child>
++              </object>
++            </child>
++          </object>
++        </child>
++        <child>
++          <object class="AdwPreferencesGroup">
++            <property name="title" translatable="yes">Auto _Rotation</property>
++            <child>
++              <object class="AdwActionRow">
++                <property name="title" translatable="yes">Enable Auto Rotation</property>
++                <property name="activatable-widget">sw_auto_rotation</property>
++                <child type="suffix">
++                  <object class="GtkSwitch" id="sw_auto_rotation">
++                    <property name="valign">center</property>
++                  </object>
++                </child>
++              </object>
++            </child>
++          </object>
++        </child>
++      </object>
++    </child>
++  </template>
++</interface>
+diff --git a/panels/tablet/gnome-tablet-panel.desktop.in.in b/panels/tablet/gnome-tablet-panel.desktop.in.in
+new file mode 100644
+index 0000000..614b5e8
+--- /dev/null
++++ b/panels/tablet/gnome-tablet-panel.desktop.in.in
+@@ -0,0 +1,16 @@
++[Desktop Entry]
++Name=Tablet
++Comment=Settings for tablet mode
++Exec=gnome-control-center tablet
++# Translators: Do NOT translate or transliterate this text (this is an icon file name)!
++Icon=org.gnome.Settings-wacom-symbolic
++Terminal=false
++Type=Application
++NoDisplay=true
++StartupNotify=true
++Categories=GNOME;GTK;Settings;HardwareSettings;X-GNOME-Settings-Panel;X-GNOME-DevicesSettings;
++OnlyShowIn=GNOME;
++# Translators: Search terms to find the Date and Time panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
++Keywords=Tablet;
++# Notifications are emitted by gnome-settings-daemon
++X-GNOME-UsesNotifications=true
+diff --git a/panels/tablet/meson.build b/panels/tablet/meson.build
+new file mode 100644
+index 0000000..95b5463
+--- /dev/null
++++ b/panels/tablet/meson.build
+@@ -0,0 +1,78 @@
++deps = common_deps
++
++cflags += [
++  '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir),
++  '-DTABLET_MODE_CHANGE_HELPER="@0@/tablet-mode-change-helper"'.format(control_center_libexecdir),
++  '-DTABLET_MODE_AR_SERVICE_HELPER="@0@/tablet-mode-ar-service-helper"'.format(control_center_libexecdir)
++]
++
++tablet_gresource = gnome.compile_resources(
++  'cc-' + cappletname + '-resources',
++  cappletname + '.gresource.xml',
++    source_dir : '.',
++        c_name : 'cc_' + cappletname,
++        export : true
++)
++
++panels_list += cappletname
++desktop = 'gnome-@0@-panel.desktop'.format(cappletname)
++
++desktop_in = configure_file(
++          input : desktop + '.in.in',
++         output : desktop + '.in',
++  configuration : desktop_conf
++)
++
++i18n.merge_file(
++         type : 'desktop',
++        input : desktop_in,
++       output : desktop,
++       po_dir : po_dir,
++      install : true,
++  install_dir : control_center_desktopdir
++)
++
++polkit_conf = configuration_data()
++polkit_conf.set('libexecdir', control_center_libexecdir)
++
++polkit = 'org.gnome.controlcenter.tablet.policy'
++
++polkit_in = configure_file(
++  input: polkit + '.in.in',
++  output: polkit + '.in',
++  configuration: polkit_conf
++)
++
++i18n.merge_file(
++  input: polkit_in,
++  output: polkit,
++  po_dir: po_dir,
++  install: true,
++  install_dir: join_paths(control_center_datadir, 'polkit-1', 'actions')
++)
++
++sources = tablet_gresource + files(
++  'cc-' + cappletname + '-panel.c',
++)
++
++incs = [
++  top_inc
++]
++
++panels_libs += static_library(
++  cappletname + '-properties',
++              sources : sources,
++  include_directories : incs,
++         dependencies : deps,
++               c_args : cflags
++)
++
++executable(
++  'tablet-mode-ar-service-helper',
++  'tablet-mode-ar-service-helper.c',
++  include_directories : incs,
++         dependencies : deps,
++               c_args : cflags,
++               install: true,
++           install_dir: control_center_libexecdir
++)
+diff --git a/panels/tablet/org.gnome.controlcenter.tablet.policy.in.in b/panels/tablet/org.gnome.controlcenter.tablet.policy.in.in
+new file mode 100644
+index 0000000..1f9b71c
+--- /dev/null
++++ b/panels/tablet/org.gnome.controlcenter.tablet.policy.in.in
+@@ -0,0 +1,21 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE policyconfig PUBLIC
++ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
++ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
++<policyconfig>
++
++  <vendor>The Gooroom Project</vendor>
++
++  <action id="org.gnome.controlcenter.tablet-mode-ar-service-helper">
++    <description>Enable or disable iio-sensor-proxy service.</description>
++    <message>Authentication is required to enable or disable iio-sensor-proxy service</message>
++    <defaults>
++      <allow_any>no</allow_any>
++      <allow_inactive>no</allow_inactive>
++      <allow_active>auth_admin_keep</allow_active>
++    </defaults>
++    <annotate key="org.freedesktop.policykit.exec.path">@libexecdir@/tablet-mode-ar-service-helper</annotate>
++  </action>
++
++</policyconfig>
++
+diff --git a/panels/tablet/tablet-mode-ar-service-helper.c b/panels/tablet/tablet-mode-ar-service-helper.c
+new file mode 100644
+index 0000000..f6dd36c
+--- /dev/null
++++ b/panels/tablet/tablet-mode-ar-service-helper.c
+@@ -0,0 +1,92 @@
++/*
++ * Copyright (C) 2023 Gooroom <gooroom@gooroom.kr>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ *
++ */
++
++#include <gio/gio.h>
++
++
++static gboolean opt_activate   = FALSE;
++static gboolean opt_deactivate = FALSE;
++
++static GOptionEntry options[] =
++{
++	{ "activate",   'a', 0, G_OPTION_ARG_NONE,   &opt_activate,   NULL, NULL },
++	{ "deactivate", 'd', 0, G_OPTION_ARG_NONE,   &opt_deactivate, NULL, NULL },
++	{ NULL }
++};
++
++
++static gboolean
++activate_service (gboolean start)
++{
++	guint i = 0;
++//	gchar **argv; 
++	gboolean ret; 
++	const gchar *action;
++	gchar *systemd_run, *cmdline;
++	GError *error = NULL;
++
++	const gchar *systemd_services[] = {
++		"iio-sensor-proxy.service",
++		"auto-rotate.service",
++		NULL
++	};
++
++	action = start ? "restart" : "stop";
++	systemd_run = g_find_program_in_path ("systemd-run");
++
++	for (i = 0; systemd_services[i] != NULL; i++) {
++		cmdline = g_strdup_printf ("%s systemctl %s %s", systemd_run, action, systemd_services[i]);
++
++		ret = g_spawn_command_line_sync (cmdline, NULL, NULL, NULL, NULL);
++
++//		g_shell_parse_argv (cmd, NULL, &argv, NULL);
++//		ret = g_spawn_async (NULL, argv, NULL, G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, NULL, &error);
++
++		if (!ret) {
++			g_warning ("Couldn't spawn %s: %s", cmdline, error->message);
++			g_error_free (error);
++		}
++
++		g_free (cmdline);
++//		g_strfreev (argv);
++	}
++
++	return ret;
++}
++
++int
++main (int argc, char **argv)
++{
++	GOptionContext *context;
++
++	context = g_option_context_new (NULL);
++	g_option_context_add_main_entries (context, options, NULL);
++	g_option_context_parse (context, &argc, &argv, NULL);
++	g_option_context_free (context);
++
++	if (opt_activate) {
++		return (activate_service (TRUE) == TRUE) ? 0 : 1;
++	}
++
++	if (opt_deactivate) {
++		return (activate_service (FALSE) == TRUE) ? 0 : 1;
++	}
++
++	return 1;
++}
+diff --git a/panels/tablet/tablet.gresource.xml b/panels/tablet/tablet.gresource.xml
+new file mode 100644
+index 0000000..15564a8
+--- /dev/null
++++ b/panels/tablet/tablet.gresource.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<gresources>
++  <gresource prefix="/org/gnome/control-center/tablet">
++    <file preprocess="xml-stripblanks">cc-tablet-panel.ui</file>
++  </gresource>
++</gresources>
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index f2bf559..6aa51df 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -230,6 +230,10 @@ panels/sound/cc-subwoofer-slider.ui
+ panels/sound/cc-volume-slider.c
+ panels/sound/cc-volume-slider.ui
+ panels/sound/gnome-sound-panel.desktop.in.in
++panels/tablet/cc-tablet-panel.c
++panels/tablet/cc-tablet-panel.ui
++panels/tablet/gnome-tablet-panel.desktop.in.in
++panels/tablet/org.gnome.controlcenter.tablet.policy.in.in
+ panels/thunderbolt/cc-bolt-device-dialog.c
+ panels/thunderbolt/cc-bolt-device-dialog.ui
+ panels/thunderbolt/cc-bolt-device-entry.c
+diff --git a/po/ko.po b/po/ko.po
+index fc01352..625b63e 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -31,9 +31,8 @@
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: gnome-control-center\n"
+-"Report-Msgid-Bugs-To: https://gitlab.gnome.org/GNOME/gnome-control-center/"
+-"issues\n"
+-"POT-Creation-Date: 2022-08-24 14:00+0000\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2023-11-15 10:20+0900\n"
+ "PO-Revision-Date: 2022-09-03 22:48+0900\n"
+ "Last-Translator: Changwoo Ryu <cwryu@debian.org>\n"
+ "Language-Team: GNOME Korea <gnome-kr@googlegroups.com>\n"
+@@ -114,7 +113,9 @@ msgstr "설정 바꾸기 가능"
+ msgid ""
+ "%s has the following permissions built-in. These cannot be altered. If you "
+ "are concerned about these permissions, consider removing this application."
+-msgstr "%s 앱에 다음 권한이 내장되어 있습니다. 이 권한은 바꿀 수 없습니다. 이 권한이 염려스럽다면 이 앱 삭제를 고려해 보십시오."
++msgstr ""
++"%s 앱에 다음 권한이 내장되어 있습니다. 이 권한은 바꿀 수 없습니다. 이 권한이 "
++"염려스럽다면 이 앱 삭제를 고려해 보십시오."
+ 
+ #: panels/applications/cc-applications-panel.c:1192
+ #, c-format
+@@ -188,8 +189,8 @@ msgstr "시스템 검색을 받아서 결과를 보냅니다."
+ #: panels/keyboard/cc-keyboard-shortcut-editor.ui:123
+ #: panels/keyboard/cc-xkb-modifier-dialog.c:344
+ #: panels/keyboard/keyboard-shortcuts.c:367 panels/network/network-proxy.ui:107
+-#: panels/user-accounts/cc-user-panel.c:804
+-#: panels/user-accounts/cc-user-panel.c:907
++#: panels/user-accounts/cc-user-panel.c:805
++#: panels/user-accounts/cc-user-panel.c:937
+ #: panels/wwan/cc-wwan-device-page.c:478
+ #: subprojects/gvc/gvc-mixer-control.c:1908
+ msgid "Disabled"
+@@ -372,7 +373,7 @@ msgstr "사진을 고르십시오"
+ #: panels/color/cc-color-calibrate.ui:22 panels/color/cc-color-panel.c:284
+ #: panels/color/cc-color-panel.c:844 panels/common/cc-language-chooser.ui:21
+ #: panels/display/cc-display-panel.ui:31
+-#: panels/info-overview/cc-info-overview-panel.ui:218
++#: panels/info-overview/cc-info-overview-panel.ui:220
+ #: panels/keyboard/cc-input-chooser.ui:11
+ #: panels/keyboard/cc-keyboard-shortcut-editor.ui:23
+ #: panels/network/cc-wifi-hotspot-dialog.ui:125
+@@ -391,8 +392,8 @@ msgstr "사진을 고르십시오"
+ #: panels/user-accounts/cc-avatar-chooser.c:167
+ #: panels/user-accounts/cc-fingerprint-dialog.ui:32
+ #: panels/user-accounts/cc-password-dialog.ui:20
+-#: panels/user-accounts/cc-user-panel.c:594
+-#: panels/user-accounts/cc-user-panel.c:612
++#: panels/user-accounts/cc-user-panel.c:595
++#: panels/user-accounts/cc-user-panel.c:613
+ #: panels/user-accounts/data/join-dialog.ui:17
+ #: panels/wwan/cc-wwan-mode-dialog.ui:32
+ #: panels/wwan/cc-wwan-network-dialog.ui:108
+@@ -459,7 +460,9 @@ msgstr "배경 이미지 또는 UI 색을 바꿉니다"
+ #. Translators: Search terms to find the Appearance panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/background/gnome-background-panel.desktop.in.in:15
+ msgid "Background;Wallpaper;Screen;Desktop;Style;Light;Dark;Appearance;"
+-msgstr "Background;Wallpaper;배경;월페이퍼;Screen;화면;Desktop;바탕 화면;Style;스타일;모양;Light;밝게;Dark;어둡게;다크;Appearance;"
++msgstr ""
++"Background;Wallpaper;배경;월페이퍼;Screen;화면;Desktop;바탕 화면;Style;스타"
++"일;모양;Light;밝게;Dark;어둡게;다크;Appearance;"
+ 
+ #: panels/bluetooth/cc-bluetooth-panel.ui:11 panels/camera/cc-camera-panel.ui:8
+ #: panels/datetime/cc-datetime-panel.ui:172
+@@ -537,7 +540,8 @@ msgid ""
+ "\n"
+ "Allow the applications below to use your camera."
+ msgstr ""
+-"카메라를 사용하면 사진이나 영상을 찍을 수 있습니다. 카메라를 사용하지 않으면 일부 앱이 제대로 동작하지 않을 수 있습니다.\n"
++"카메라를 사용하면 사진이나 영상을 찍을 수 있습니다. 카메라를 사용하지 않으면 "
++"일부 앱이 제대로 동작하지 않을 수 있습니다.\n"
+ "\n"
+ "카메라를 사용하려면 아래에서 앱을 허용하십시오."
+ 
+@@ -552,7 +556,9 @@ msgstr "내 사진을 보호합니다"
+ #. Translators: Search terms to find the Camera panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/camera/gnome-camera-panel.desktop.in.in:20
+ msgid "camera;photos;video;webcam;lock;private;privacy;"
+-msgstr "camera;카메라;photos;사진;video;비디오;webcam;웹캠;캠;lock;잠금;private;privacy;개인;정보;사생활;프라이버시;보호;"
++msgstr ""
++"camera;카메라;photos;사진;video;비디오;webcam;웹캠;캠;lock;잠금;private;"
++"privacy;개인;정보;사생활;프라이버시;보호;"
+ 
+ #. TRANSLATORS: The user has to attach the sensor to the screen
+ #: panels/color/cc-color-calibrate.c:347
+@@ -783,7 +789,7 @@ msgstr "이 측정 장치는 프린터 프로파일링을 지원하지 않습니
+ msgid "The device type is not currently supported."
+ msgstr "이 종류의 장치는 현재 지원하지 않습니다."
+ 
+-#: panels/color/cc-color-panel.ui:4 panels/wacom/calibrator/calibrator.ui:40
++#: panels/color/cc-color-panel.ui:4
+ msgid "Screen Calibration"
+ msgstr "화면 보정"
+ 
+@@ -897,13 +903,13 @@ msgstr "쓰기 가능 미디어 필요"
+ 
+ #: panels/color/cc-color-panel.ui:313
+ msgid ""
+-"You may find these instructions on how to use the profile on <a href=\"linux"
+-"\">GNU/Linux</a>, <a href=\"osx\">Apple OS X</a> and <a href=\"windows"
+-"\">Microsoft Windows</a> systems useful."
++"You may find these instructions on how to use the profile on <a "
++"href=\"linux\">GNU/Linux</a>, <a href=\"osx\">Apple OS X</a> and <a "
++"href=\"windows\">Microsoft Windows</a> systems useful."
+ msgstr ""
+-"<a href=\"linux\">GNU/리눅스</a>, <a href=\"osx\">애플 OS X</a> 및 <a href="
+-"\"windows\">마이크로소프트 윈도우Microsoft Windows</a> 시스템의 프로파일 사용"
+-"법 안내를 읽어보면 도움이 됩니다."
++"<a href=\"linux\">GNU/리눅스</a>, <a href=\"osx\">애플 OS X</a> 및 <a "
++"href=\"windows\">마이크로소프트 윈도우Microsoft Windows</a> 시스템의 프로파"
++"일 사용법 안내를 읽어보면 도움이 됩니다."
+ 
+ #: panels/color/cc-color-panel.ui:335
+ msgid "Add Profile"
+@@ -1456,8 +1462,8 @@ msgstr "위치 서비스를 켜야 하고 인터넷 접근이 필요"
+ #: panels/keyboard/cc-xkb-modifier-dialog.ui:43
+ #: panels/location/cc-location-panel.ui:9 panels/screen/cc-screen-panel.ui:40
+ #: panels/screen/cc-screen-panel.ui:76 panels/screen/cc-screen-panel.ui:96
+-#: panels/user-accounts/cc-user-panel.c:802
+-#: panels/user-accounts/cc-user-panel.c:904
++#: panels/user-accounts/cc-user-panel.c:803
++#: panels/user-accounts/cc-user-panel.c:934
+ #: panels/wwan/cc-wwan-device-page.c:476
+ msgid "Enabled"
+ msgstr "사용"
+@@ -1661,7 +1667,7 @@ msgctxt "Display rotation"
+ msgid "Landscape (flipped)"
+ msgstr "가로 (뒤집힘)"
+ 
+-#: panels/display/cc-display-settings.c:177
++#: panels/display/cc-display-settings.c:180
+ #, c-format
+ msgid "%.2lf Hz"
+ msgstr "%.2lf Hz"
+@@ -1684,8 +1690,8 @@ msgstr "주사율"
+ msgid "Adjust for TV"
+ msgstr "TV에 맞게 조정"
+ 
+-#: panels/display/cc-display-settings.ui:78
+-#: panels/display/cc-display-settings.ui:93
++#: panels/display/cc-display-settings.ui:79
++#: panels/display/cc-display-settings.ui:94
+ msgctxt "display setting"
+ msgid "Scale"
+ msgstr "비율 조정"
+@@ -1694,11 +1700,13 @@ msgstr "비율 조정"
+ msgid "Night Light unavailable"
+ msgstr "야간 모드를 사용할 수 없습니다"
+ 
+-#: panels/display/cc-night-light-page.ui:33
++#: panels/display/cc-night-light-page.ui:31
+ msgid ""
+ "This could be the result of the graphics driver being used, or the desktop "
+ "being used remotely"
+-msgstr "사용하는 그래픽 드라이버 때문이거나, 데스크톱을 원격에서 사용해서 그럴 수 있습니다"
++msgstr ""
++"사용하는 그래픽 드라이버 때문이거나, 데스크톱을 원격에서 사용해서 그럴 수 있"
++"습니다"
+ 
+ #. Inhibit the redshift functionality until the next day starts
+ #: panels/display/cc-night-light-page.ui:58
+@@ -1794,7 +1802,7 @@ msgstr ""
+ 
+ #. TRANSLATORS: secure boot refers to the system firmware security mode
+ #: panels/firmware-security/cc-firmware-security-boot-dialog.c:72
+-#: panels/firmware-security/cc-firmware-security-panel.c:109
++#: panels/firmware-security/cc-firmware-security-panel.c:112
+ msgid "Secure Boot is Active"
+ msgstr "보안 부팅이 동작 중입니다"
+ 
+@@ -1803,7 +1811,9 @@ msgstr "보안 부팅이 동작 중입니다"
+ msgid ""
+ "Secure boot prevents malicious software from being loaded when the device "
+ "starts. It is currently turned on and is functioning correctly."
+-msgstr "보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막습니다. 현재 이 기능은 켜져 있고 올바르게 동작 중입니다."
++msgstr ""
++"보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막"
++"습니다. 현재 이 기능은 켜져 있고 올바르게 동작 중입니다."
+ 
+ #. TRANSLATORS: secure boot refers to the system firmware security mode
+ #: panels/firmware-security/cc-firmware-security-boot-dialog.c:83
+@@ -1816,7 +1826,9 @@ msgid ""
+ "Secure boot prevents malicious software from being loaded when the device "
+ "starts. It is currently turned on, but will not work due to having an "
+ "invalid key."
+-msgstr "보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막습니다. 현재 이 기능은 켜져 있지만, 키가 잘못되어 동작하지 않습니다."
++msgstr ""
++"보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막"
++"습니다. 현재 이 기능은 켜져 있지만, 키가 잘못되어 동작하지 않습니다."
+ 
+ #. TRANSLATORS: this is the second section of description.
+ #: panels/firmware-security/cc-firmware-security-boot-dialog.c:90
+@@ -1824,7 +1836,9 @@ msgid ""
+ "Secure boot problems can often be resolved from your computer's UEFI "
+ "firmware settings (BIOS) and your hardware manufacturer may provide "
+ "information on how to do this."
+-msgstr "보안 부팅 문제는 컴퓨터의 UEFI 펌웨어 설정에서 (BIOS) 해결할 수도 있고, 하드웨어 제조사에서 어떻게 설정하는지 정보를 제공합니다."
++msgstr ""
++"보안 부팅 문제는 컴퓨터의 UEFI 펌웨어 설정에서 (BIOS) 해결할 수도 있고, 하드"
++"웨어 제조사에서 어떻게 설정하는지 정보를 제공합니다."
+ 
+ #. TRANSLATORS: this is the third section of description.
+ #: panels/firmware-security/cc-firmware-security-boot-dialog.c:93
+@@ -1841,7 +1855,9 @@ msgstr "보안 부팅이 꺼졌습니다"
+ msgid ""
+ "Secure boot prevents malicious software from being loaded when the device "
+ "starts. It is currently turned off."
+-msgstr "보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막습니다. 현재 이 기능은 꺼져 있습니다."
++msgstr ""
++"보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막"
++"습니다. 현재 이 기능은 꺼져 있습니다."
+ 
+ #. TRANSLATORS: this is the second section of the description.
+ #: panels/firmware-security/cc-firmware-security-boot-dialog.c:106
+@@ -1849,7 +1865,9 @@ msgid ""
+ "Secure boot can often be turned on from your computer's UEFI firmware "
+ "settings (BIOS). For help, contact your hardware manufacturer or IT support "
+ "provider."
+-msgstr "보안 부팅 기능은 컴퓨터의 UEFI 펌웨어 설정에서 (BIOS) 켤 수도 있습니다. 도움이 필요하면 하드웨어 제조사나 IT 지원 공급자에게 문의하십시오."
++msgstr ""
++"보안 부팅 기능은 컴퓨터의 UEFI 펌웨어 설정에서 (BIOS) 켤 수도 있습니다. 도움"
++"이 필요하면 하드웨어 제조사나 IT 지원 공급자에게 문의하십시오."
+ 
+ #: panels/firmware-security/cc-firmware-security-boot-dialog.ui:53
+ msgid ""
+@@ -1858,7 +1876,8 @@ msgid ""
+ "\n"
+ "For more information, contact the hardware manufacturer or IT support."
+ msgstr ""
+-"보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막습니다.\n"
++"보안 부팅 기능은 장치가 시작할 때 악의적인 소프트웨어를 읽어들이지 못하게 막"
++"습니다.\n"
+ "\n"
+ "더 자세히 알고 싶으면, 하드웨어 제조사나 IT 지원 공급자에 문의하십시오."
+ 
+@@ -1882,7 +1901,7 @@ msgstr "장치가 HSI %d 단계를 준수합니다"
+ 
+ #. TRANSLATORS: in reference to firmware protection: 0/4 stars
+ #: panels/firmware-security/cc-firmware-security-dialog.c:149
+-#: panels/firmware-security/cc-firmware-security-panel.c:482
++#: panels/firmware-security/cc-firmware-security-panel.c:485
+ msgid "Security Level 0"
+ msgstr "보안 단계 0"
+ 
+@@ -1891,12 +1910,14 @@ msgid ""
+ "This device has no protection against hardware security issues. This could "
+ "be because of a hardware or firmware configuration issue. It is recommended "
+ "to contact your IT support provider."
+-msgstr "이 장치는 하드웨어 보안 문제에 대한 보호 기능이 없습니다. 하드웨어 또는 펌웨어 설정 문제일 수 있습니다. IT 지원 공급자에게 문의하기를 권장합니다."
++msgstr ""
++"이 장치는 하드웨어 보안 문제에 대한 보호 기능이 없습니다. 하드웨어 또는 펌웨"
++"어 설정 문제일 수 있습니다. IT 지원 공급자에게 문의하기를 권장합니다."
+ 
+ #. TRANSLATORS: in reference to firmware protection: 1/4 stars
+ #: panels/firmware-security/cc-firmware-security-dialog.c:158
+ #: panels/firmware-security/cc-firmware-security-dialog.c:357
+-#: panels/firmware-security/cc-firmware-security-panel.c:489
++#: panels/firmware-security/cc-firmware-security-panel.c:492
+ msgid "Security Level 1"
+ msgstr "보안 단계 1"
+ 
+@@ -1905,12 +1926,14 @@ msgid ""
+ "This device has minimal protection against hardware security issues. This is "
+ "the lowest device security level and only provides protection against simple "
+ "security threats."
+-msgstr "이 장치는 하드웨어 보안 문제에 대한 최소한의 보호 기능이 있습니다. 가장 낮은 수준의 장치 보안 단계이므로, 단순한 보안 위협에 대한 보호만을 제공합니다."
++msgstr ""
++"이 장치는 하드웨어 보안 문제에 대한 최소한의 보호 기능이 있습니다. 가장 낮은 "
++"수준의 장치 보안 단계이므로, 단순한 보안 위협에 대한 보호만을 제공합니다."
+ 
+ #. TRANSLATORS: in reference to firmware protection: 2/4 stars
+ #: panels/firmware-security/cc-firmware-security-dialog.c:167
+ #: panels/firmware-security/cc-firmware-security-dialog.c:362
+-#: panels/firmware-security/cc-firmware-security-panel.c:496
++#: panels/firmware-security/cc-firmware-security-panel.c:499
+ msgid "Security Level 2"
+ msgstr "보안 단계 2"
+ 
+@@ -1918,12 +1941,14 @@ msgstr "보안 단계 2"
+ msgid ""
+ "This device has basic protection against hardware security issues. This "
+ "provides protection against some common security threats."
+-msgstr "이 장치는 하드웨어 보안 문제에 대한 기초적인 보호 기능이 있습니다. 일부 흔한 보안 위협에 대한 보호를 제공합니다."
++msgstr ""
++"이 장치는 하드웨어 보안 문제에 대한 기초적인 보호 기능이 있습니다. 일부 흔한 "
++"보안 위협에 대한 보호를 제공합니다."
+ 
+ #. TRANSLATORS: in reference to firmware protection: 3/4 stars
+ #: panels/firmware-security/cc-firmware-security-dialog.c:176
+ #: panels/firmware-security/cc-firmware-security-dialog.c:367
+-#: panels/firmware-security/cc-firmware-security-panel.c:503
++#: panels/firmware-security/cc-firmware-security-panel.c:506
+ msgid "Security Level 3"
+ msgstr "보안 단계 3"
+ 
+@@ -1932,17 +1957,19 @@ msgid ""
+ "This device has extended protection against hardware security issues. This "
+ "is the highest device security level and provides protection against "
+ "advanced security threats."
+-msgstr "이 장치는 하드웨어 보안 문제에 대한 확장된 보호 기능이 있습니다. 가장 높은 수준의 장치 보안 단계이므로, 고급 보안 위협에 대한 보호를 제공합니다."
++msgstr ""
++"이 장치는 하드웨어 보안 문제에 대한 확장된 보호 기능이 있습니다. 가장 높은 수"
++"준의 장치 보안 단계이므로, 고급 보안 위협에 대한 보호를 제공합니다."
+ 
+ #. TRANSLATORS: in reference to firmware protection: ??? stars
+ #: panels/firmware-security/cc-firmware-security-dialog.c:185
+ #: panels/firmware-security/cc-firmware-security-dialog.ui:22
+-#: panels/firmware-security/cc-firmware-security-panel.c:518
++#: panels/firmware-security/cc-firmware-security-panel.c:521
+ msgid "Security Level"
+ msgstr "보안 단계"
+ 
+ #: panels/firmware-security/cc-firmware-security-dialog.c:186
+-#: panels/firmware-security/cc-firmware-security-panel.c:519
++#: panels/firmware-security/cc-firmware-security-panel.c:522
+ msgid "Security levels are not available for this device."
+ msgstr "이 장치에 보안 단계를 사용할 수 없습니다."
+ 
+@@ -1958,7 +1985,9 @@ msgstr "하드웨어 제조사에 연락해 보안 업데이트하는데 도움
+ msgid ""
+ "It might be possible to resolve this issue in the device’s UEFI firmware "
+ "settings, or by a support technician."
+-msgstr "이 문제는 장치의 UEFI 펌웨어 설정에서 해결할 수도 있고, 지원 전문가가 해결할 수 있을지도 모릅니다."
++msgstr ""
++"이 문제는 장치의 UEFI 펌웨어 설정에서 해결할 수도 있고, 지원 전문가가 해결할 "
++"수 있을지도 모릅니다."
+ 
+ #: panels/firmware-security/cc-firmware-security-dialog.c:212
+ #: panels/firmware-security/cc-firmware-security-dialog.c:223
+@@ -1984,67 +2013,73 @@ msgstr "단계 2"
+ msgid "Level 3"
+ msgstr "단계 3"
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:110
++#: panels/firmware-security/cc-firmware-security-panel.c:113
+ msgid "Protected against malicious software when the device starts."
+ msgstr "장치가 시작할 때 악의적인 소프트웨어로부터 보호합니다."
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:116
++#: panels/firmware-security/cc-firmware-security-panel.c:119
+ msgid "Secure Boot has Problems"
+ msgstr "보안 부팅에 문제 있음"
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:117
++#: panels/firmware-security/cc-firmware-security-panel.c:120
+ msgid "Some protection when the device is started."
+ msgstr "장치가 시작할 때 일부분을 보호합니다."
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:122
++#: panels/firmware-security/cc-firmware-security-panel.c:125
+ msgid "Secure Boot is Off"
+ msgstr "보안 부팅 꺼짐"
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:123
++#: panels/firmware-security/cc-firmware-security-panel.c:126
+ msgid "No protection when the device is started."
+ msgstr "장치가 시작할 때 보호하지 않습니다."
+ 
+ #. TRANSLATORS: this is to explain an event that has already happened
+-#: panels/firmware-security/cc-firmware-security-panel.c:142
++#: panels/firmware-security/cc-firmware-security-panel.c:145
+ msgid ""
+ "This issue could have been caused by a change in UEFI firmware settings, an "
+ "operating system configuration change, or because of malicious software on "
+ "this system."
+-msgstr "이 문제는 UEFI 펌웨어 설정을 바꿔서 발생했을 수도 있고, 운영체제 설정을 바꿔서 발생했거나, 시스템의 악의적인 소프트웨어 때문에 발생했을 수도 있습니다."
++msgstr ""
++"이 문제는 UEFI 펌웨어 설정을 바꿔서 발생했을 수도 있고, 운영체제 설정을 바꿔"
++"서 발생했거나, 시스템의 악의적인 소프트웨어 때문에 발생했을 수도 있습니다."
+ 
+ #. TRANSLATORS: this is to explain an event that has already happened
+-#: panels/firmware-security/cc-firmware-security-panel.c:150
++#: panels/firmware-security/cc-firmware-security-panel.c:153
+ msgid ""
+ "This issue could have been caused by a change in the UEFI firmware settings, "
+ "or because of malicious software on this system."
+-msgstr "이 문제는 UEFI 펌웨어 설정을 바꿔서 발생했을 수도 있고, 시스템의 악의적인 소프트웨어 때문에 발생했을 수도 있습니다."
++msgstr ""
++"이 문제는 UEFI 펌웨어 설정을 바꿔서 발생했을 수도 있고, 시스템의 악의적인 소"
++"프트웨어 때문에 발생했을 수도 있습니다."
+ 
+ #. TRANSLATORS: this is to explain an event that has already happened
+-#: panels/firmware-security/cc-firmware-security-panel.c:157
++#: panels/firmware-security/cc-firmware-security-panel.c:160
+ msgid ""
+ "This issue could have been caused by an operating system configuration "
+ "change, or because of malicious software on this system."
+-msgstr "이 문제는 운영체제 설정을 바꿔서 발생했거나, 시스템의 악의적인 소프트웨어 때문에 발생했을 수도 있습니다."
++msgstr ""
++"이 문제는 운영체제 설정을 바꿔서 발생했거나, 시스템의 악의적인 소프트웨어 때"
++"문에 발생했을 수도 있습니다."
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:483
++#: panels/firmware-security/cc-firmware-security-panel.c:486
+ msgid "Exposed to serious security threats."
+ msgstr "심각한 보안 위협에 노출됨."
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:490
++#: panels/firmware-security/cc-firmware-security-panel.c:493
+ msgid "Limited protection against simple security threats."
+ msgstr "간단한 보안 위협에 대한 보호 제한적임."
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:497
++#: panels/firmware-security/cc-firmware-security-panel.c:500
+ msgid "Protected against common security threats."
+ msgstr "흔한 보안 위협에 대해 보호."
+ 
+-#: panels/firmware-security/cc-firmware-security-panel.c:504
+-#: panels/firmware-security/cc-firmware-security-panel.c:512
++#: panels/firmware-security/cc-firmware-security-panel.c:507
++#: panels/firmware-security/cc-firmware-security-panel.c:515
+ msgid "Protected against a wide range of security threats."
+ msgstr "넓은 범위의 보안 위협에 대해 보호."
+ 
+ #. TRANSLATORS: in reference to firmware protection: 4/4 stars
+-#: panels/firmware-security/cc-firmware-security-panel.c:511
++#: panels/firmware-security/cc-firmware-security-panel.c:514
+ msgid "Comprehensive Protection"
+ msgstr "종합적인 보호"
+ 
+@@ -2325,7 +2360,34 @@ msgstr "호스트 펌웨어 보안 상태"
+ msgid ""
+ "screen;lock;diagnostics;crash;private;recent;temporary;tmp;index;name;"
+ "network;identity;privacy;"
+-msgstr "screen;화면;lock;잠그기;diagnostics;진단;crash;private;recent;최근;temporary;tmp;임시;index;색인;name;이름;network;네트워크;identity;신원;privacy;개인;정보;사생활;프라이버시;보호;"
++msgstr ""
++"screen;화면;lock;잠그기;diagnostics;진단;crash;private;recent;최근;temporary;"
++"tmp;임시;index;색인;name;이름;network;네트워크;identity;신원;privacy;개인;정"
++"보;사생활;프라이버시;보호;"
++
++#: panels/font/cc-font-panel.c:274 panels/font/cc-font-panel.c:284
++msgid "none"
++msgstr "없음"
++
++#: panels/font/cc-font-panel.c:275
++msgid "slight"
++msgstr "조금"
++
++#: panels/font/cc-font-panel.c:276
++msgid "medium"
++msgstr "적당히"
++
++#: panels/font/cc-font-panel.c:277
++msgid "full"
++msgstr "완전히"
++
++#: panels/font/cc-font-panel.c:285
++msgid "grayscale"
++msgstr "표준(흑백)"
++
++#: panels/font/cc-font-panel.c:286
++msgid "rgba"
++msgstr "서브픽셀(LCD 화면용)"
+ 
+ #: panels/info-overview/cc-info-overview-panel.c:297
+ #: panels/info-overview/cc-info-overview-panel.c:317
+@@ -2366,79 +2428,79 @@ msgstr "알 수 없음"
+ msgid "Not Available"
+ msgstr "사용할 수 없음"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:17
++#: panels/info-overview/cc-info-overview-panel.ui:19
+ msgid "System Logo"
+ msgstr "시스템 로고"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:32
++#: panels/info-overview/cc-info-overview-panel.ui:34
+ #: panels/sharing/cc-sharing-panel.ui:304
+ msgid "Device Name"
+ msgstr "장치 이름"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:50
++#: panels/info-overview/cc-info-overview-panel.ui:52
+ msgid "Hardware Model"
+ msgstr "하드웨어 모델"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:58
++#: panels/info-overview/cc-info-overview-panel.ui:60
+ msgid "Memory"
+ msgstr "메모리"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:66
++#: panels/info-overview/cc-info-overview-panel.ui:68
+ msgid "Processor"
+ msgstr "프로세서"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:74
++#: panels/info-overview/cc-info-overview-panel.ui:76
+ msgid "Graphics"
+ msgstr "그래픽"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:82
++#: panels/info-overview/cc-info-overview-panel.ui:84
+ msgid "Disk Capacity"
+ msgstr "디스크 용량"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:83
++#: panels/info-overview/cc-info-overview-panel.ui:85
+ msgid "Calculating…"
+ msgstr "계산 중…"
+ 
+ #. translators: this field contains the distro name and version
+-#: panels/info-overview/cc-info-overview-panel.ui:98
++#: panels/info-overview/cc-info-overview-panel.ui:100
+ msgid "OS Name"
+ msgstr "운영 체제 이름"
+ 
+ #. translators: this field contains the distro build ID
+-#: panels/info-overview/cc-info-overview-panel.ui:107
++#: panels/info-overview/cc-info-overview-panel.ui:109
+ msgid "OS Build ID"
+ msgstr "운영체제 빌드 ID"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:115
++#: panels/info-overview/cc-info-overview-panel.ui:117
+ msgid "OS Type"
+ msgstr "운영 체제 종류"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:123
++#: panels/info-overview/cc-info-overview-panel.ui:125
+ msgid "GNOME Version"
+ msgstr "그놈 버전"
+ 
+ #. translators: this is a placeholder while the GNOME version is being fetched
+-#: panels/info-overview/cc-info-overview-panel.ui:125
++#: panels/info-overview/cc-info-overview-panel.ui:127
+ msgid "Loading…"
+ msgstr "읽어들이는 중…"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:133
++#: panels/info-overview/cc-info-overview-panel.ui:135
+ msgid "Windowing System"
+ msgstr "윈도우 시스템"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:141
++#: panels/info-overview/cc-info-overview-panel.ui:143
+ msgid "Virtualization"
+ msgstr "가상화"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:150
++#: panels/info-overview/cc-info-overview-panel.ui:152
+ msgid "Software Updates"
+ msgstr "소프트웨어 업데이트"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:174
++#: panels/info-overview/cc-info-overview-panel.ui:176
+ msgid "Rename Device"
+ msgstr "장치 이름 바꾸기"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:190
++#: panels/info-overview/cc-info-overview-panel.ui:192
+ msgid ""
+ "The device name is used to identify this device when it is viewed over the "
+ "network, or when pairing Bluetooth devices."
+@@ -2446,11 +2508,11 @@ msgstr ""
+ "장치 이름은 네트워크나 블루투스 페어링할 때 이 장치를 식별하는데 사용되는 이"
+ "름입니다."
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:196
++#: panels/info-overview/cc-info-overview-panel.ui:198
+ msgid "Device name"
+ msgstr "장치 이름"
+ 
+-#: panels/info-overview/cc-info-overview-panel.ui:210
++#: panels/info-overview/cc-info-overview-panel.ui:212
+ msgid "_Rename"
+ msgstr "이름 바꾸기(_R)"
+ 
+@@ -2976,9 +3038,11 @@ msgid ""
+ "\n"
+ "Allow the applications below to determine your location."
+ msgstr ""
+-"위치 서비스를 사용하면 앱에서 현재 위치를 알 수 있습니다. 와이파이 및 휴대전화 인터넷을 사용하면 정확도가 올라갑니다.\n"
++"위치 서비스를 사용하면 앱에서 현재 위치를 알 수 있습니다. 와이파이 및 휴대전"
++"화 인터넷을 사용하면 정확도가 올라갑니다.\n"
+ "\n"
+-"모질라 위치 서비스를 사용합니다: <a href='https://location.services.mozilla.com/privacy'>개인정보 보호 정책</a>\n"
++"모질라 위치 서비스를 사용합니다: <a href='https://location.services.mozilla."
++"com/privacy'>개인정보 보호 정책</a>\n"
+ "\n"
+ "현재 위치를 알려면 아래에서 앱을 허용하십시오."
+ 
+@@ -2993,7 +3057,8 @@ msgstr "위치 정보를 보호합니다"
+ #. Translators: Search terms to find the Location panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/location/gnome-location-panel.desktop.in.in:20
+ msgid "location;gps;private;privacy;"
+-msgstr "location;위치;좌표;gps;private;privacy;개인;정보;사생활;프라이버시;보호;"
++msgstr ""
++"location;위치;좌표;gps;private;privacy;개인;정보;사생활;프라이버시;보호;"
+ 
+ #: panels/microphone/cc-microphone-panel.ui:23
+ msgid "Microphone Turned Off"
+@@ -3027,7 +3092,9 @@ msgstr "대화를 보호합니다"
+ #. Translators: Search terms to find the Microphone panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/microphone/gnome-microphone-panel.desktop.in.in:20
+ msgid "microphone;recording;application;privacy;"
+-msgstr "microphone;마이크;recording;녹음;application;privacy;개인;정보;사생활;프라이버시;보호;"
++msgstr ""
++"microphone;마이크;recording;녹음;application;privacy;개인;정보;사생활;프라이"
++"버시;보호;"
+ 
+ #: panels/mouse/cc-mouse-panel.ui:9 panels/wacom/cc-wacom-panel.ui:9
+ msgid "Test Your _Settings"
+@@ -3064,37 +3131,37 @@ msgstr "마우스 속도"
+ 
+ #. Translators: This switch reverses the scrolling direction for mices. The term used comes from OS X so use the same translation if possible.
+ #. Translators: This switch reverses the scrolling direction for touchpads. The term used comes from OS X so use the same translation if possible.
+-#: panels/mouse/cc-mouse-panel.ui:81 panels/mouse/cc-mouse-panel.ui:87
+-#: panels/mouse/cc-mouse-panel.ui:114 panels/mouse/cc-mouse-panel.ui:120
++#: panels/mouse/cc-mouse-panel.ui:81 panels/mouse/cc-mouse-panel.ui:88
++#: panels/mouse/cc-mouse-panel.ui:116 panels/mouse/cc-mouse-panel.ui:123
+ msgid "Natural Scrolling"
+ msgstr "스크롤 방향 뒤바꾸기"
+ 
+-#: panels/mouse/cc-mouse-panel.ui:82 panels/mouse/cc-mouse-panel.ui:115
++#: panels/mouse/cc-mouse-panel.ui:82 panels/mouse/cc-mouse-panel.ui:117
+ msgid "Scrolling moves the content, not the view."
+ msgstr "스크롤하면 내용을 옮기고, 뷰를 옮기지 않습니다."
+ 
+-#: panels/mouse/cc-mouse-panel.ui:98 panels/mouse/cc-mouse-panel.ui:101
+-#: panels/mouse/cc-mouse-panel.ui:106
++#: panels/mouse/cc-mouse-panel.ui:99 panels/mouse/cc-mouse-panel.ui:102
++#: panels/mouse/cc-mouse-panel.ui:108
+ msgid "Touchpad"
+ msgstr "터치패드"
+ 
+-#: panels/mouse/cc-mouse-panel.ui:128
++#: panels/mouse/cc-mouse-panel.ui:131
+ msgid "Touchpad Speed"
+ msgstr "터치패드 속도"
+ 
+-#: panels/mouse/cc-mouse-panel.ui:145
++#: panels/mouse/cc-mouse-panel.ui:148
+ msgid "Tap to Click"
+ msgstr "터치패드 두드리면 단추 누름으로 취급"
+ 
+-#: panels/mouse/cc-mouse-panel.ui:150
++#: panels/mouse/cc-mouse-panel.ui:154
+ msgid "Tap to click"
+ msgstr "터치패드 두드리면 단추 누름으로 취급"
+ 
+-#: panels/mouse/cc-mouse-panel.ui:159 panels/mouse/cc-mouse-panel.ui:164
++#: panels/mouse/cc-mouse-panel.ui:163 panels/mouse/cc-mouse-panel.ui:169
+ msgid "Two-finger Scrolling"
+ msgstr "두손가락 스크롤"
+ 
+-#: panels/mouse/cc-mouse-panel.ui:174 panels/mouse/cc-mouse-panel.ui:179
++#: panels/mouse/cc-mouse-panel.ui:179 panels/mouse/cc-mouse-panel.ui:185
+ msgid "Edge Scrolling"
+ msgstr "가장자리 스크롤"
+ 
+@@ -3224,7 +3291,10 @@ msgstr "생산성 및 다중 작업에 대한 설정을 관리합니다"
+ #: panels/multitasking/gnome-multitasking-panel.desktop.in.in:15
+ msgid ""
+ "Multitasking;Multitask;Productivity;Customize;Desktop;Hot Corner;Workspaces;"
+-msgstr "Multitasking;다중작업;다중 작업;멀티태스킹;Multitask;멀티태스크;Productivity;생산성;Customize;사용자설정;사용자 설정;Desktop;데스크톱;Hot Corner;핫코너;Workspaces;작업공간;"
++msgstr ""
++"Multitasking;다중작업;다중 작업;멀티태스킹;Multitask;멀티태스크;Productivity;"
++"생산성;Customize;사용자설정;사용자 설정;Desktop;데스크톱;Hot Corner;핫코너;"
++"Workspaces;작업공간;"
+ 
+ #: panels/network/cc-network-panel.c:662 panels/network/cc-wifi-panel.ui:303
+ msgid "Oops, something has gone wrong. Please contact your software vendor."
+@@ -3334,8 +3404,8 @@ msgstr "네트워크 이름"
+ #: panels/printers/new-printer-dialog.ui:338
+ #: panels/printers/pp-jobs-dialog.ui:54 panels/sharing/cc-sharing-panel.ui:384
+ #: panels/user-accounts/cc-add-user-dialog.ui:145
+-#: panels/user-accounts/cc-add-user-dialog.ui:181
+-#: panels/user-accounts/cc-add-user-dialog.ui:364
++#: panels/user-accounts/cc-add-user-dialog.ui:180
++#: panels/user-accounts/cc-add-user-dialog.ui:363
+ #: panels/wwan/cc-wwan-apn-dialog.ui:175
+ msgid "Password"
+ msgstr "암호"
+@@ -3502,71 +3572,71 @@ msgid "%i day ago"
+ msgid_plural "%i days ago"
+ msgstr[0] " %i일 전"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:299
++#: panels/network/connection-editor/ce-page-details.c:297
+ #, c-format
+ msgid "%d Mb/s (%1.1f GHz)"
+ msgstr "%d Mb/s (%1.1f GHz)"
+ 
+ #. Translators: network device speed
+-#: panels/network/connection-editor/ce-page-details.c:301
++#: panels/network/connection-editor/ce-page-details.c:299
+ #: panels/network/net-device-ethernet.c:217
+ #, c-format
+ msgid "%d Mb/s"
+ msgstr "%d Mb/s"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:316
++#: panels/network/connection-editor/ce-page-details.c:314
+ msgid "2.4 GHz / 5 GHz"
+ msgstr "2.4 GHz / 5 GHz"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:318
++#: panels/network/connection-editor/ce-page-details.c:316
+ msgid "2.4 GHz"
+ msgstr "2.4 GHz"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:320
++#: panels/network/connection-editor/ce-page-details.c:318
+ msgid "5 GHz"
+ msgstr "5 GHz"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:340
++#: panels/network/connection-editor/ce-page-details.c:338
+ msgctxt "Signal strength"
+ msgid "None"
+ msgstr "없음"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:342
++#: panels/network/connection-editor/ce-page-details.c:340
+ msgctxt "Signal strength"
+ msgid "Weak"
+ msgstr "약함"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:344
++#: panels/network/connection-editor/ce-page-details.c:342
+ msgctxt "Signal strength"
+ msgid "Ok"
+ msgstr "좋음"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:346
++#: panels/network/connection-editor/ce-page-details.c:344
+ msgctxt "Signal strength"
+ msgid "Good"
+ msgstr "좋음"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:348
++#: panels/network/connection-editor/ce-page-details.c:346
+ msgctxt "Signal strength"
+ msgid "Excellent"
+ msgstr "최상"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:415
++#: panels/network/connection-editor/ce-page-details.c:413
+ #: panels/network/connection-editor/details-page.ui:94
+ #: panels/network/net-device-ethernet.c:144
+ #: panels/network/net-device-mobile.c:441
+ msgid "IPv4 Address"
+ msgstr "IPv4 주소"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:416
++#: panels/network/connection-editor/ce-page-details.c:414
+ #: panels/network/connection-editor/details-page.ui:110
+ #: panels/network/net-device-ethernet.c:146
+ #: panels/network/net-device-mobile.c:442 panels/network/network-mobile.ui:177
+ msgid "IPv6 Address"
+ msgstr "IPv6 주소"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:418
+-#: panels/network/connection-editor/ce-page-details.c:419
++#: panels/network/connection-editor/ce-page-details.c:416
++#: panels/network/connection-editor/ce-page-details.c:417
+ #: panels/network/net-device-ethernet.c:149
+ #: panels/network/net-device-ethernet.c:151
+ #: panels/network/net-device-mobile.c:445
+@@ -3574,20 +3644,20 @@ msgstr "IPv6 주소"
+ msgid "IP Address"
+ msgstr "IP 주소"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:423
++#: panels/network/connection-editor/ce-page-details.c:421
+ #: panels/network/net-device-ethernet.c:166
+ #: panels/network/net-device-mobile.c:450
+ msgid "DNS4"
+ msgstr "DNS4"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:424
++#: panels/network/connection-editor/ce-page-details.c:422
+ #: panels/network/net-device-ethernet.c:167
+ #: panels/network/net-device-mobile.c:451
+ msgid "DNS6"
+ msgstr "DNS6"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:426
+-#: panels/network/connection-editor/ce-page-details.c:427
++#: panels/network/connection-editor/ce-page-details.c:424
++#: panels/network/connection-editor/ce-page-details.c:425
+ #: panels/network/connection-editor/details-page.ui:175
+ #: panels/network/connection-editor/details-page.ui:192
+ #: panels/network/connection-editor/ip4-page.ui:165
+@@ -3600,19 +3670,19 @@ msgstr "DNS6"
+ msgid "DNS"
+ msgstr "네임서버(DNS)"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:479
++#: panels/network/connection-editor/ce-page-details.c:477
+ msgid "Forget Connection"
+ msgstr "연결 저장 지우기"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:481
++#: panels/network/connection-editor/ce-page-details.c:479
+ msgid "Remove Connection Profile"
+ msgstr "연결 프로파일 제거"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:483
++#: panels/network/connection-editor/ce-page-details.c:481
+ msgid "Remove VPN"
+ msgstr "VPN(가상사설망) 제거"
+ 
+-#: panels/network/connection-editor/ce-page-details.c:501
++#: panels/network/connection-editor/ce-page-details.c:499
+ msgid "Details"
+ msgstr "자세히 보기"
+ 
+@@ -3811,7 +3881,7 @@ msgstr "게이트웨이"
+ #: panels/network/connection-editor/ip6-page.ui:237
+ #: panels/network/net-proxy.c:73 panels/network/network-proxy.ui:93
+ #: panels/network/wireless-security/eap-method-peap.ui:33
+-#: panels/wacom/cc-wacom-page.c:621
++#: panels/wacom/cc-wacom-page.c:656
+ msgid "Automatic"
+ msgstr "자동"
+ 
+@@ -4840,7 +4910,9 @@ msgstr "잠금 화면에서 메시지 내용 표시(_O)"
+ msgid "_Do Not Disturb"
+ msgstr "방해 금지(_D)"
+ 
++#. Translators: Whether to show notifications on the lock screen
+ #: panels/notifications/cc-notifications-panel.ui:17
++#: panels/screen/cc-screen-panel.ui:69
+ msgid "_Lock Screen Notifications"
+ msgstr "잠금 화면 알림(_L)"
+ 
+@@ -5034,6 +5106,7 @@ msgstr "미디어 플레이어"
+ # 태블릿 PC
+ #. TRANSLATORS: secondary battery
+ #: panels/power/cc-battery-row.c:209
++#: panels/tablet/gnome-tablet-panel.desktop.in.in:3
+ msgid "Tablet"
+ msgstr "태블릿"
+ 
+@@ -5104,12 +5177,12 @@ msgstr "안 함"
+ msgid "Automatic suspend"
+ msgstr "자동 대기 모드"
+ 
+-#: panels/power/cc-power-panel.c:1033
++#: panels/power/cc-power-panel.c:1036
+ msgid ""
+ "Performance mode temporarily disabled due to high operating temperature."
+ msgstr "동작 온도가 높아 성능 모드를 임시로 사용하지 않습니다."
+ 
+-#: panels/power/cc-power-panel.c:1035
++#: panels/power/cc-power-panel.c:1038
+ msgid ""
+ "Lap detected: performance mode temporarily unavailable. Move the device to a "
+ "stable surface to restore."
+@@ -5117,11 +5190,11 @@ msgstr ""
+ "무릎 감지: 성능 모드를 임시로 사용할 수 없습니다. 성능 모드를 다시 사용하려"
+ "면 안정된 바닥으로 옮기십시오."
+ 
+-#: panels/power/cc-power-panel.c:1037
++#: panels/power/cc-power-panel.c:1040
+ msgid "Performance mode temporarily disabled."
+ msgstr "성능 모드를 임시로 사용하지 않습니다."
+ 
+-#: panels/power/cc-power-panel.c:1079
++#: panels/power/cc-power-panel.c:1082
+ msgid ""
+ "Low battery: power saver enabled. Previous mode will be restored when "
+ "battery is sufficiently charged."
+@@ -5130,13 +5203,13 @@ msgstr ""
+ "가 복구됩니다."
+ 
+ #. translators: "%s" is an application name
+-#: panels/power/cc-power-panel.c:1087
++#: panels/power/cc-power-panel.c:1090
+ #, c-format
+ msgid "Power Saver mode activated by “%s”."
+ msgstr "전기 절약 모드를 “%s”에서 활성화했습니다."
+ 
+ #. translators: "%s" is an application name
+-#: panels/power/cc-power-panel.c:1091
++#: panels/power/cc-power-panel.c:1094
+ #, c-format
+ msgid "Performance mode activated by “%s”."
+ msgstr "성능 모드를 “%s”에서 활성화했습니다."
+@@ -5396,7 +5469,7 @@ msgstr "인쇄 서버의 프린터를 보려면 사용자 이름과 암호를 
+ #: panels/printers/new-printer-dialog.ui:317
+ #: panels/printers/pp-jobs-dialog.ui:42
+ #: panels/user-accounts/cc-add-user-dialog.ui:94
+-#: panels/user-accounts/cc-add-user-dialog.ui:343
++#: panels/user-accounts/cc-add-user-dialog.ui:342
+ #: panels/wwan/cc-wwan-apn-dialog.ui:150
+ msgid "Username"
+ msgstr "사용자 이름"
+@@ -5597,7 +5670,7 @@ msgstr "%s에서 인쇄하려면 인증 정보가 필요합니다."
+ 
+ #. Translators: This is a windows domain used with SMB protocol.
+ #: panels/printers/pp-jobs-dialog.ui:30
+-#: panels/user-accounts/cc-add-user-dialog.ui:300
++#: panels/user-accounts/cc-add-user-dialog.ui:299
+ msgid "Domain"
+ msgstr "도메인"
+ 
+@@ -5617,7 +5690,7 @@ msgid "_Authenticate"
+ msgstr "인증(_A)"
+ 
+ #. Translators: this label describes the dialog empty state, with no jobs listed.
+-#: panels/printers/pp-jobs-dialog.ui:219
++#: panels/printers/pp-jobs-dialog.ui:221
+ msgid "No Active Printer Jobs"
+ msgstr "프린터 활성 작업 없음"
+ 
+@@ -6388,10 +6461,6 @@ msgstr "자동 화면 잠금 지연 시간(_S)"
+ msgid "Period after the screen blanks when the screen is automatically locked."
+ msgstr "빈 화면이 된 후에 화면이 자동으로 잠길 때까지의 시간."
+ 
+-#: panels/screen/cc-screen-panel.ui:69
+-msgid "Show _Notifications on Lock Screen"
+-msgstr "알림 표시 및 화면 잠그기(_N)"
+-
+ #: panels/screen/cc-screen-panel.ui:87
+ msgid "Forbid new _USB devices"
+ msgstr "새 USB 장치 금지(_U)"
+@@ -6417,7 +6486,8 @@ msgstr "화면 설정"
+ #. Translators: Search terms to find the Screen panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/screen/gnome-screen-panel.desktop.in.in:20
+ msgid "screen;lock;private;privacy;"
+-msgstr "screen;화면;lock;잠금;private;privacy;개인;정보;사생활;프라이버시;보호;"
++msgstr ""
++"screen;화면;lock;잠금;private;privacy;개인;정보;사생활;프라이버시;보호;"
+ 
+ #: panels/search/cc-search-locations-dialog.c:674
+ msgid "Select Location"
+@@ -6486,7 +6556,9 @@ msgstr "어떤 앱에서 활동 내역에 검색 결과를 표시할지 설정
+ #. Translators: Search terms to find the Search panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/search/gnome-search-panel.desktop.in.in:19
+ msgid "Search;Find;Index;Hide;Privacy;Results;"
+-msgstr "Search;검색;Find;찾기;Index;인덱스;색인;Hide;숨기기;Privacy;개인;정보;사생활;프라이버시;보호;Results;결과;"
++msgstr ""
++"Search;검색;Find;찾기;Index;인덱스;색인;Hide;숨기기;Privacy;개인;정보;사생활;"
++"프라이버시;보호;Results;결과;"
+ 
+ #. Label
+ #: panels/sharing/cc-sharing-networks.c:268
+@@ -6837,6 +6909,123 @@ msgstr ""
+ "Card;카드;Microphone;마이크;Volume;볼륨;음량;Fade;페이드;Balance;균형;밸런스;"
+ "Bluetooth;블루투스;Headset;헤드셋;Audio;오디오;Output;출력;Input;입력;"
+ 
++#: panels/tablet/cc-tablet-panel.c:269
++msgid ""
++"Not found logout command.\n"
++"Install gooroom-logout or gnome-session-bin packages."
++msgstr ""
++"로그아웃 명령을 찾을 수 없습니다.\n"
++"gooroom-logout 혹은 gooroom-session-bin 패키지를 설치하십시오."
++
++#: panels/tablet/cc-tablet-panel.c:279
++msgid "System Logout Error"
++msgstr "시스템 로그아웃 오류"
++
++#: panels/tablet/cc-tablet-panel.c:328
++msgid "Switching Tablet Mode"
++msgstr "태블릿 모드 전환"
++
++#: panels/tablet/cc-tablet-panel.c:329
++msgid ""
++"To switch to tablet mode, you must log in again.\n"
++"Would you like to log in again now?"
++msgstr ""
++"태블릿 모드 전환을 위해서 다시 로그인 해야합니다.\n"
++"다시 로그인 하시겠습니까?"
++
++#: panels/tablet/cc-tablet-panel.c:332
++msgid "Switching Normal Mode"
++msgstr "일반(PC) 모드 전환"
++
++#: panels/tablet/cc-tablet-panel.c:333
++msgid ""
++"To switch to normal mode, you must log in again.\n"
++"Would you like to log in again now?"
++msgstr ""
++"일반(PC) 모드 전환을 위해서 다시 로그인 해야합니다.\n"
++"다시 로그인 하시겠습니까?"
++
++#: panels/tablet/cc-tablet-panel.c:343
++msgid "Yes"
++msgstr "예(_Y)"
++
++#: panels/tablet/cc-tablet-panel.c:344
++msgid "No"
++msgstr "아니요(_N)"
++
++#: panels/tablet/cc-tablet-panel.c:359
++msgid "Tablet Mode Switching Error"
++msgstr "태블릿 모드 전환 오류"
++
++#: panels/tablet/cc-tablet-panel.c:360
++msgid "Failed to switch tablet mode."
++msgstr "태블릿 모드 전환에 실패하였습니다."
++
++#: panels/tablet/cc-tablet-panel.c:362
++msgid "Normal Mode Switching Error"
++msgstr "일반(PC) 모드 전환 오류"
++
++#: panels/tablet/cc-tablet-panel.c:363
++msgid "Failed to switch normal mode."
++msgstr "일반(PC) 모드 전환에 실패하였습니다."
++
++#: panels/tablet/cc-tablet-panel.c:414
++msgid "Auto Rotation Activating Error"
++msgstr "자동회전 활성화 오류"
++
++#: panels/tablet/cc-tablet-panel.c:415
++msgid "Failed to activate auto rotation."
++msgstr "자동회전 활성화에 실패했습니다."
++
++#: panels/tablet/cc-tablet-panel.c:417
++msgid "Auto Rotation Deactivating Error"
++msgstr "자동회전 비활성화 오류"
++
++#: panels/tablet/cc-tablet-panel.c:418
++msgid "Failed to deactivate auto rotation."
++msgstr "자동회전 비활성화에 실패했습니다."
++
++#: panels/tablet/cc-tablet-panel.ui:10
++msgid "Tablet _Mode"
++msgstr "태블릿 모드"
++
++#: panels/tablet/cc-tablet-panel.ui:13
++msgid "Enable Tablet Mode"
++msgstr "태블릿 모드 사용하기"
++
++#: panels/tablet/cc-tablet-panel.ui:14
++msgid "Changes will take effect on next login."
++msgstr "변경사항은 다음 로그인 시 적용됩니다."
++
++#: panels/tablet/cc-tablet-panel.ui:27
++msgid "Auto _Rotation"
++msgstr "자동 회전"
++
++#: panels/tablet/cc-tablet-panel.ui:30
++msgid "Enable Auto Rotation"
++msgstr "자동 회전 사용하기"
++
++#: panels/tablet/gnome-tablet-panel.desktop.in.in:4
++msgid "Settings for tablet mode"
++msgstr "태블릿 모드 설정"
++
++# 태블릿 PC
++#. Translators: Search terms to find the Date and Time panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
++#: panels/tablet/gnome-tablet-panel.desktop.in.in:15
++msgid "Tablet;"
++msgstr "Tablet;태블릿;"
++
++#: panels/tablet/org.gnome.controlcenter.tablet.policy.in.in:10
++#, fuzzy
++msgid "Enable or disable iio-sensor-proxy service."
++msgstr "원격 로그인 사용 여부"
++
++#: panels/tablet/org.gnome.controlcenter.tablet.policy.in.in:11
++#, fuzzy
++msgid ""
++"Authentication is required to enable or disable iio-sensor-proxy service"
++msgstr "원격 로그인 사용 여부를 바꾸려면 인증이 필요합니다"
++
+ #: panels/thunderbolt/cc-bolt-device-dialog.c:92
+ #: panels/thunderbolt/cc-bolt-device-entry.c:123
+ msgctxt "Thunderbolt Device Status"
+@@ -6981,7 +7170,7 @@ msgstr "썬더볼트 지원 기능이 BIOS에서 꺼져 있습니다."
+ msgid "Thunderbolt security level could not be determined."
+ msgstr "썬더볼트 보안 단계를 결정할 수 없습니다."
+ 
+-#: panels/thunderbolt/cc-bolt-panel.c:614
++#: panels/thunderbolt/cc-bolt-panel.c:618
+ #, c-format
+ msgid "Error switching direct mode: %s"
+ msgstr "직접 접근 모드로 전환하는데 오류: %s"
+@@ -7017,7 +7206,8 @@ msgstr "썬더볼트 장치를 관리합니다"
+ #. Translators: those are keywords for the thunderbolt control-center panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/thunderbolt/gnome-thunderbolt-panel.desktop.in.in:19
+ msgid "Thunderbolt;privacy;"
+-msgstr "Thunderbolt;썬더볼트;선더볼트;privacy;개인;정보;사생활;프라이버시;보호;"
++msgstr ""
++"Thunderbolt;썬더볼트;선더볼트;privacy;개인;정보;사생활;프라이버시;보호;"
+ 
+ #: panels/universal-access/cc-cursor-blinking-dialog.ui:5
+ msgid "Cursor Blinking"
+@@ -7735,7 +7925,10 @@ msgstr "흔적 남기지 않기"
+ #: panels/usage/gnome-usage-panel.desktop.in.in:20
+ msgid ""
+ "usage;recent;history;files;temporary;tmp;private;privacy;trash;purge;retain;"
+-msgstr "usage;사용;recent;최근;history;기록;내역;히스토리;files;파일;temporary;tmp;임시;private;privacy;;보안;개인;정보;보호;trash;휴지통;purge;비우기;retain;유지;"
++msgstr ""
++"usage;사용;recent;최근;history;기록;내역;히스토리;files;파일;temporary;tmp;임"
++"시;private;privacy;;보안;개인;정보;보호;trash;휴지통;purge;비우기;retain;유"
++"지;"
+ 
+ #: panels/user-accounts/cc-add-user-dialog.c:35
+ msgid "Should match the web address of your login provider."
+@@ -7745,26 +7938,26 @@ msgstr "로그인을 제공하는 곳의 웹 주소."
+ msgid "Failed to add account"
+ msgstr "계정 추가에 실패했습니다"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:679
++#: panels/user-accounts/cc-add-user-dialog.c:681
+ #: panels/user-accounts/cc-password-dialog.ui:114
+ msgid "The passwords do not match."
+ msgstr "암호가 다릅니다."
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:883
+-#: panels/user-accounts/cc-add-user-dialog.c:922
+-#: panels/user-accounts/cc-add-user-dialog.c:940
++#: panels/user-accounts/cc-add-user-dialog.c:885
++#: panels/user-accounts/cc-add-user-dialog.c:924
++#: panels/user-accounts/cc-add-user-dialog.c:942
+ msgid "Failed to register account"
+ msgstr "계정 등록에 실패했습니다"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:1055
++#: panels/user-accounts/cc-add-user-dialog.c:1057
+ msgid "No supported way to authenticate with this domain"
+ msgstr "이 도메인에 대해 인증하기 위한 방법을 지원하지 않습니다"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:1119
++#: panels/user-accounts/cc-add-user-dialog.c:1121
+ msgid "Failed to join domain"
+ msgstr "도메인 참여에 실패했습니다"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:1174
++#: panels/user-accounts/cc-add-user-dialog.c:1176
+ msgid ""
+ "That login name didn’t work.\n"
+ "Please try again."
+@@ -7772,7 +7965,7 @@ msgstr ""
+ "이 로그인 이름은 쓸 수 없습니다.\n"
+ "다시 시도해 보십시오."
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:1181
++#: panels/user-accounts/cc-add-user-dialog.c:1183
+ msgid ""
+ "That login password didn’t work.\n"
+ "Please try again."
+@@ -7780,11 +7973,11 @@ msgstr ""
+ "이 로그인 암호는 쓸 수 없습니다.\n"
+ "다시 시도해 보십시오."
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:1189
++#: panels/user-accounts/cc-add-user-dialog.c:1191
+ msgid "Failed to log into domain"
+ msgstr "도메인에 로그를 남기는데 실패했습니다"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.c:1244
++#: panels/user-accounts/cc-add-user-dialog.c:1246
+ msgid "Unable to find the domain. Maybe you misspelled it?"
+ msgstr "도메인을 찾을 수 없습니다. 잘못 쓰신 것이 아닙니까?"
+ 
+@@ -7813,23 +8006,23 @@ msgstr "사용자가 첫 로그인에 암호 설정"
+ msgid "Set password now"
+ msgstr "지금 암호 설정"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.ui:224
++#: panels/user-accounts/cc-add-user-dialog.ui:223
+ msgid "Confirm"
+ msgstr "확인"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.ui:278
++#: panels/user-accounts/cc-add-user-dialog.ui:277
+ msgid "Enterprise Login"
+ msgstr "기업 로그인"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.ui:279
++#: panels/user-accounts/cc-add-user-dialog.ui:278
+ msgid "User accounts which are managed by a company or organization."
+ msgstr "회사 또는 기관에서 관리하는 사용자 계정."
+ 
+-#: panels/user-accounts/cc-add-user-dialog.ui:388
++#: panels/user-accounts/cc-add-user-dialog.ui:387
+ msgid "You are Offline"
+ msgstr "연결이 끊겼습니다"
+ 
+-#: panels/user-accounts/cc-add-user-dialog.ui:389
++#: panels/user-accounts/cc-add-user-dialog.ui:388
+ msgid ""
+ "Enterprise login allows an existing centrally managed user account to be "
+ "used on this device. You can also use this account to access company "
+@@ -7936,124 +8129,124 @@ msgstr "지문 리더와 통신이 실패했습니다"
+ msgid "Failed to communicate with the fingerprint daemon"
+ msgstr "지문 데몬과 통신이 실패했습니다"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:539
++#: panels/user-accounts/cc-fingerprint-dialog.c:513
+ #, c-format
+ msgid "Failed to list fingerprints: %s"
+ msgstr "지문 목록 표시에 실패했습니다: %s"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:606
++#: panels/user-accounts/cc-fingerprint-dialog.c:580
+ #, c-format
+ msgid "Failed to delete saved fingerprints: %s"
+ msgstr "저장한 지문 삭제에 실패했습니다: %s"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:637
++#: panels/user-accounts/cc-fingerprint-dialog.c:611
+ msgid "Left thumb"
+ msgstr "왼쪽 엄지"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:639
++#: panels/user-accounts/cc-fingerprint-dialog.c:613
+ msgid "Left middle finger"
+ msgstr "왼쪽 중지"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:641
++#: panels/user-accounts/cc-fingerprint-dialog.c:615
+ msgid "_Left index finger"
+ msgstr "왼쪽 검지(_L)"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:643
++#: panels/user-accounts/cc-fingerprint-dialog.c:617
+ msgid "Left ring finger"
+ msgstr "왼쪽 약지"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:645
++#: panels/user-accounts/cc-fingerprint-dialog.c:619
+ msgid "Left little finger"
+ msgstr "왼쪽 새끼"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:647
++#: panels/user-accounts/cc-fingerprint-dialog.c:621
+ msgid "Right thumb"
+ msgstr "오른쪽 엄지"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:649
++#: panels/user-accounts/cc-fingerprint-dialog.c:623
+ msgid "Right middle finger"
+ msgstr "오른쪽 중지"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:651
++#: panels/user-accounts/cc-fingerprint-dialog.c:625
+ msgid "_Right index finger"
+ msgstr "오른쪽 검지(_R)"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:653
++#: panels/user-accounts/cc-fingerprint-dialog.c:627
+ msgid "Right ring finger"
+ msgstr "오른쪽 약지"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:655
++#: panels/user-accounts/cc-fingerprint-dialog.c:629
+ msgid "Right little finger"
+ msgstr "오른쪽 새끼"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:657
++#: panels/user-accounts/cc-fingerprint-dialog.c:631
+ msgid "Unknown Finger"
+ msgstr "손가락 알 수 없음"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:791
++#: panels/user-accounts/cc-fingerprint-dialog.c:765
+ msgctxt "Fingerprint enroll state"
+ msgid "Complete"
+ msgstr "완료"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:802
++#: panels/user-accounts/cc-fingerprint-dialog.c:776
+ msgid "Fingerprint device disconnected"
+ msgstr "지문 입력 장치 연결이 끊어졌습니다"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:808
++#: panels/user-accounts/cc-fingerprint-dialog.c:782
+ msgid "Fingerprint device storage is full"
+ msgstr "지문 입력 장치의 저장소가 가득 찼습니다"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:812
++#: panels/user-accounts/cc-fingerprint-dialog.c:786
+ msgid "Failed to enroll new fingerprint"
+ msgstr "새 지문 등록에 실패했습니다"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:843
++#: panels/user-accounts/cc-fingerprint-dialog.c:817
+ #, c-format
+ msgid "Failed to start enrollment: %s"
+ msgstr "등록 시작에 실패했습니다: %s"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:851
++#: panels/user-accounts/cc-fingerprint-dialog.c:825
+ msgctxt "Fingerprint enroll state"
+ msgid "Failed to enroll new fingerprint"
+ msgstr "새 지문 등록에 실패했습니다"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:882
++#: panels/user-accounts/cc-fingerprint-dialog.c:856
+ #, c-format
+ msgid "Failed to stop enrollment: %s"
+ msgstr "지문 등록 중지에 실패했습니다: %s"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:928
++#: panels/user-accounts/cc-fingerprint-dialog.c:902
+ msgid ""
+ "Repeatedly lift and place your finger on the reader to enroll your "
+ "fingerprint"
+ msgstr ""
+ "지문을 등록하려면 반복해서 지문을 입력 센서에 올려놓고 위치를 잡으십시오"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:1047
++#: panels/user-accounts/cc-fingerprint-dialog.c:1021
+ msgid "_Re-enroll this finger…"
+ msgstr "이 지문 다시 등록(_R)…"
+ 
+ #. TRANSLATORS: This is the label for the button to enroll a new finger
+-#: panels/user-accounts/cc-fingerprint-dialog.c:1062
++#: panels/user-accounts/cc-fingerprint-dialog.c:1036
+ msgid "Scan new fingerprint"
+ msgstr "새 지문 스캔"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:1100
++#: panels/user-accounts/cc-fingerprint-dialog.c:1074
+ #, c-format
+ msgid "Failed to release fingerprint device %s: %s"
+ msgstr "지문 입력 장치 %s 해제에 실패했습니다: %s"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:1172
++#: panels/user-accounts/cc-fingerprint-dialog.c:1146
+ msgctxt "Fingerprint enroll state"
+ msgid "Problem Reading Device"
+ msgstr "장치 읽기에 문제 발생"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:1207
++#: panels/user-accounts/cc-fingerprint-dialog.c:1181
+ #, c-format
+ msgid "Failed to claim fingerprint device %s: %s"
+ msgstr "지문 입력 장치 %s 할당에 실패했습니다: %s"
+ 
+-#: panels/user-accounts/cc-fingerprint-dialog.c:1358
++#: panels/user-accounts/cc-fingerprint-dialog.c:1332
+ #, c-format
+ msgid "Failed to get fingerprint devices: %s"
+ msgstr "지문 입력 장치 정보 가져오기에 실패했습니다: %s"
+@@ -8094,7 +8287,7 @@ msgstr "%s — %s"
+ #. Translators: This is a time format string in the style of "22:58".
+ #. It indicates a login time which follows a date.
+ #: panels/user-accounts/cc-login-history-dialog.c:179
+-#: panels/user-accounts/cc-user-panel.c:727
++#: panels/user-accounts/cc-user-panel.c:728
+ msgctxt "login date-time"
+ msgid "%k:%M"
+ msgstr "%k:%M"
+@@ -8102,7 +8295,7 @@ msgstr "%k:%M"
+ #. Translators: This indicates a login date-time.
+ #. The first %s is a date, and the second %s a time.
+ #: panels/user-accounts/cc-login-history-dialog.c:182
+-#: panels/user-accounts/cc-user-panel.c:731
++#: panels/user-accounts/cc-user-panel.c:732
+ #, c-format
+ msgctxt "login date-time"
+ msgid "%s, %s"
+@@ -8194,37 +8387,37 @@ msgstr "암호가 잘못되었으니 다시 시도해주십시오"
+ msgid "Couldn’t connect to the %s domain: %s"
+ msgstr "%s 도메인에 연결할 수 없습니다: %s"
+ 
+-#: panels/user-accounts/cc-user-panel.c:356
++#: panels/user-accounts/cc-user-panel.c:357
+ msgid "Failed to delete user"
+ msgstr "사용자 삭제에 실패했습니다"
+ 
+-#: panels/user-accounts/cc-user-panel.c:413
+-#: panels/user-accounts/cc-user-panel.c:468
+-#: panels/user-accounts/cc-user-panel.c:514
++#: panels/user-accounts/cc-user-panel.c:414
++#: panels/user-accounts/cc-user-panel.c:469
++#: panels/user-accounts/cc-user-panel.c:515
+ msgid "Failed to revoke remotely managed user"
+ msgstr "원격에서 관리하는 사용자를 철회하는데 실패했습니다"
+ 
+-#: panels/user-accounts/cc-user-panel.c:563
++#: panels/user-accounts/cc-user-panel.c:564
+ msgid "You cannot delete your own account."
+ msgstr "자기 계정은 삭제할 수 없습니다."
+ 
+-#: panels/user-accounts/cc-user-panel.c:572
++#: panels/user-accounts/cc-user-panel.c:573
+ #, c-format
+ msgid "%s is still logged in"
+ msgstr "%s 사용자가 아직 로그인 중입니다"
+ 
+-#: panels/user-accounts/cc-user-panel.c:576
++#: panels/user-accounts/cc-user-panel.c:577
+ msgid ""
+ "Deleting a user while they are logged in can leave the system in an "
+ "inconsistent state."
+ msgstr "로그인 중인 사용자를 삭제하면 시스템이 불안정한 상태가 될 수 있습니다."
+ 
+-#: panels/user-accounts/cc-user-panel.c:585
++#: panels/user-accounts/cc-user-panel.c:586
+ #, c-format
+ msgid "Do you want to keep %s’s files?"
+ msgstr "%s 사용자의 파일을 유지하시겠습니까?"
+ 
+-#: panels/user-accounts/cc-user-panel.c:589
++#: panels/user-accounts/cc-user-panel.c:590
+ msgid ""
+ "It is possible to keep the home directory, mail spool and temporary files "
+ "around when deleting a user account."
+@@ -8232,60 +8425,60 @@ msgstr ""
+ "사용자 계정을 삭제할 때 홈 디렉터리, 메일 스풀, 임시 파일을 유지할 수 있습니"
+ "다."
+ 
+-#: panels/user-accounts/cc-user-panel.c:592
++#: panels/user-accounts/cc-user-panel.c:593
+ msgid "_Delete Files"
+ msgstr "파일 삭제(_D)"
+ 
+-#: panels/user-accounts/cc-user-panel.c:593
++#: panels/user-accounts/cc-user-panel.c:594
+ msgid "_Keep Files"
+ msgstr "파일 유지(_K)"
+ 
+-#: panels/user-accounts/cc-user-panel.c:607
++#: panels/user-accounts/cc-user-panel.c:608
+ #, c-format
+ msgid "Are you sure you want to revoke remotely managed %s’s account?"
+ msgstr "정말로 원격에서 관리하는 %s의 계정을 철회하시겠습니까?"
+ 
+-#: panels/user-accounts/cc-user-panel.c:611
++#: panels/user-accounts/cc-user-panel.c:612
+ msgid "_Delete"
+ msgstr "삭제(_D)"
+ 
+-#: panels/user-accounts/cc-user-panel.c:661
++#: panels/user-accounts/cc-user-panel.c:662
+ msgctxt "Password mode"
+ msgid "Account disabled"
+ msgstr "계정 사용 중지됨"
+ 
+-#: panels/user-accounts/cc-user-panel.c:669
++#: panels/user-accounts/cc-user-panel.c:670
+ msgctxt "Password mode"
+ msgid "To be set at next login"
+ msgstr "다음 로그인에 설정 예정"
+ 
+-#: panels/user-accounts/cc-user-panel.c:672
++#: panels/user-accounts/cc-user-panel.c:673
+ msgctxt "Password mode"
+ msgid "None"
+ msgstr "없음"
+ 
+-#: panels/user-accounts/cc-user-panel.c:715
++#: panels/user-accounts/cc-user-panel.c:716
+ msgid "Logged in"
+ msgstr "로그인함"
+ 
+-#: panels/user-accounts/cc-user-panel.c:1202
++#: panels/user-accounts/cc-user-panel.c:1232
+ msgid "Failed to contact the accounts service"
+ msgstr "계정 서비스 연결에 실패했습니다"
+ 
+-#: panels/user-accounts/cc-user-panel.c:1204
++#: panels/user-accounts/cc-user-panel.c:1234
+ msgid "Please make sure that the AccountService is installed and enabled."
+ msgstr "AccountService를 설치하고 사용 표시했는지 확인하십시오."
+ 
+-#: panels/user-accounts/cc-user-panel.c:1226
++#: panels/user-accounts/cc-user-panel.c:1256
+ msgid "This panel must be unlocked to change this setting"
+ msgstr "이 설정을 바꾸려면 이 패널의 잠금을 풀어야 합니다."
+ 
+-#: panels/user-accounts/cc-user-panel.c:1293
++#: panels/user-accounts/cc-user-panel.c:1323
+ msgid "Delete the selected user account"
+ msgstr "선택한 사용자 계정 삭제"
+ 
+-#: panels/user-accounts/cc-user-panel.c:1297
+-#: panels/user-accounts/cc-user-panel.c:1409
++#: panels/user-accounts/cc-user-panel.c:1327
++#: panels/user-accounts/cc-user-panel.c:1439
+ msgid ""
+ "To delete the selected user account,\n"
+ "click the * icon first"
+@@ -8293,7 +8486,7 @@ msgstr ""
+ "선택한 사용자 계정을 삭제하려면,\n"
+ "먼저 * 아이콘을 누르십시오"
+ 
+-#: panels/user-accounts/cc-user-panel.c:1455
++#: panels/user-accounts/cc-user-panel.c:1485
+ msgid "Unlock to Add Users and Change Settings"
+ msgstr "사용자를 추가하고 설정을 바꾸려면 잠금을 해제하십시오"
+ 
+@@ -8583,7 +8776,7 @@ msgstr "새 암호에 문자 종류가 너무 적습니다"
+ msgid "Unknown error"
+ msgstr "알 수 없는 오류"
+ 
+-#: panels/user-accounts/user-utils.c:144
++#: panels/user-accounts/user-utils.c:150
+ msgid ""
+ "The username should usually only consist of lower case letters from a-z, "
+ "digits and the following characters: - _"
+@@ -8591,11 +8784,11 @@ msgstr ""
+ "사용자 이름은 보통 a-z까지 대소문자와 숫자, 그리고 다음 문자만으로 만들어야 "
+ "합니다: . - _"
+ 
+-#: panels/user-accounts/user-utils.c:148
++#: panels/user-accounts/user-utils.c:154
+ msgid "Sorry, that user name isn’t available. Please try another."
+ msgstr "그 사용자 이름은 사용할 수 없습니다. 다른 이름을 사용하십시오."
+ 
+-#: panels/user-accounts/user-utils.c:190
++#: panels/user-accounts/user-utils.c:196
+ msgid "The username is too long."
+ msgstr "사용자 이름이 너무 깁니다."
+ 
+@@ -8620,17 +8813,6 @@ msgstr ""
+ msgid "_Close"
+ msgstr "닫기(_C)"
+ 
+-# tablet - 디지타이저
+-#: panels/wacom/calibrator/calibrator.ui:51
+-msgid ""
+-"Please tap the target markers as they appear on screen to calibrate the "
+-"tablet."
+-msgstr "디지타이저를 보정하려면 화면에 나타난 표시를 누르십시오."
+-
+-#: panels/wacom/calibrator/calibrator.ui:63
+-msgid "Mis-click detected, restarting…"
+-msgstr "잘못된 누름이 감지되었습니다, 다시 시작중…"
+-
+ #: panels/wacom/cc-wacom-button-row.c:244
+ #, c-format
+ msgid "Button %d"
+@@ -8677,7 +8859,7 @@ msgid "External pad device"
+ msgstr "외부 패드 장치"
+ 
+ #. All displays item
+-#: panels/wacom/cc-wacom-page.c:608
++#: panels/wacom/cc-wacom-page.c:643
+ msgid "All Displays"
+ msgstr "모든 디스플레이"
+ 
+@@ -8823,15 +9005,15 @@ msgstr "액세스 포인트"
+ msgid "APN"
+ msgstr "APN"
+ 
+-#: panels/wwan/cc-wwan-data.c:542
++#: panels/wwan/cc-wwan-data.c:571
+ msgid "Operation Cancelled"
+ msgstr "작업이 취소되었습니다"
+ 
+-#: panels/wwan/cc-wwan-data.c:545
++#: panels/wwan/cc-wwan-data.c:574
+ msgid "<b>Error:</b> Access denied changing settings"
+ msgstr "<b>오류:</b> 설정 바꾸는 접근이 거부되었습니다"
+ 
+-#: panels/wwan/cc-wwan-data.c:548
++#: panels/wwan/cc-wwan-data.c:577
+ msgid "<b>Error:</b> Mobile Equipment Error"
+ msgstr "<b>오류:</b> 휴대전화 장치 오류"
+ 
+@@ -9398,7 +9580,7 @@ msgstr "설정 분류"
+ msgid "Privacy"
+ msgstr "개인 정보"
+ 
+-#: shell/cc-panel-loader.c:304
++#: shell/cc-panel-loader.c:312
+ msgid "Available panels:"
+ msgstr "사용 가능 패널:"
+ 
+@@ -9513,73 +9695,47 @@ msgstr[0] "%u개 입력"
+ msgid "System Sounds"
+ msgstr "시스템 사운드"
+ 
+-#: ../panels/font/cc-font-chooser.c:67
+-msgid "Font"
+-msgstr "글꼴"
+-
+-#: ../panels/font/font.ui:10
+-msgid "full"
+-msgstr "완전히"
+-
+-#: ../panels/font/font.ui:13
+-msgid "medium"
+-msgstr "적당히"
+-
+-#: ../panels/font/font.ui:16
+-msgid "slight"
+-msgstr "조금"
+-
+-#: ../panels/font/font.ui:19
+-msgid "none"
+-msgstr "없음"
++#~ msgid "Show _Notifications on Lock Screen"
++#~ msgstr "알림 표시 및 화면 잠그기(_N)"
+ 
+-#: ../panels/font/font.ui:22
+-msgid "rgba"
+-msgstr "서브픽셀(LCD 화면용)"
++# tablet - 디지타이저
++#~ msgid ""
++#~ "Please tap the target markers as they appear on screen to calibrate the "
++#~ "tablet."
++#~ msgstr "디지타이저를 보정하려면 화면에 나타난 표시를 누르십시오."
+ 
+-#: ../panels/font/font.ui:25
+-msgid "grayscale"
+-msgstr "표준(흑백)"
++#~ msgid "Mis-click detected, restarting…"
++#~ msgstr "잘못된 누름이 감지되었습니다, 다시 시작중…"
+ 
+-#: ../panels/font/font.ui:118
+-msgid "Interface Text"
+-msgstr "인터페이스 텍스트"
++#~ msgid "Font"
++#~ msgstr "글꼴"
+ 
+-#: ../panels/font/font.ui:172
+-msgid "Document Text"
+-msgstr "문서 텍스트"
++#~ msgid "Interface Text"
++#~ msgstr "인터페이스 텍스트"
+ 
+-#: ../panels/font/font.ui:226
+-msgid "Monospace Text"
+-msgstr "고정폭 텍스트"
++#~ msgid "Document Text"
++#~ msgstr "문서 텍스트"
+ 
+-#: ../panels/font/font.ui:280 ../panels/font/font.ui:375
+-#: ../panels/font/font.ui:425
+-msgid "Legacy Window Titles"
+-msgstr "이전 방식 창 제목"
++#~ msgid "Monospace Text"
++#~ msgstr "고정폭 텍스트"
+ 
+-#. List of applications.
+-#: ../panels/font/font.ui:328
+-msgid "Font Rendering Settings"
+-msgstr "글꼴 그리기 설정"
++#~ msgid "Legacy Window Titles"
++#~ msgstr "이전 방식 창 제목"
+ 
+-#: ../panels/font/font.ui:425
+-msgid "AntiAliasing"
+-msgstr "안티 알리아싱"
++#~ msgid "Font Rendering Settings"
++#~ msgstr "글꼴 그리기 설정"
+ 
+-#: ../panels/font/font.ui:480
+-msgid "Scale Constant"
+-msgstr "스케일 상수"
++#~ msgid "AntiAliasing"
++#~ msgstr "안티 알리아싱"
+ 
+-#: ../panels/font/cc-font-panel.c:339
+-msgid "_small"
+-msgstr "작게"
++#~ msgid "Scale Constant"
++#~ msgstr "스케일 상수"
+ 
+-#: ../panels/font/cc-font-panel.c:340
+-msgid "_medium"
+-msgstr "중간"
++#~ msgid "_small"
++#~ msgstr "작게"
+ 
+-#: ../panels/font/cc-font-panel.c:341
+-msgid "_large"
+-msgstr "크게"
++#~ msgid "_medium"
++#~ msgstr "중간"
+ 
++#~ msgid "_large"
++#~ msgstr "크게"
+diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
+index 2705f00..046c14b 100644
+--- a/shell/cc-panel-loader.c
++++ b/shell/cc-panel-loader.c
+@@ -57,6 +57,9 @@ extern GType cc_removable_media_panel_get_type (void);
+ extern GType cc_search_panel_get_type (void);
+ extern GType cc_sharing_panel_get_type (void);
+ extern GType cc_sound_panel_get_type (void);
++#ifdef BUILD_TABLET
++extern GType cc_tablet_panel_get_type (void);
++#endif /* BUILD_TABLET */
+ #ifdef BUILD_THUNDERBOLT
+ extern GType cc_bolt_panel_get_type (void);
+ #endif /* BUILD_THUNDERBOLT */
+@@ -132,6 +135,9 @@ static CcPanelLoaderVtable default_panels[] =
+   PANEL_TYPE("search",           cc_search_panel_get_type,               NULL),
+   PANEL_TYPE("sharing",          cc_sharing_panel_get_type,              NULL),
+   PANEL_TYPE("sound",            cc_sound_panel_get_type,                NULL),
++#ifdef BUILD_TABLET
++  PANEL_TYPE("tablet",           cc_tablet_panel_get_type,               NULL),
++#endif
+ #ifdef BUILD_THUNDERBOLT
+   PANEL_TYPE("thunderbolt",      cc_bolt_panel_get_type,                 NULL),
+ #endif

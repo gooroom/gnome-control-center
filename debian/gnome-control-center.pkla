@@ -2,3 +2,13 @@
 Identity=unix-group:admin;unix-group:sudo
 Action=org.freedesktop.locale1.set-locale;org.freedesktop.locale1.set-keyboard;org.freedesktop.hostname1.set-static-hostname;org.freedesktop.hostname1.set-hostname;org.gnome.controlcenter.datetime.configure
 ResultActive=yes
+
+[Allow all users to switch Tablet Mode]
+Identity=unix-user:*
+Action=kr.gooroom.integration.applet.tablet-mode-change-helper
+ResultActive=yes
+
+[Allow all users to enable or disable services for device auto rotation]
+Identity=unix-user:*
+Action=org.gnome.controlcenter.tablet-mode-ar-service-helper
+ResultActive=yes

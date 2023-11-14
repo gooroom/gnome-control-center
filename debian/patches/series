@@ -6,3 +6,4 @@ debian/Ignore-result-of-test-network-panel.patch
 debian/firmware-security-disable.patch
 gooroom/gooroom-00-add-gooroom-logo.patch
 gooroom/gooroom-01-add-font-feature.patch
+gooroom/gooroom-02-add-tablet-mode-settings.patch
