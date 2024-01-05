@@ -1,0 +1,129 @@
+diff --git a/panels/tablet/cc-tablet-panel.c b/panels/tablet/cc-tablet-panel.c
+index 0baf998..c3d3d20 100644
+--- a/panels/tablet/cc-tablet-panel.c
++++ b/panels/tablet/cc-tablet-panel.c
+@@ -497,3 +497,26 @@ cc_tablet_panel_init (CcTabletPanel *self)
+ 	g_signal_connect (self->sw_auto_rotation, "state-set", 
+                       G_CALLBACK (auto_rotation_changed_cb), self);
+ }
++
++void
++cc_tablet_panel_static_init_func (void)
++{
++	gboolean visible;
++	CcApplication *application;
++
++	application = CC_APPLICATION (g_application_get_default ());
++
++	const gchar *TBL_MODE_CHK_FILE_1 = "/usr/libexec/i3-gnome-flashback-session";
++	const gchar *TBL_MODE_CHK_FILE_2 = "/usr/share/xsessions/i3-gnome-flashback-session.desktop";
++	const gchar *TBL_MODE_CHK_FILE_3 = "/usr/share/gnome-session/sessions/i3-gnome-flashback.session";
++
++	visible = (g_file_test (TBL_MODE_CHK_FILE_1, G_FILE_TEST_EXISTS) &&
++               g_file_test (TBL_MODE_CHK_FILE_2, G_FILE_TEST_EXISTS) &&
++               g_file_test (TBL_MODE_CHK_FILE_3, G_FILE_TEST_EXISTS));
++
++	cc_shell_model_set_panel_visibility (cc_application_get_model (application),
++                                         "tablet",
++                                         visible ? CC_PANEL_VISIBLE : CC_PANEL_HIDDEN);
++
++	g_debug ("Tablet panel visible: %s", visible ? "yes" : "no");
++}
+diff --git a/panels/tablet/cc-tablet-panel.h b/panels/tablet/cc-tablet-panel.h
+index 2349c36..cbd2f79 100644
+--- a/panels/tablet/cc-tablet-panel.h
++++ b/panels/tablet/cc-tablet-panel.h
+@@ -28,4 +28,6 @@ G_BEGIN_DECLS
+ #define CC_TYPE_TABLET_PANEL (cc_tablet_panel_get_type ())
+ G_DECLARE_FINAL_TYPE (CcTabletPanel, cc_tablet_panel, CC, TABLET_PANEL, CcPanel)
+ 
++void cc_tablet_panel_static_init_func (void);
++
+ G_END_DECLS
+diff --git a/po/ko.po b/po/ko.po
+index 7f7ff35..f683692 100644
+--- a/po/ko.po
++++ b/po/ko.po
+@@ -7016,15 +7016,13 @@ msgid "Tablet;"
+ msgstr "Tablet;태블릿;"
+ 
+ #: panels/tablet/org.gnome.controlcenter.tablet.policy.in.in:10
+-#, fuzzy
+ msgid "Enable or disable iio-sensor-proxy service."
+-msgstr "원격 로그인 사용 여부"
++msgstr "자동 회전 서비스 사용 여부"
+ 
+ #: panels/tablet/org.gnome.controlcenter.tablet.policy.in.in:11
+-#, fuzzy
+ msgid ""
+ "Authentication is required to enable or disable iio-sensor-proxy service"
+-msgstr "원격 로그인 사용 여부를 바꾸려면 인증이 필요합니다"
++msgstr "자동 회전 서비스 사용 여부를 바꾸려면 인증이 필요합니다."
+ 
+ #: panels/thunderbolt/cc-bolt-device-dialog.c:92
+ #: panels/thunderbolt/cc-bolt-device-entry.c:123
+diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
+index 8300007..f40156a 100644
+--- a/shell/cc-panel-list.c
++++ b/shell/cc-panel-list.c
+@@ -421,6 +421,7 @@ static const gchar * const panel_order[] = {
+   "printers",
+   "removable-media",
+   "wacom",
++  "tablet",
+   "color",
+ 
+   /* Details page */
+diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
+index ef7895d..fd0b120 100644
+--- a/shell/cc-panel-loader.c
++++ b/shell/cc-panel-loader.c
+@@ -92,6 +92,9 @@ extern void cc_wacom_panel_static_init_func (void);
+ #ifdef BUILD_WWAN
+ extern void cc_wwan_panel_static_init_func (void);
+ #endif /* BUILD_WWAN */
++#ifdef BUILD_TABLET
++extern void cc_tablet_panel_static_init_func (void);
++#endif /* BUILD_TABLET */
+ extern void cc_firmware_security_panel_static_init_func (void);
+ 
+ #define PANEL_TYPE(name, get_type, init_func) { name, get_type, init_func }
+@@ -137,7 +140,7 @@ static CcPanelLoaderVtable default_panels[] =
+   PANEL_TYPE("sharing",          cc_sharing_panel_get_type,              NULL),
+   PANEL_TYPE("sound",            cc_sound_panel_get_type,                NULL),
+ #ifdef BUILD_TABLET
+-  PANEL_TYPE("tablet",           cc_tablet_panel_get_type,               NULL),
++  PANEL_TYPE("tablet",           cc_tablet_panel_get_type,               cc_tablet_panel_static_init_func),
+ #endif
+ #ifdef BUILD_THUNDERBOLT
+   PANEL_TYPE("thunderbolt",      cc_bolt_panel_get_type,                 NULL),
+@@ -305,6 +308,7 @@ cc_panel_loader_fill_model (CcShellModel *model)
+ 
+       cc_shell_model_add_item (model, category, G_APP_INFO (app), panels_vtable[i].name);
+     }
++  cc_panel_loader_visible_from_schema (model);
+ 
+   /* If there's an static init function, execute it after adding all panels to
+    * the model. This will allow the panels to show or hide themselves without
+@@ -317,8 +321,6 @@ cc_panel_loader_fill_model (CcShellModel *model)
+         panels_vtable[i].static_init_func ();
+     }
+ #endif
+-
+-  cc_panel_loader_visible_from_schema (model);
+ }
+ 
+ /**
+diff --git a/shell/org.gnome.Settings.gschema.xml b/shell/org.gnome.Settings.gschema.xml
+index a0f6f89..88d282a 100644
+--- a/shell/org.gnome.Settings.gschema.xml
++++ b/shell/org.gnome.Settings.gschema.xml
+@@ -21,7 +21,7 @@
+       <description>A tuple containing the initial width, height and maximized state of the application window.</description>
+     </key>
+ 	<key name="whitelist-panels" type="as">
+-	  <default>['bluetooth', 'background', 'search', 'region', 'universal-access', 'font', 'online-accounts', 'privacy', 'sharing', 'sound', 'power', 'network', 'wifi', 'wacom', 'display', 'keyboard', 'printers', 'mouse', 'removable-media', 'thunderbolt', 'color', 'info-overview', 'datetime', 'user-accounts', 'default-apps', 'themes']</default>
++	  <default>['bluetooth', 'background', 'region', 'universal-access', 'font', 'privacy', 'location', 'camera', 'microphone', 'usage', 'lock', 'sound', 'power', 'network', 'wifi', 'wacom', 'display', 'keyboard', 'printers', 'mouse', 'removable-media', 'thunderbolt', 'color', 'info-overview', 'datetime', 'user-accounts', 'default-apps', 'themes', 'tablet']</default>
+ 	  <summary>Show settings list</summary>
+ 	  <description>Show side panel list that matches the User settings values.</description>
+ 	</key>
