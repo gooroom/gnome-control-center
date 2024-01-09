@@ -1,0 +1,322 @@
+diff --git a/panels/meson.build b/panels/meson.build
+index c8ac84f..070a2e2 100644
+--- a/panels/meson.build
++++ b/panels/meson.build
+@@ -15,16 +15,16 @@ panels = [
+   'location',
+   'microphone',
+   'mouse',
+-  'multitasking',
+-  'notifications',
+-  'online-accounts',
++#  'multitasking',
++#  'notifications',
++#  'online-accounts',
+   'power',
+   'printers',
+   'region',
+   'removable-media',
+   'screen',
+-  'search',
+-  'sharing',
++#  'search',
++#  'sharing',
+   'sound',
+   'tablet',
+   'universal-access',
+diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
+index d35592e..6003f54 100644
+--- a/panels/themes/cc-themes-panel.c
++++ b/panels/themes/cc-themes-panel.c
+@@ -32,20 +32,10 @@
+ #define DEFAULT_ICON_THEME  "Rodent"
+ 
+ #define DEFAULT_THEME_DIR   "/usr/share/icons"
++#define DEFAULT_THEMES_INI  "/usr/share/gnome-control-center/themes/gooroom-themes.ini"
+ 
+ #define WID(y) (GtkWidget *) gtk_builder_get_object (panel->builder, y)
+ 
+-struct {
+-  char *icon_theme;
+-  //char *icon_name;
+-  int   number;
+-  char *bg_path;
+-} icon_themes[] = {
+-  { "Gooroom-Arc", 1, "file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_1.jpg" },
+-  { "Gooroom-Faenza", 2, "file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_2.jpg" },
+-  { "Gooroom-Papirus", 3, "file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_3.jpg" },
+-};
+-
+ enum
+ {
+   COL_THUMBNAIL,
+@@ -108,31 +98,59 @@ create_store (void)
+   return store;
+ }
+ 
++static void
++set_theme_liststore (GtkListStore *store, GKeyFile *keyfile, gchar *group, gchar *locale)
++{
++  gchar *name;
++  gchar *background;
++  gchar *icon;
++  gchar *thumb_path;
++  g_autoptr(GError) error = NULL;
++  GtkTreeIter iter;
++  
++
++  name = g_key_file_get_locale_string (keyfile, group, "Name", locale, NULL);
++  background = g_key_file_get_value (keyfile, group, "Background", NULL);
++  icon = g_key_file_get_value (keyfile, group, "Icon", &error);
++  if (icon == NULL) {
++    g_warning ("Error icon:%s", error->message);
++    return;
++  }
++
++  thumb_path = g_strdup_printf ("%s/%s/thumbnail.png", DEFAULT_THEME_DIR, icon);
++
++  gtk_list_store_append (store, &iter);
++  gtk_list_store_set (store, &iter,
++                      COL_THUMBNAIL, gdk_pixbuf_new_from_file_at_size (thumb_path, 180, 110, NULL),
++                      COL_LABEL_ICON_NAME, name ? name : NULL,
++                      COL_ICON_THEME, icon ? icon : NULL,
++                      COL_PICTURE_URI, background ? background : NULL,
++                      COL_THUMB_PATH, thumb_path, -1);
++}
++
+ static GtkListStore *
+ load_themes_liststore (CcThemesPanel *panel)
+ {
+   GtkListStore *store;
+   GtkTreeIter iter;
++  g_autoptr(GError) error = NULL;
++  g_autoptr(GKeyFile) keyfile = g_key_file_new ();
++  gchar **groups = NULL;
++  gsize *group_length;
++  gchar *locale = NULL;
++
++  if (!g_key_file_load_from_file (keyfile, DEFAULT_THEMES_INI, G_KEY_FILE_KEEP_TRANSLATIONS, &error))
++  {
++    g_warning ("Error loading default-themes.ini: %s", error->message);
++    return NULL;
++  }
+ 
+   store = create_store ();
+ 
+-  for (int i = 0; i < G_N_ELEMENTS (icon_themes); i++)
++  groups = g_key_file_get_groups (keyfile, &group_length);
++  for (int i = 0; i < group_length; i++)
+   {
+-    gchar *thumb_path = NULL;
+-    gchar *icon_name = NULL;
+-    gchar *picture_uri = NULL;
+-
+-    thumb_path = g_strdup_printf ("%s/%s/thumbnail.png", DEFAULT_THEME_DIR, icon_themes[i].icon_theme);
+-    icon_name = g_strdup_printf (_("Gooroom Icon Theme %d"), icon_themes[i].number);
+-    picture_uri = g_strdup_printf ("%s",icon_themes[i].bg_path);
+-
+-    gtk_list_store_append (store, &iter);
+-    gtk_list_store_set (store, &iter,
+-                        COL_THUMBNAIL, gdk_pixbuf_new_from_file_at_size (thumb_path, 180, 110, NULL),
+-                        COL_ICON_THEME, g_strdup_printf ("%s", icon_themes[i].icon_theme),
+-                        COL_LABEL_ICON_NAME, icon_name ? icon_name : NULL,
+-                        COL_PICTURE_URI, picture_uri ? picture_uri : NULL,
+-                        COL_THUMB_PATH, thumb_path, -1);
++    set_theme_liststore (store, keyfile, groups[i], locale);
+   }
+ 
+   return store;
+@@ -267,10 +285,10 @@ cc_themes_panel_dispose (GObject *object)
+ {
+   CcThemesPanel *panel = CC_THEMES_PANEL (object);
+ 
+-  if (panel->interface_settings)
+-    g_settings_set_string (panel->interface_settings, "icon-theme", panel->icon_theme);
+-  if (panel->bg_settings)
+-    g_settings_set_string (panel->bg_settings, "picture-uri", panel->picture_uri);
++  //if (panel->interface_settings)
++  //  g_settings_set_string (panel->interface_settings, "icon-theme", panel->icon_theme);
++  //if (panel->bg_settings)
++  //  g_settings_set_string (panel->bg_settings, "picture-uri", panel->picture_uri);
+ 
+   g_clear_object (&panel->interface_settings);
+   g_clear_object (&panel->bg_settings);
+diff --git a/panels/themes/data/meson.build b/panels/themes/data/meson.build
+new file mode 100644
+index 0000000..232acf1
+--- /dev/null
++++ b/panels/themes/data/meson.build
+@@ -0,0 +1,23 @@
++subdir ('themes')
++#install_subdir(
++#  'themes',
++#  install_dir : join_paths(control_center_datadir, 'gnome-control-center')
++#)
++
++#desktop = 'gooroom-themes.ini'
++#
++#desktop_in = configure_file(
++#  input: desktop + '.in.in',
++#  output: desktop + '.in',
++#  configuration: desktop_conf
++#)
++#
++#i18n.merge_file(
++#  desktop,
++#  type: 'desktop',
++#  input: desktop_in,
++#  output: desktop,
++#  po_dir: po_dir,
++#  install: true,
++#  install_dir: join_paths(control_center_datadir, 'gnome-control-center')
++#)
+diff --git a/panels/themes/data/themes/gooroom-themes.ini.in.in b/panels/themes/data/themes/gooroom-themes.ini.in.in
+new file mode 100644
+index 0000000..e1cd0b0
+--- /dev/null
++++ b/panels/themes/data/themes/gooroom-themes.ini.in.in
+@@ -0,0 +1,28 @@
++[Gooroom Theme 1]
++Name=Gooroom Icon Theme 1
++Name[ko]=구름 테마 1
++Name[ko_KR]=구름 테마 1
++Name[ko_KR.UTF-8]=구름 테마 1
++Background=file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_1.jpg
++Icon=Gooroom-Arc
++[Gooroom Theme 2]
++Name=Gooroom Icon Theme 2
++Name[ko]=구름 테마 2
++Name[ko_KR]=구름 테마 2
++Name[ko_KR.UTF-8]=구름 테마 2
++Background=file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_2.jpg
++Icon=Gooroom-Faenza
++[Gooroom Theme 3]
++Name=Gooroom Icon Theme 3
++Name[ko]=구름 테마 3
++Name[ko_KR]=구름 테마 3
++Name[ko_KR.UTF-8]=구름 테마 3
++Background=file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_3.jpg
++Icon=Gooroom-Papirus
++[Gooroom Theme 4]
++Name=Gooroom Icon Theme 4
++Name[ko]=구름 테마 4
++Name[ko_KR]=구름 테마 4
++Name[ko_KR.UTF-8]=구름 테마 4
++Background=file:///usr/share/backgrounds/gooroom/gooroom_theme_bg_4.jpg
++Icon=Gooroom-Numix-Circle
+diff --git a/panels/themes/data/themes/meson.build b/panels/themes/data/themes/meson.build
+new file mode 100644
+index 0000000..d20a0f3
+--- /dev/null
++++ b/panels/themes/data/themes/meson.build
+@@ -0,0 +1,16 @@
++desktop = 'gooroom-themes.ini'
++
++desktop_in = configure_file(
++  input: desktop +'.in.in',
++  output: desktop+'.in',
++  configuration: desktop_conf
++)
++
++i18n.merge_file(
++  type: 'desktop',
++  input: desktop_in,
++  output: desktop,
++  po_dir: po_dir,
++  install: true,
++  install_dir: join_paths(control_center_datadir, 'gnome-control-center/themes')
++)
+diff --git a/panels/themes/meson.build b/panels/themes/meson.build
+index c48ffe4..8459465 100644
+--- a/panels/themes/meson.build
++++ b/panels/themes/meson.build
+@@ -17,11 +17,15 @@ i18n.merge_file(
+ )
+ 
+ sources = files(
++  #'cc-themes-theme.c',
+   'cc-themes-panel.c',
+ )
+ 
+ resource_data = files(
+-  'themes.ui'
++  'themes.ui',
++  #'themes-theme.ui',
++  #'check-icon.svg',
++  #'style.css',
+ )
+ 
+ sources += gnome.compile_resources(
+@@ -49,3 +53,5 @@ themes_panel_lib = static_library(
+   c_args: cflags
+ )
+ panels_libs += [ themes_panel_lib ]
++
++subdir('data')
+diff --git a/panels/themes/themes.ui b/panels/themes/themes.ui
+index 8006241..29ce3b3 100644
+--- a/panels/themes/themes.ui
++++ b/panels/themes/themes.ui
+@@ -19,6 +19,7 @@
+             <property name="baseline_position">top</property>
+             <child>
+               <object class="GtkFixed">
++			  <property name="visible">False</property>
+                 <child>
+                   <object class="GtkBox">
+                     <layout>
+diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
+index fd0b120..0b57138 100644
+--- a/shell/cc-panel-loader.c
++++ b/shell/cc-panel-loader.c
+@@ -43,19 +43,19 @@ extern GType cc_display_panel_get_type (void);
+ extern GType cc_info_overview_panel_get_type (void);
+ extern GType cc_keyboard_panel_get_type (void);
+ extern GType cc_mouse_panel_get_type (void);
+-extern GType cc_multitasking_panel_get_type (void);
++//extern GType cc_multitasking_panel_get_type (void);
+ #ifdef BUILD_NETWORK
+ extern GType cc_network_panel_get_type (void);
+ extern GType cc_wifi_panel_get_type (void);
+ #endif /* BUILD_NETWORK */
+-extern GType cc_notifications_panel_get_type (void);
+-extern GType cc_online_accounts_panel_get_type (void);
++//extern GType cc_notifications_panel_get_type (void);
++//extern GType cc_online_accounts_panel_get_type (void);
+ extern GType cc_power_panel_get_type (void);
+ extern GType cc_printers_panel_get_type (void);
+ extern GType cc_region_panel_get_type (void);
+ extern GType cc_removable_media_panel_get_type (void);
+-extern GType cc_search_panel_get_type (void);
+-extern GType cc_sharing_panel_get_type (void);
++//extern GType cc_search_panel_get_type (void);
++//extern GType cc_sharing_panel_get_type (void);
+ extern GType cc_sound_panel_get_type (void);
+ #ifdef BUILD_TABLET
+ extern GType cc_tablet_panel_get_type (void);
+@@ -124,20 +124,20 @@ static CcPanelLoaderVtable default_panels[] =
+   // PANEL_TYPE("firmware-security",cc_firmware_security_panel_get_type,    cc_firmware_security_panel_static_init_func),
+   PANEL_TYPE("microphone",       cc_microphone_panel_get_type,           NULL),
+   PANEL_TYPE("mouse",            cc_mouse_panel_get_type,                NULL),
+-  PANEL_TYPE("multitasking",     cc_multitasking_panel_get_type,         NULL),
++  //PANEL_TYPE("multitasking",     cc_multitasking_panel_get_type,         NULL),
+ #ifdef BUILD_NETWORK
+   PANEL_TYPE("network",          cc_network_panel_get_type,              NULL),
+   PANEL_TYPE("wifi",             cc_wifi_panel_get_type,                 cc_wifi_panel_static_init_func),
+ #endif
+-  PANEL_TYPE("notifications",    cc_notifications_panel_get_type,        NULL),
+-  PANEL_TYPE("online-accounts",  cc_online_accounts_panel_get_type,      NULL),
++  //PANEL_TYPE("notifications",    cc_notifications_panel_get_type,        NULL),
++  //PANEL_TYPE("online-accounts",  cc_online_accounts_panel_get_type,      NULL),
+   PANEL_TYPE("power",            cc_power_panel_get_type,                NULL),
+   PANEL_TYPE("printers",         cc_printers_panel_get_type,             NULL),
+   PANEL_TYPE("region",           cc_region_panel_get_type,               NULL),
+   PANEL_TYPE("removable-media",  cc_removable_media_panel_get_type,      NULL),
+   PANEL_TYPE("screen",           cc_screen_panel_get_type,               NULL),
+-  PANEL_TYPE("search",           cc_search_panel_get_type,               NULL),
+-  PANEL_TYPE("sharing",          cc_sharing_panel_get_type,              NULL),
++  //PANEL_TYPE("search",           cc_search_panel_get_type,               NULL),
++  //PANEL_TYPE("sharing",          cc_sharing_panel_get_type,              NULL),
+   PANEL_TYPE("sound",            cc_sound_panel_get_type,                NULL),
+ #ifdef BUILD_TABLET
+   PANEL_TYPE("tablet",           cc_tablet_panel_get_type,               cc_tablet_panel_static_init_func),
