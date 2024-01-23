@@ -1,0 +1,121 @@
+diff --git a/panels/font/cc-font-panel.c b/panels/font/cc-font-panel.c
+index 295a004..3e705e0 100644
+--- a/panels/font/cc-font-panel.c
++++ b/panels/font/cc-font-panel.c
+@@ -366,8 +366,6 @@ cc_font_panel_init (CcFontPanel *panel)
+   gchar *objects[] = {"font-main-scrolled-window", NULL };
+   g_autoptr(GError) err = NULL;
+   GtkWidget *w;
+-  GtkWidget *headerbar;
+-  GtkWidget *box;
+   //gint button_val;
+ 
+   g_resources_register (cc_font_get_resource ());
+@@ -407,33 +405,6 @@ cc_font_panel_init (CcFontPanel *panel)
+   // initialize gsd combo box
+   init_gsd_combo_box_model (panel);
+ 
+-  // remove feature. by ryong
+-  //init_scale_buttons (panel);
+-
+-  /*
+-  button_val = g_settings_get_enum (panel->gsd_settings, "hinting");
+-  set_value_for_combo (GTK_COMBO_BOX (panel->hinting_cb), button_val);
+-
+-  button_val = g_settings_get_enum (panel->gsd_settings, "antialiasing");
+-  set_value_for_combo (GTK_COMBO_BOX (panel->antialias_cb), button_val);
+-
+-  g_signal_connect (panel->hinting_cb, "changed",
+-                    G_CALLBACK (changed_hinting_cb), panel);
+-  g_signal_connect (panel->antialias_cb, "changed",
+-                    G_CALLBACK (changed_antialias_cb), panel);
+-  */
+-
+-
+-  box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
+-
+   w = WID ("font-main-scrolled-window");
+-
+-  headerbar = adw_header_bar_new ();
+-  adw_header_bar_set_show_end_title_buttons (headerbar, true);
+-
+-  gtk_box_append (GTK_BOX (box),w);
+-  gtk_box_prepend (GTK_BOX (box),headerbar);
+-
+-  adw_bin_set_child (ADW_BIN (panel), box);
+-  gtk_widget_set_visible (GTK_WIDGET (panel), true);
++  cc_panel_set_content (CC_PANEL (panel), GTK_WIDGET (w));
+ }
+diff --git a/panels/font/font.ui b/panels/font/font.ui
+index 0db9576..3f6a961 100644
+--- a/panels/font/font.ui
++++ b/panels/font/font.ui
+@@ -197,6 +197,7 @@
+                     <property name="label" translatable="1" comments="List of applications.">Font Rendering Settings</property>
+                     <property name="margin-bottom">12</property>
+                     <property name="xalign">0</property>
++                    <property name="visible">False</property>
+                     <attributes>
+                       <attribute name="weight" value="bold"></attribute>
+                     </attributes>
+@@ -206,6 +207,7 @@
+                   <object class="GtkFrame" id="render-frame">
+                     <property name="hexpand">1</property>
+                     <property name="margin-bottom">32</property>
++                    <property name="visible">False</property>
+                     <property name="child">
+                       <object class="GtkListBox" id="render-listbox">
+                         <property name="selection-mode">none</property>
+diff --git a/panels/themes/cc-themes-panel.c b/panels/themes/cc-themes-panel.c
+index 6003f54..4ea09cd 100644
+--- a/panels/themes/cc-themes-panel.c
++++ b/panels/themes/cc-themes-panel.c
+@@ -317,8 +317,6 @@ cc_themes_panel_init (CcThemesPanel *panel)
+   gchar *objects[] = {"themes-main-scrolled-window", NULL};
+   g_autoptr(GError) err = NULL;
+   GtkWidget *w;
+-  GtkWidget *headerbar;
+-  GtkWidget *box;
+   gint button_val;
+   gdouble i_val;
+   GtkWidget *themes_list_sw;
+@@ -386,37 +384,19 @@ cc_themes_panel_init (CcThemesPanel *panel)
+   gtk_icon_view_set_column_spacing (GTK_ICON_VIEW (panel->icon_view), 10);
+   gtk_icon_view_set_margin (GTK_ICON_VIEW (panel->icon_view), 10);
+ 
+-  //g_signal_connect (WID ("current-theme-drawingarea"),
+-  //                  "draw",
+-  //                  G_CALLBACK(cc_themes_panel_draw_theme),
+-  //                  panel);
+   gtk_widget_queue_draw(GTK_WIDGET (WID ("current-theme-drawingarea")));
+   g_signal_connect (panel->icon_view,
+                     "selection-changed",
+                     G_CALLBACK (cc_themes_panel_selected_theme),
+                     panel);
+ 
+-  //gtk_scrolled_window_set_shadow_type (themes_list_sw, GTK_SHADOW_ETCHED_IN);
+   gtk_scrolled_window_set_policy (themes_list_sw,
+                                   GTK_POLICY_AUTOMATIC,
+                                   GTK_POLICY_AUTOMATIC);
+ 
+-  //gtk_container_add (GTK_CONTAINER (themes_list_sw), panel->icon_view);
+-  gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (themes_list_sw), panel->icon_view);
++  gtk_scrolled_window_set_child (GTK_WIDGET (themes_list_sw), panel->icon_view);
+   gtk_widget_grab_focus (panel->icon_view);
+ 
+-  box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
+   w = WID ("themes-main-scrolled-window");
+-
+-  headerbar = adw_header_bar_new ();
+-  adw_header_bar_set_show_end_title_buttons (headerbar, true);
+-
+-  gtk_box_append (GTK_BOX (box),w);
+-  gtk_box_prepend (GTK_BOX (box),headerbar);
+-
+-  adw_bin_set_child (ADW_BIN (panel), box);
+-  gtk_widget_set_visible (GTK_WIDGET (panel), true);
+-
+-  //gtk_container_add (GTK_CONTAINER (panel), w);
+-  //gtk_widget_show_all (GTK_WIDGET (panel));
++  cc_panel_set_content (CC_PANEL (panel), w);
+ }
