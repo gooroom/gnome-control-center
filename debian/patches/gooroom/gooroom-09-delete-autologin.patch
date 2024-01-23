@@ -1,0 +1,55 @@
+diff --git a/panels/user-accounts/cc-user-panel.c b/panels/user-accounts/cc-user-panel.c
+index 4eed0da..638d04b 100644
+--- a/panels/user-accounts/cc-user-panel.c
++++ b/panels/user-accounts/cc-user-panel.c
+@@ -913,9 +913,6 @@ show_user (ActUser *user, CcUserPanel *self)
+                 gtk_widget_set_visible (GTK_WIDGET (self->fingerprint_row), FALSE);
+         }
+ 
+-        /* Autologin: show when local account */
+-        show = act_user_is_local_account (user);
+-        gtk_widget_set_visible (GTK_WIDGET (self->autologin_row), show);
+ 
+ #ifdef HAVE_MALCONTENT
+         /* Parental Controls: Unavailable if user is admin or if
+@@ -1329,18 +1326,12 @@ on_permission_changed (CcUserPanel *self)
+ 
+         if (!act_user_is_local_account (user)) {
+                 gtk_widget_set_visible (GTK_WIDGET (self->account_type_row), FALSE);
+-                gtk_widget_set_visible (GTK_WIDGET (self->autologin_row), FALSE);
+         } else if (is_authorized && act_user_is_local_account (user)) {
+                 if (would_demote_only_admin (user)) {
+                         gtk_widget_set_visible (GTK_WIDGET (self->account_type_row), FALSE);
+                 } else {
+                         gtk_widget_set_visible (GTK_WIDGET (self->account_type_row), TRUE);
+                 }
+-
+-                if (get_autologin_possible (user)) {
+-                        gtk_widget_set_visible (GTK_WIDGET (self->autologin_row), TRUE);
+-                        gtk_widget_set_sensitive (GTK_WIDGET (self->autologin_row), TRUE);
+-                }
+         }
+         else {
+                 gtk_widget_set_visible (GTK_WIDGET (self->account_type_row), FALSE);
+@@ -1349,8 +1340,6 @@ on_permission_changed (CcUserPanel *self)
+                 } else {
+                         gtk_widget_set_visible (GTK_WIDGET (self->account_type_row), TRUE);
+                 }
+-                gtk_widget_set_sensitive (GTK_WIDGET (self->autologin_row), FALSE);
+-                add_unlock_tooltip (GTK_WIDGET (self->autologin_row));
+         }
+ 
+         /* The full name entry: insensitive if remote or not authorized and not self */
+diff --git a/panels/user-accounts/cc-user-panel.ui b/panels/user-accounts/cc-user-panel.ui
+index c5d3632..b107425 100644
+--- a/panels/user-accounts/cc-user-panel.ui
++++ b/panels/user-accounts/cc-user-panel.ui
+@@ -225,7 +225,7 @@
+                             <property name="title" translatable="yes">A_utomatic Login</property>
+                             <property name="use_underline">True</property>
+                             <property name="activatable_widget">autologin_switch</property>
+-							<property name="visible">False</property>
++                            <property name="visible">False</property>
+                             <child>
+                               <object class="GtkSwitch" id="autologin_switch">
+                                 <property name="valign">center</property>
