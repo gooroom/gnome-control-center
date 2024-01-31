@@ -14,3 +14,4 @@ gooroom/gooroom-06-theme-load.patch
 gooroom/gooroom-07-Add-user-accounts-home-directory-encryption.patch
 gooroom/gooroom-08-apply-adwaita-headerbar.patch
 gooroom/gooroom-09-delete-autologin.patch
+gooroom/gooroom-10-add-desktop-comment.patch

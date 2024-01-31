@@ -1,0 +1,12 @@
+diff --git a/shell/org.gnome.Settings.desktop.in.in b/shell/org.gnome.Settings.desktop.in.in
+index 1cb049c..6baf398 100644
+--- a/shell/org.gnome.Settings.desktop.in.in
++++ b/shell/org.gnome.Settings.desktop.in.in
+@@ -1,5 +1,7 @@
+ [Desktop Entry]
+ Name=Settings
++Comment[en_GB]=Modify system configuration.
++Comment[ko]=시스템 설정을 변경합니다.
+ # Translators: Do NOT translate or transliterate this text (this is an icon file name)!
+ Icon=org.gnome.Settings
+ Exec=gnome-control-center
