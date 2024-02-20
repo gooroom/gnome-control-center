@@ -1,0 +1,20 @@
+diff --git a/panels/font/font.ui b/panels/font/font.ui
+index 3f6a961..d9bfcdb 100644
+--- a/panels/font/font.ui
++++ b/panels/font/font.ui
+@@ -73,6 +73,7 @@
+                         </child>
+                         <child>
+                           <object class="GtkListBoxRow" id="doc-text-listboxrow">
++                            <property name="visible">False</property>
+                             <property name="activatable">0</property>
+                             <property name="focusable">1</property>
+                             <property name="height-request">32</property>
+@@ -152,6 +153,7 @@
+                         <child>
+                           <object class="GtkListBoxRow" id="windowtitle-text-listboxrow">
+                             <property name="activatable">0</property>
++                            <property name="visible">False</property>
+                             <property name="focusable">1</property>
+                             <property name="height-request">32</property>
+                             <property name="selectable">0</property>
