@@ -1,3 +1,27 @@
+gnome-control-center (1:43.6-2~deb12u1+grm4u1) bookworm; urgency=medium
+
+  [ jongkyung.woo ]
+  * [0d00f17d] Rebuild on gooroom-4.0
+
+  [ boyeon.choi ]
+  * [6ff5909f] Add gooroom logo
+  * [67841d62] Added Font Features
+  * [779bad00] Added Themes Features
+  * [643d5e98] Added WhiteList Features
+  * [fa76cfc4] Add patches to not display Tablet panel
+  * [0cfe56b3] Fix theme load
+  * [fcb47562] Update sources regarding copyright and control file
+  * [37194219] Add user accounts home direcotyr encryption
+  * [05005a90] [Bug:5667] Apply adwaita headerbar
+  * [dc07ab02] Delete auto login cause lightdm
+  * [37b98a7f] Add a comment in the launcher
+  * [92c880c2] Delete font-related elements
+
+  [ cjheo ]
+  * [10ea65d7] Add settings for Tablet Mode
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Sat, 09 Mar 2024 18:19:35 +0900
+
 gnome-control-center (1:43.6-2~deb12u1) bookworm; urgency=medium
 
   * Team upload
