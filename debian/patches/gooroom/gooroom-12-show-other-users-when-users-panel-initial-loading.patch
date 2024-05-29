@@ -1,0 +1,12 @@
+diff --git a/panels/user-accounts/cc-user-panel.c b/panels/user-accounts/cc-user-panel.c
+index 638d04b..3fa089f 100644
+--- a/panels/user-accounts/cc-user-panel.c
++++ b/panels/user-accounts/cc-user-panel.c
+@@ -828,6 +828,7 @@ on_pending_show_user_is_loaded (ActUser     *user,
+         }
+ 
+         show_user (user, self);
++        user_changed (self, user);
+ }
+ 
+ static void
