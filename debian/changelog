@@ -1,3 +1,10 @@
+gnome-control-center (1:43.6-2~deb12u1+grm4u2) bookworm; urgency=medium
+
+  [ cjheo ]
+  * [4e7fbad9] [Bug:5704] Fixed a bug where the user-accounts panel was not showing a list of other users when it first loaded.
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Fri, 31 May 2024 10:34:50 +0900
+
 gnome-control-center (1:43.6-2~deb12u1+grm4u1) bookworm; urgency=medium
 
   [ jongkyung.woo ]
