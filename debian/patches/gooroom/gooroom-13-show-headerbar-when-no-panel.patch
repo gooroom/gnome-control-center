@@ -1,0 +1,86 @@
+diff --git a/panels/network/wireless-security/ws-file-chooser-button.c b/panels/network/wireless-security/ws-file-chooser-button.c
+index 998df42..171c8a4 100644
+--- a/panels/network/wireless-security/ws-file-chooser-button.c
++++ b/panels/network/wireless-security/ws-file-chooser-button.c
+@@ -221,7 +221,8 @@ ws_file_chooser_button_set_file (WsFileChooserButton *self,
+       gtk_file_chooser_set_file (self->filechooser, file, NULL);
+       update_label (self);
+ 
+-      g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FILE]);
++      //g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_FILE]);
++      g_object_notify_by_pspec (G_OBJECT (gtk_widget_get_settings (GTK_WIDGET (self))), properties[PROP_FILE]);
+     }
+ }
+ 
+diff --git a/shell/cc-window.c b/shell/cc-window.c
+index 15d7124..d2d1088 100644
+--- a/shell/cc-window.c
++++ b/shell/cc-window.c
+@@ -61,6 +61,7 @@ struct _CcWindow
+   GtkBox            *sidebar_box;
+   AdwWindowTitle    *sidebar_title_widget;
+   GtkStack          *stack;
++  AdwHeaderBar      *panel_box_header;
+ 
+   GtkWidget  *old_panel;
+   GtkWidget  *current_panel;
+@@ -724,19 +725,23 @@ cc_window_constructed (GObject *object)
+ {
+   CcWindow *self = CC_WINDOW (object);
+   g_autofree char *id = NULL;
++  g_auto(GStrv) white_list;
+ 
+   load_window_state (self);
+ 
+   /* Add the panels */
+   setup_model (self);
+ 
++  gtk_widget_hide (self->panel_box_header);
++
+   /* After everything is loaded, select the last used panel, if any,
+    * or the first visible panel */
+   id = g_settings_get_string (self->settings, "last-panel");
+   if (id != NULL && cc_shell_model_has_panel (self->store, id))
+     cc_panel_list_set_active_panel (self->panel_list, id);
+   else
+-    cc_panel_list_activate (self->panel_list);
++    if (cc_panel_list_activate (self->panel_list)==0)
++      gtk_widget_show (self->panel_box_header);
+ 
+   g_signal_connect_swapped (self->panel_list,
+                             "notify::view",
+@@ -747,6 +752,10 @@ cc_window_constructed (GObject *object)
+   adw_leaflet_set_visible_child (self->main_leaflet,
+                                  GTK_WIDGET (self->sidebar_box));
+ 
++  white_list = g_settings_get_strv (self->settings, "whitelist-panels");
++  if (white_list[0]==NULL || g_strcmp0(white_list[0],"")==0)
++    gtk_widget_show (self->panel_box_header);
++
+   G_OBJECT_CLASS (cc_window_parent_class)->constructed (object);
+ }
+ 
+@@ -824,6 +833,7 @@ cc_window_class_init (CcWindowClass *klass)
+   gtk_widget_class_bind_template_child (widget_class, CcWindow, sidebar_box);
+   gtk_widget_class_bind_template_child (widget_class, CcWindow, sidebar_title_widget);
+   gtk_widget_class_bind_template_child (widget_class, CcWindow, stack);
++  gtk_widget_class_bind_template_child (widget_class, CcWindow, panel_box_header);
+ 
+   gtk_widget_class_bind_template_callback (widget_class, on_main_leaflet_folded_changed_cb);
+   gtk_widget_class_bind_template_callback (widget_class, on_development_warning_dialog_responded_cb);
+diff --git a/shell/cc-window.ui b/shell/cc-window.ui
+index 07e1848..dd7c366 100644
+--- a/shell/cc-window.ui
++++ b/shell/cc-window.ui
+@@ -115,6 +115,11 @@
+             <property name="orientation">vertical</property>
+             <property name="hexpand">True</property>
+             <property name="vexpand">True</property>
++            <property name="spacing">2</property>
++
++            <child>
++              <object class="AdwHeaderBar" id="panel_box_header"/>
++            </child>
+ 
+             <child>
+               <object class="GtkStack" id="stack">
