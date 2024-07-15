@@ -1,0 +1,117 @@
+diff --git a/panels/background/cc-background-panel.ui b/panels/background/cc-background-panel.ui
+index 33a8638..73efe53 100644
+--- a/panels/background/cc-background-panel.ui
++++ b/panels/background/cc-background-panel.ui
+@@ -7,6 +7,7 @@
+         <child>
+           <object class="AdwPreferencesGroup">
+             <property name="title" translatable="yes">Style</property>
++            <property name="visible">False</property>
+ 
+             <child>
+               <object class="AdwPreferencesRow">
+diff --git a/panels/display/cc-display-panel.ui b/panels/display/cc-display-panel.ui
+index 9337b18..cdeeaae 100644
+--- a/panels/display/cc-display-panel.ui
++++ b/panels/display/cc-display-panel.ui
+@@ -171,6 +171,7 @@
+                         <!-- Night Light -->
+                         <child>
+                           <object class="AdwPreferencesGroup">
++                            <property name="visible">False</property>
+                             <child>
+                               <object class="AdwActionRow">
+                                 <property name="activatable">True</property>
+diff --git a/panels/power/cc-power-panel.c b/panels/power/cc-power-panel.c
+index 9fb0bbd..00cc68d 100644
+--- a/panels/power/cc-power-panel.c
++++ b/panels/power/cc-power-panel.c
+@@ -1374,7 +1374,7 @@ setup_general_section (CcPowerPanel *self)
+
+   if (self->has_batteries)
+     {
+-      gtk_widget_show (GTK_WIDGET (self->battery_percentage_row));
++//      gtk_widget_show (GTK_WIDGET (self->battery_percentage_row));
+
+       g_settings_bind (self->interface_settings, "show-battery-percentage",
+                        self->battery_percentage_switch, "active",
+diff --git a/panels/universal-access/cc-ua-panel.ui b/panels/universal-access/cc-ua-panel.ui
+index fb01d98..df45b40 100644
+--- a/panels/universal-access/cc-ua-panel.ui
++++ b/panels/universal-access/cc-ua-panel.ui
+@@ -12,6 +12,7 @@
+       <object class="AdwPreferencesPage">
+         <child>
+           <object class="AdwPreferencesGroup">
++            <property name="visible">False</property>
+             <child>
+               <object class="AdwActionRow">
+                 <property name="title" translatable="yes">_Always Show Accessibility Menu</property>
+@@ -31,6 +32,7 @@
+             <property name="title" translatable="yes">Seeing</property>
+             <child>
+               <object class="AdwActionRow" id="highcontrast_row">
++                <property name="visible">False</property>
+                 <property name="title" translatable="yes">_High Contrast</property>
+                 <property name="use-underline">True</property>
+                 <property name="activatable-widget">highcontrast_enable_switch</property>
+@@ -67,6 +69,7 @@
+             </child>
+             <child>
+               <object class="AdwActionRow" id="screen_reader_row">
++                <property name="visible">False</property>
+                 <property name="title" translatable="yes">Screen _Reader</property>
+                 <property name="subtitle" translatable="yes">The screen reader reads displayed text as you move the focus.</property>
+                 <property name="use-underline">True</property>
+@@ -113,6 +116,7 @@
+             </child>
+             <child>
+               <object class="AdwActionRow" id="zoom_row">
++                <property name="visible">False</property>
+                 <property name="title" translatable="yes">_Zoom</property>
+                 <property name="use-underline">True</property>
+                 <property name="activatable">True</property>
+@@ -135,6 +139,7 @@
+         </child>
+         <child>
+           <object class="AdwPreferencesGroup">
++            <property name="visible">False</property>
+             <property name="title" translatable="yes">Hearing</property>
+             <child>
+               <object class="AdwActionRow" id="visual_alerts_row">
+@@ -163,6 +168,7 @@
+             <property name="title" translatable="yes">Typing</property>
+             <child>
+               <object class="AdwActionRow">
++                <property name="visible">False</property>
+                 <property name="title" translatable="yes">Screen _Keyboard</property>
+                 <property name="use-underline">True</property>
+                 <property name="activatable-widget">screen_keyboard_enable_switch</property>
+@@ -252,6 +258,7 @@
+             </child>
+             <child>
+               <object class="AdwActionRow">
++                <property name="visible">False</property>
+                 <property name="title" translatable="yes">_Locate Pointer</property>
+                 <property name="use-underline">True</property>
+                 <property name="activatable-widget">locate_pointer_enable_switch</property>
+@@ -264,6 +271,7 @@
+             </child>
+             <child>
+               <object class="AdwActionRow" id="click_assist_row">
++                <property name="visible">False</property>
+                 <property name="title" translatable="yes">_Click Assist</property>
+                 <property name="use-underline">True</property>
+                 <property name="activatable">True</property>
+diff --git a/panels/usage/cc-usage-panel.ui b/panels/usage/cc-usage-panel.ui
+index 7a5c27f..1542474 100644
+--- a/panels/usage/cc-usage-panel.ui
++++ b/panels/usage/cc-usage-panel.ui
+@@ -121,6 +121,7 @@
+                 </child>
+                 <child>
+                   <object class="GtkButton" id="purge_temp_button">
++                    <property name="visible">False</property>
+                     <property name="halign">end</property>
+                     <property name="valign">center</property>
+                     <property name="label" translatable="yes">_Delete Temporary Files…</property>
