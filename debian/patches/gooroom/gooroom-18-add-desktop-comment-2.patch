@@ -1,0 +1,11 @@
+diff --git a/shell/org.gnome.Settings.desktop.in.in b/shell/org.gnome.Settings.desktop.in.in
+index 6baf398..4e606fa 100644
+--- a/shell/org.gnome.Settings.desktop.in.in
++++ b/shell/org.gnome.Settings.desktop.in.in
+@@ -1,5 +1,6 @@
+ [Desktop Entry]
+ Name=Settings
++Comment=Modify system configuration.
+ Comment[en_GB]=Modify system configuration.
+ Comment[ko]=시스템 설정을 변경합니다.
+ # Translators: Do NOT translate or transliterate this text (this is an icon file name)!

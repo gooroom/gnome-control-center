@@ -22,3 +22,4 @@ gooroom/gooroom-14-fix-the-SIGSEGV-on-the-wifi-security-tab.patch
 gooroom/gooroom-15-translations.patch
 gooroom/gooroom-16-hide-unsupported-menu.patch
 gooroom/gooroom-17-fontchooserdialog-preview-text-not-showing.patch
+gooroom/gooroom-18-add-desktop-comment-2.patch
