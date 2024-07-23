@@ -1,0 +1,56 @@
+diff --git a/panels/user-accounts/cc-add-user-dialog.ui b/panels/user-accounts/cc-add-user-dialog.ui
+index d1e2947..e590e6d 100644
+--- a/panels/user-accounts/cc-add-user-dialog.ui
++++ b/panels/user-accounts/cc-add-user-dialog.ui
+@@ -92,7 +92,7 @@
+                   <object class="AdwActionRow" id="local_username_row">
+                     <property name="activatable-widget">local_username_combo</property>
+                     <property name="title" translatable="yes">Username</property>
+-                    <property name="subtitle-lines">2</property>
++                    <property name="subtitle-lines">3</property>
+                     <child>
+                       <object class="GtkComboBoxText" id="local_username_combo">
+                         <property name="valign">center</property>
+diff --git a/panels/user-accounts/user-utils.c b/panels/user-accounts/user-utils.c
+index 5b7bc1f..6a69d23 100644
+--- a/panels/user-accounts/user-utils.c
++++ b/panels/user-accounts/user-utils.c
+@@ -198,6 +198,38 @@ is_valid_username_async (const gchar *username,
+                 return;
+         }
+ 
++        /* First char must be a letter, and it must only composed
++         * of ASCII letters, digits, and a '.', '-', '_'
++         */
++        const gchar *c;
++        gint digit_len = 0;
++        for (c = username; *c; c++) {
++            if (*c >= '0' && *c <= '9') {
++                digit_len++;
++            }
++        }
++
++        /* To avoid ambiguity with numerical UIDs, usernames which
++         * consist of only digits are not allowed.
++         */
++        if (digit_len == strlen(username)) {
++            data->tip = g_strdup (_("The username should usually only consist of lower case letters from a-z, digits and the following characters: - _"));
++            g_task_return_boolean (task, FALSE);
++            return;
++        }
++
++        for (c = username; *c; c++) {
++            if (!((*c >= 'a' && *c <= 'z') ||
++                  (*c >= 'A' && *c <= 'Z') ||
++                  (*c >= '0' && *c <= '9') ||
++                  (*c == '_') || (*c == '.') ||
++                  (*c == '-' && c != username))) {
++                data->tip = g_strdup (_("The username should usually only consist of lower case letters from a-z, digits and the following characters: - _"));
++                g_task_return_boolean (task, FALSE);
++                return;
++            }
++        }
++
+ #ifdef __FreeBSD__
+         /* Abuse "pw usershow -n <name>" in the same way as the code below. We
+          * don't use "pw usermod -n <name> -N -l <newname>" here because it has
