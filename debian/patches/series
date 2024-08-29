@@ -18,3 +18,4 @@ gooroom/gooroom-10-add-desktop-comment.patch
 gooroom/gooroom-11-delete-font-related-elements.patch
 gooroom/gooroom-12-show-other-users-when-users-panel-initial-loading.patch
 gooroom/gooroom-13-show-headerbar-when-no-panel.patch
+gooroom/gooroom-14-fix-the-SIGSEGV-on-the-wifi-security-tab.patch

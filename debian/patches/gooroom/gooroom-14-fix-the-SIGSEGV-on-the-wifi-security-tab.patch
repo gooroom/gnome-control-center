@@ -1,0 +1,63 @@
+diff --git a/panels/network/wireless-security/ws-wpa-psk.c b/panels/network/wireless-security/ws-wpa-psk.c
+index b911b36..36cd3f7 100644
+--- a/panels/network/wireless-security/ws-wpa-psk.c
++++ b/panels/network/wireless-security/ws-wpa-psk.c
+@@ -39,6 +39,16 @@ struct _WirelessSecurityWPAPSK {
+ 	GtkCheckButton *show_password_check;
+ 	GtkComboBox    *type_combo;
+ 	GtkLabel       *type_label;
++	gboolean		validate;
++};
++
++typedef enum {
++    ITEM_STORAGE_USER    = 0,
++    ITEM_STORAGE_SYSTEM  = 1,
++    ITEM_STORAGE_ASK     = 2,
++    ITEM_STORAGE_UNUSED  = 3,
++    __ITEM_STORAGE_MAX,
++    ITEM_STORAGE_MAX = __ITEM_STORAGE_MAX - 1,
+ };
+ 
+ static void wireless_security_iface_init (WirelessSecurityInterface *);
+@@ -67,6 +77,7 @@ validate (WirelessSecurity *security, GError **error)
+ 	secret_flags = nma_utils_menu_to_secret_flags (GTK_WIDGET (self->password_entry));
+ 	if (secret_flags & NM_SETTING_SECRET_FLAG_NOT_SAVED) {
+ 		widget_unset_error (GTK_WIDGET (self->password_entry));
++		self->validate = TRUE;
+ 		return TRUE;
+ 	}
+ 
+@@ -75,6 +86,7 @@ validate (WirelessSecurity *security, GError **error)
+ 	if ((len < 8) || (len > 64)) {
+ 		widget_set_error (GTK_WIDGET (self->password_entry));
+ 		g_set_error (error, NMA_ERROR, NMA_ERROR_GENERIC, _("invalid wpa-psk: invalid key-length %zu. Must be [8,63] bytes or 64 hex digits"), len);
++		self->validate = FALSE;
+ 		return FALSE;
+ 	}
+ 
+@@ -84,6 +96,7 @@ validate (WirelessSecurity *security, GError **error)
+ 			if (!isxdigit (key[i])) {
+ 				widget_set_error (GTK_WIDGET (self->password_entry));
+ 				g_set_error_literal (error, NMA_ERROR, NMA_ERROR_GENERIC, _("invalid wpa-psk: cannot interpret key with 64 bytes as hex"));
++				self->validate = FALSE;
+ 				return FALSE;
+ 			}
+ 		}
+@@ -92,6 +105,7 @@ validate (WirelessSecurity *security, GError **error)
+ 
+ 	/* passphrase can be between 8 and 63 characters inclusive */
+ 
++	self->validate = TRUE;
+ 	return TRUE;
+ }
+ 
+@@ -134,7 +148,8 @@ fill_connection (WirelessSecurity *security, NMConnection *connection)
+ 	                             secret_flags, NULL);
+ 
+ 	/* Update secret flags and popup when editing the connection */
+-	nma_utils_update_password_storage (GTK_WIDGET (self->password_entry), secret_flags,
++	if (secret_flags != ITEM_STORAGE_ASK && self->validate == TRUE)
++		nma_utils_update_password_storage (GTK_WIDGET (self->password_entry), secret_flags,
+ 	                                   NM_SETTING (s_wireless_sec), NM_SETTING_WIRELESS_SECURITY_PSK);
+ 
+ 	wireless_security_clear_ciphers (connection);
