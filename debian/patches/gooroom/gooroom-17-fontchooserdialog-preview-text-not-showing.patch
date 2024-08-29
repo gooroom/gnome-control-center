@@ -1,0 +1,60 @@
+diff --git a/panels/font/font.ui b/panels/font/font.ui
+index e53aebd..91d5c91 100644
+--- a/panels/font/font.ui
++++ b/panels/font/font.ui
+@@ -57,12 +57,11 @@
+                                 </child>
+                                 <child>
+                                   <object class="GtkFontButton" id="interface-fontbutton">
++                                    <property name="level">family|style|size|features|variations</property>
+                                     <property name="focusable">1</property>
+                                     <property name="font">Sans 12</property>
+                                     <property name="halign">end</property>
+-                                    <property name="language">ko-kr</property>
+                                     <property name="margin-end">15</property>
+-                                    <property name="preview-text"></property>
+                                     <property name="receives-default">1</property>
+                                     <property name="valign">center</property>
+                                   </object>
+@@ -97,12 +96,11 @@
+                                 </child>
+                                 <child>
+                                   <object class="GtkFontButton" id="doc-text-fontbutton">
++                                    <property name="level">family|style|size|features|variations</property>
+                                     <property name="focusable">1</property>
+                                     <property name="font">Sans 12</property>
+                                     <property name="halign">end</property>
+-                                    <property name="language">ko-kr</property>
+                                     <property name="margin-end">15</property>
+-                                    <property name="preview-text"></property>
+                                     <property name="receives-default">1</property>
+                                     <property name="valign">center</property>
+                                   </object>
+@@ -136,12 +134,11 @@
+                                 </child>
+                                 <child>
+                                   <object class="GtkFontButton" id="mono-text-fontbutton">
++                                    <property name="level">family|style|size|features|variations</property>
+                                     <property name="focusable">1</property>
+                                     <property name="font">Sans 12</property>
+                                     <property name="halign">end</property>
+-                                    <property name="language">ko-kr</property>
+                                     <property name="margin-end">15</property>
+-                                    <property name="preview-text"></property>
+                                     <property name="receives-default">1</property>
+                                     <property name="valign">center</property>
+                                   </object>
+@@ -176,12 +173,11 @@
+                                 </child>
+                                 <child>
+                                   <object class="GtkFontButton" id="windowtitle-text-fontbutton">
++                                    <property name="level">family|style|size|features|variations</property>
+                                     <property name="focusable">1</property>
+                                     <property name="font">Sans 12</property>
+                                     <property name="halign">end</property>
+-                                    <property name="language">ko-kr</property>
+                                     <property name="margin-end">15</property>
+-                                    <property name="preview-text"></property>
+                                     <property name="receives-default">1</property>
+                                     <property name="valign">center</property>
+                                   </object>
