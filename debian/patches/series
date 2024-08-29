@@ -24,3 +24,4 @@ gooroom/gooroom-16-hide-unsupported-menu.patch
 gooroom/gooroom-17-fontchooserdialog-preview-text-not-showing.patch
 gooroom/gooroom-18-add-desktop-comment-2.patch
 gooroom/gooroom-19-add-execption-handling-for-creating-user.patch
+gooroom/gooroom-20-hide-color-panel.patch
