@@ -20,3 +20,4 @@ gooroom/gooroom-12-show-other-users-when-users-panel-initial-loading.patch
 gooroom/gooroom-13-show-headerbar-when-no-panel.patch
 gooroom/gooroom-14-fix-the-SIGSEGV-on-the-wifi-security-tab.patch
 gooroom/gooroom-15-translations.patch
+gooroom/gooroom-16-hide-unsupported-menu.patch
