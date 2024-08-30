@@ -1,3 +1,20 @@
+gnome-control-center (1:43.6-2~deb12u1+grm4u3) bookworm; urgency=medium
+
+  [ boyeon.choi ]
+  * [1820c98b] [Bug:5684] View header bar in panel_box area when there is no panel to show
+  * [1ead47c0] [Bug:5729] Fix the SIGSEGV on the wifi panel's secrity tab
+
+  [ cjheo ]
+  * [311095bc] Update translations
+  * [020c0b2c] Hide unsupported menu
+  * [c43bb60c] Fix an issue where the preview-text is not displayed in the FontChooserDialog in the font panel.
+  * [68363202] Update org.gnome.Settings.desktop.in.in
+  * [69f7a9ad] Added exception handling for characters that are not allowed when creating user.
+  * [d6edf23f] Hide 'color' panel which is not supported in gnome-flashback environments
+  * [499e46a4] Fix the action when blank whitelist
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Fri, 30 Aug 2024 15:02:09 +0900
+
 gnome-control-center (1:43.6-2~deb12u1+grm4u2) bookworm; urgency=medium
 
   [ cjheo ]
