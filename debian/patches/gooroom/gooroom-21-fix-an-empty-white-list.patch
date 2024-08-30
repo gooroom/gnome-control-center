@@ -1,0 +1,79 @@
+diff --git a/panels/network/cc-wifi-panel.c b/panels/network/cc-wifi-panel.c
+index e53bae7..ed95c49 100644
+--- a/panels/network/cc-wifi-panel.c
++++ b/panels/network/cc-wifi-panel.c
+@@ -97,9 +97,14 @@ update_panel_visibility (NMClient *client)
+ {
+   const GPtrArray *devices;
+   CcApplication *application;
++  g_auto(GStrv) white_list;
++  GSettings *settings;
+   gboolean visible;
+   guint i;
+ 
++  settings = g_settings_new ("org.gnome.Settings");
++  white_list = g_settings_get_strv (settings, "whitelist-panels");
++
+   CC_TRACE_MSG ("Updating Wi-Fi panel visibility");
+ 
+   devices = nm_client_get_devices (client);
+@@ -115,11 +120,22 @@ update_panel_visibility (NMClient *client)
+         break;
+     }
+ 
+-  /* Set the new visibility */
+-  application = CC_APPLICATION (g_application_get_default ());
+-  cc_shell_model_set_panel_visibility (cc_application_get_model (application),
+-                                       "wifi",
+-                                       visible ? CC_PANEL_VISIBLE : CC_PANEL_VISIBLE_IN_SEARCH);
++
++  if (visible)
++  {
++	for (int j = 0; j < white_list[j] != NULL; j++)\
++	{
++	  if (g_strcmp0("wifi", white_list[j]) == 0) {
++		/* Set the new visibility */
++		application = CC_APPLICATION (g_application_get_default ());
++		cc_shell_model_set_panel_visibility (cc_application_get_model (application),
++                                             "wifi",
++                                             visible ? CC_PANEL_VISIBLE : CC_PANEL_VISIBLE_IN_SEARCH);
++	  } else
++		  visible = FALSE;
++	}
++  }
++  g_clear_object (&settings);
+ 
+   g_debug ("Wi-Fi panel visible: %s", visible ? "yes" : "no");
+ }
+diff --git a/shell/cc-panel-list.c b/shell/cc-panel-list.c
+index f40156a..d2bd0bd 100644
+--- a/shell/cc-panel-list.c
++++ b/shell/cc-panel-list.c
+@@ -969,8 +969,10 @@ cc_panel_list_add_panel (CcPanelList        *self,
+   g_hash_table_insert (self->id_to_search_data, search_data->id, search_data);
+ 
+   /* Only show the Devices/Details rows when there's at least one panel */
+-  if (category == CC_CATEGORY_PRIVACY)
+-    gtk_widget_show (GTK_WIDGET (self->privacy_row));
++  if (category == CC_CATEGORY_PRIVACY) {
++	if (visibility == CC_PANEL_VISIBLE)
++      gtk_widget_show (GTK_WIDGET (self->privacy_row));
++  }
+ }
+ 
+ /**
+diff --git a/shell/cc-panel-loader.c b/shell/cc-panel-loader.c
+index 4bb086e..360f069 100644
+--- a/shell/cc-panel-loader.c
++++ b/shell/cc-panel-loader.c
+@@ -217,8 +217,9 @@ cc_panel_loader_visible_from_schema (CcShellModel *model)
+   {
+     for (int j = 0; j < white_list[j] != NULL; j++)
+     {
+-      if (g_strcmp0(default_panels[i].name, white_list[j]) == 0)
++      if (g_strcmp0(default_panels[i].name, white_list[j]) == 0) {
+         cc_shell_model_set_panel_visibility (model, default_panels[i].name, CC_PANEL_VISIBLE);
++	  }
+     }
+   }
+ 
