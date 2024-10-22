@@ -1,34 +1,321 @@
 diff --git a/panels/tablet/cc-tablet-panel.c b/panels/tablet/cc-tablet-panel.c
-index 0baf998..c3d3d20 100644
+index 0baf998..40f9db4 100644
 --- a/panels/tablet/cc-tablet-panel.c
 +++ b/panels/tablet/cc-tablet-panel.c
-@@ -497,3 +497,26 @@ cc_tablet_panel_init (CcTabletPanel *self)
+@@ -31,8 +31,18 @@
+ #include "cc-tablet-panel.h"
+ #include "cc-tablet-resources.h"
+ 
+-#define ETC_GOOROOM_TABLET_MODE    "/etc/gooroom/.tablet-mode"
+-#define IIO_SENSOR_PROXY_SERVICE   "iio-sensor-proxy.service"
++#define ETC_GOOROOM_TABLET_MODE           "/etc/gooroom/.tablet-mode"
++#define IIO_SENSOR_PROXY_SERVICE          "iio-sensor-proxy.service"
++#define SCREEN_KEYBOARD_SCHEMA_NAME       "org.gnome.desktop.a11y.applications"
++#define TOOLKIT_ACCESSIBILITY_SCHEMA_NAME "org.gnome.desktop.interface"
++
++typedef enum DisplayRotation
++{
++    DISPLAY_ROTATION_NONE = 0,
++    DISPLAY_ROTATION_90,
++    DISPLAY_ROTATION_180,
++    DISPLAY_ROTATION_270
++} DisplayRotation;
+ 
+ struct _CcTabletPanel
+ {
+@@ -40,9 +50,14 @@ struct _CcTabletPanel
+ 
+ 	GtkWidget        *sw_tablet_mode;
+ 	GtkWidget        *sw_auto_rotation;
++	GtkWidget        *orientation_row;
++	GtkWidget        *tablet_mode_row;
++	GtkWidget        *auto_rotation_row;
+ 
+ 	gboolean          init_tablet_mode;
+ 	gboolean          init_auto_rotation;
++
++	GListModel       *orientation_list;
+ };
+ 
+ CC_PANEL_REGISTER (CcTabletPanel, cc_tablet_panel)
+@@ -164,6 +179,19 @@ launch_tablet_mode_switching_command (gboolean on)
+ 		} else {
+ 			g_warning ("Error attempting to execute command: %s", cmdline);
+ 		}
++	} else {
++		if (error) {
++			g_error_free (error);
++			error = NULL;
++		}
++		g_free (cmdline);
++		cmdline = g_strdup_printf ("/usr/bin/gsettings set %s screen-keyboard-enabled %s",
++                                    SCREEN_KEYBOARD_SCHEMA_NAME, on ? "true" : "false");
++		ret = g_spawn_command_line_sync (cmdline, NULL, NULL, NULL, &error);
++
++		g_free (cmdline);
++		cmdline = g_strdup_printf ("/usr/bin/gsettings set %s toolkit-accessibility true", TOOLKIT_ACCESSIBILITY_SCHEMA_NAME);
++		ret = g_spawn_command_line_sync (cmdline, NULL, NULL, NULL, &error);
+ 	}
+ 
+ 	g_free (cmdline);
+@@ -201,6 +229,42 @@ launch_tablet_mode_ar_service_command (gboolean on)
+ 	return ret;
+ }
+ 
++static gboolean
++is_package_installed (const gchar *package_name)
++{
++	gchar *cmd = NULL;
++	GError *error = NULL;
++	gchar *output = NULL;
++	gboolean ret = FALSE;
++
++	cmd = g_strdup_printf ("%s %s", QUERY_PACKAGE_INSTALL, package_name);
++	g_spawn_command_line_sync (cmd, &output, NULL, NULL, &error);
++	if (error) {
++		g_warning ("Failed to run '%s': %s", QUERY_PACKAGE_INSTALL, error->message);
++		g_clear_error (&error);
++		goto done;
++	}
++
++	g_debug ("'%s': %s\n", cmd, output);
++
++	if (output) {
++		ret = (strstr (output, "1") != NULL) ? TRUE : FALSE;
++	}
++
++
++done:
++	g_clear_pointer (&cmd, g_free);
++	g_clear_pointer (&output, g_free);
++
++	return ret;
++}
++
++static gboolean
++is_tablet_mode_possible (void)
++{
++	return is_package_installed ("gooroom-tabletmode-setting");
++}
++
+ static void
+ switching_error_dialog_response_cb (GtkDialog *dialog,
+                                     gint       response_id,
+@@ -438,12 +502,152 @@ auto_rotation_changed_cb (GtkSwitch *button, gboolean state, gpointer user_data)
+ 	return FALSE;
+ }
+ 
++static const gchar *
++string_for_rotation (DisplayRotation rotation)
++{
++	switch (rotation)
++	{
++		case DISPLAY_ROTATION_NONE:
++			return _("Landscape");
++		case DISPLAY_ROTATION_90:
++			return _("90 degree - Portrait Right");
++		case DISPLAY_ROTATION_270:
++			return _("270 degree - Portrait Left");
++		case DISPLAY_ROTATION_180:
++			return _("180 degree - Landscape (flipped)");
++	}
++
++	return "";
++}
++
++static gchar *
++get_current_display_rotation (void)
++{
++	GError *error = NULL;
++	gchar *output = NULL;
++
++	// xrandr --query --verbose | grep "primary" | cut -d ' ' -f 6
++	g_spawn_command_line_sync (GET_CURRENT_DISPLAY_ORIENTATION, &output, NULL, NULL, &error);
++	if (error) {
++		g_warning ("Failed to run '%s': %s", GET_CURRENT_DISPLAY_ORIENTATION, error->message);
++		g_clear_error (&error);
++		return NULL;
++	}
++
++	g_debug ("Current display rotation: %s", output);
++
++	return output;
++}
++
++static gboolean
++setup_orientation_cb (gpointer user_data)
++{
++	guint i, select_row;
++	gchar *str_current_rotation = NULL;
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	DisplayRotation rotations[] = { DISPLAY_ROTATION_NONE,
++                                    DISPLAY_ROTATION_90,
++                                    DISPLAY_ROTATION_270,
++                                    DISPLAY_ROTATION_180 };
++
++	str_current_rotation = get_current_display_rotation ();
++
++	gtk_string_list_splice (GTK_STRING_LIST (self->orientation_list),
++			0,
++			g_list_model_get_n_items (self->orientation_list),
++			NULL);
++
++	for (i = 0; i < G_N_ELEMENTS (rotations); i++) {
++		g_autoptr(GObject) obj = NULL;
++
++		gtk_string_list_append (GTK_STRING_LIST (self->orientation_list),
++				string_for_rotation (rotations[i]));
++		obj = g_list_model_get_item (self->orientation_list, i);
++		g_object_set_data (G_OBJECT (obj), "rotation-value", GINT_TO_POINTER (rotations[i]));
++	}
++
++	if (!str_current_rotation) {
++		select_row = 0;
++	} else {
++		if (g_str_equal (str_current_rotation, "normal")) {
++			select_row = 0;
++		} else if (g_str_equal (str_current_rotation, "left")) {
++			select_row = 1;
++		} else if (g_str_equal (str_current_rotation, "right")) {
++			select_row = 2;
++		} else if (g_str_equal (str_current_rotation, "inverted")) {
++			select_row = 3;
++		} else {
++			select_row = 0;
++		}
++	}
++
++	adw_combo_row_set_selected (ADW_COMBO_ROW (self->orientation_row), select_row);
++
++	return FALSE;
++}
++
++static void
++on_orientation_selection_changed_cb (GtkWidget         *widget,
++                                     GParamSpec        *pspec,
++                                     gpointer           user_data)
++{
++	gint idx;
++	GError *error = NULL;
++	gchar *cmdline = NULL;
++	const gchar *str_rotation;
++	CcTabletPanel *self = CC_TABLET_PANEL (user_data);
++
++	idx = adw_combo_row_get_selected (ADW_COMBO_ROW (self->orientation_row));
++	if (idx == 0)
++		str_rotation = "normal";
++	else if (idx == 1) {
++		str_rotation = "left";
++	} else if (idx == 2) {
++		str_rotation = "right";
++	} else if (idx == 3){
++		str_rotation = "inverted";
++	} else {
++		str_rotation = NULL;
++	}
++
++	if (str_rotation) {
++		cmdline = g_strdup_printf ("xrandr -o %s", str_rotation);
++	} else {
++		g_warning ("Failed to get current display orientation.");
++	}
++
++	if (cmdline) {
++		if (!g_spawn_command_line_async (cmdline, &error)) {
++			if (error) {
++				g_warning ("Failed to launch '%s': %s", cmdline, error->message);
++				g_error_free (error);
++			} else {
++				g_warning ("Failed to launch '%s'", cmdline);
++			}
++		}
++	}
++
++	g_clear_pointer (&cmdline, g_free);
++}
++
+ static void
+ cc_tablet_panel_dispose (GObject *object)
+ {
+ 	G_OBJECT_CLASS (cc_tablet_panel_parent_class)->dispose (object);
+ }
+ 
++static void
++cc_tablet_panel_finalize (GObject *object)
++{
++	CcTabletPanel *self = CC_TABLET_PANEL (object);
++
++	g_clear_object (&self->orientation_list);
++
++	G_OBJECT_CLASS (cc_tablet_panel_parent_class)->finalize (object);
++}
++
+ //cc_tablet_panel_constructed (GObject *object)
+ //{
+ //	CcShell *shell;
+@@ -466,6 +670,7 @@ cc_tablet_panel_class_init (CcTabletPanelClass *klass)
+ 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+ 
+ 	object_class->dispose = cc_tablet_panel_dispose;
++	object_class->finalize = cc_tablet_panel_finalize;
+ //	object_class->constructed = cc_tablet_panel_constructed;
+ 
+ 	panel_class->get_help_uri = cc_tablet_panel_get_help_uri;
+@@ -475,6 +680,9 @@ cc_tablet_panel_class_init (CcTabletPanelClass *klass)
+ 
+ 	gtk_widget_class_bind_template_child (widget_class, CcTabletPanel, sw_tablet_mode);
+ 	gtk_widget_class_bind_template_child (widget_class, CcTabletPanel, sw_auto_rotation);
++	gtk_widget_class_bind_template_child (widget_class, CcTabletPanel, tablet_mode_row);
++	gtk_widget_class_bind_template_child (widget_class, CcTabletPanel, auto_rotation_row);
++	gtk_widget_class_bind_template_child (widget_class, CcTabletPanel, orientation_row);
+ }
+ 
+ static void
+@@ -486,14 +694,43 @@ cc_tablet_panel_init (CcTabletPanel *self)
+ 
+ 	self->init_tablet_mode = g_file_test (ETC_GOOROOM_TABLET_MODE, G_FILE_TEST_EXISTS);
+ 	self->init_auto_rotation = is_systemd_service_active (IIO_SENSOR_PROXY_SERVICE);
++	self->orientation_list = G_LIST_MODEL (gtk_string_list_new (NULL));
++
++	adw_combo_row_set_model (ADW_COMBO_ROW (self->orientation_row),
++                             G_LIST_MODEL (self->orientation_list));
+ 
+ 	gtk_switch_set_active (GTK_SWITCH (self->sw_tablet_mode), self->init_tablet_mode);
+ 	gtk_switch_set_active (GTK_SWITCH (self->sw_auto_rotation), self->init_auto_rotation);
+ 	if (!self->init_tablet_mode)
+ 		gtk_widget_set_sensitive (self->sw_auto_rotation, FALSE);
+ 
++	if (!is_tablet_mode_possible ()) {
++		gtk_widget_set_sensitive (self->tablet_mode_row, FALSE);
++		gtk_widget_set_sensitive (self->auto_rotation_row, FALSE);
++		gtk_widget_set_sensitive (self->orientation_row, FALSE);
++		return;
++	}
++
++	g_timeout_add (100, (GSourceFunc)setup_orientation_cb, self);
++
+ 	g_signal_connect (self->sw_tablet_mode, "state-set", 
+                       G_CALLBACK (tablet_mode_changed_cb), self);
  	g_signal_connect (self->sw_auto_rotation, "state-set", 
                        G_CALLBACK (auto_rotation_changed_cb), self);
- }
++	g_signal_connect (self->orientation_row, "notify::selected-item",
++                      G_CALLBACK (on_orientation_selection_changed_cb), self);
++}
 +
 +void
 +cc_tablet_panel_static_init_func (void)
 +{
-+	gboolean visible;
 +	CcApplication *application;
 +
 +	application = CC_APPLICATION (g_application_get_default ());
 +
-+	const gchar *TBL_MODE_CHK_FILE_1 = "/usr/libexec/i3-gnome-flashback-session";
-+	const gchar *TBL_MODE_CHK_FILE_2 = "/usr/share/xsessions/i3-gnome-flashback-session.desktop";
-+	const gchar *TBL_MODE_CHK_FILE_3 = "/usr/share/gnome-session/sessions/i3-gnome-flashback.session";
-+
-+	visible = (g_file_test (TBL_MODE_CHK_FILE_1, G_FILE_TEST_EXISTS) &&
-+               g_file_test (TBL_MODE_CHK_FILE_2, G_FILE_TEST_EXISTS) &&
-+               g_file_test (TBL_MODE_CHK_FILE_3, G_FILE_TEST_EXISTS));
-+
 +	cc_shell_model_set_panel_visibility (cc_application_get_model (application),
 +                                         "tablet",
-+                                         visible ? CC_PANEL_VISIBLE : CC_PANEL_HIDDEN);
++                                         CC_PANEL_VISIBLE);
 +
-+	g_debug ("Tablet panel visible: %s", visible ? "yes" : "no");
-+}
++	g_debug ("Tablet panel visible: yes");
+ }
 diff --git a/panels/tablet/cc-tablet-panel.h b/panels/tablet/cc-tablet-panel.h
 index 2349c36..cbd2f79 100644
 --- a/panels/tablet/cc-tablet-panel.h
@@ -40,11 +327,110 @@ index 2349c36..cbd2f79 100644
 +void cc_tablet_panel_static_init_func (void);
 +
  G_END_DECLS
+diff --git a/panels/tablet/cc-tablet-panel.ui b/panels/tablet/cc-tablet-panel.ui
+index 19bf7ef..b796c69 100644
+--- a/panels/tablet/cc-tablet-panel.ui
++++ b/panels/tablet/cc-tablet-panel.ui
+@@ -9,7 +9,7 @@
+           <object class="AdwPreferencesGroup">
+             <property name="title" translatable="yes">Tablet _Mode</property>
+             <child>
+-              <object class="AdwActionRow">
++              <object class="AdwActionRow" id="tablet_mode_row">
+                 <property name="title" translatable="yes">Enable Tablet Mode</property>
+                 <property name="subtitle" translatable="yes">Changes will take effect on next login.</property>
+                 <property name="activatable-widget">sw_tablet_mode</property>
+@@ -26,7 +26,7 @@
+           <object class="AdwPreferencesGroup">
+             <property name="title" translatable="yes">Auto _Rotation</property>
+             <child>
+-              <object class="AdwActionRow">
++              <object class="AdwActionRow" id="auto_rotation_row">
+                 <property name="title" translatable="yes">Enable Auto Rotation</property>
+                 <property name="activatable-widget">sw_auto_rotation</property>
+                 <child type="suffix">
+@@ -38,6 +38,16 @@
+             </child>
+           </object>
+         </child>
++        <child>
++          <object class="AdwPreferencesGroup">
++            <property name="title" translatable="yes">Manual Rotation</property>
++            <child>
++              <object class="AdwComboRow" id="orientation_row">
++                <property name="title" translatable="yes">Orientation</property>
++              </object>
++            </child>
++          </object>
++        </child>
+       </object>
+     </child>
+   </template>
+diff --git a/panels/tablet/get-current-display-orientation.sh b/panels/tablet/get-current-display-orientation.sh
+new file mode 100755
+index 0000000..4dc3b9f
+--- /dev/null
++++ b/panels/tablet/get-current-display-orientation.sh
+@@ -0,0 +1,3 @@
++#!/bin/bash
++
++xrandr --query --verbose | grep "primary" | cut -d ' ' -f 6
+diff --git a/panels/tablet/meson.build b/panels/tablet/meson.build
+index 95b5463..4eda097 100644
+--- a/panels/tablet/meson.build
++++ b/panels/tablet/meson.build
+@@ -2,8 +2,10 @@ deps = common_deps
+ 
+ cflags += [
+   '-DGNOMELOCALEDIR="@0@"'.format(control_center_localedir),
++  '-DQUERY_PACKAGE_INSTALL="@0@/query-package-install.sh"'.format(control_center_libexecdir),
+   '-DTABLET_MODE_CHANGE_HELPER="@0@/tablet-mode-change-helper"'.format(control_center_libexecdir),
+-  '-DTABLET_MODE_AR_SERVICE_HELPER="@0@/tablet-mode-ar-service-helper"'.format(control_center_libexecdir)
++  '-DTABLET_MODE_AR_SERVICE_HELPER="@0@/tablet-mode-ar-service-helper"'.format(control_center_libexecdir),
++  '-DGET_CURRENT_DISPLAY_ORIENTATION="@0@/get-current-display-orientation.sh"'.format(control_center_libexecdir)
+ ]
+ 
+ tablet_gresource = gnome.compile_resources(
+@@ -76,3 +78,6 @@ executable(
+                install: true,
+            install_dir: control_center_libexecdir
+ )
++
++install_data('get-current-display-orientation.sh', install_dir: control_center_libexecdir)
++install_data('query-package-install.sh', install_dir: control_center_libexecdir)
+diff --git a/panels/tablet/query-package-install.sh b/panels/tablet/query-package-install.sh
+new file mode 100755
+index 0000000..425093d
+--- /dev/null
++++ b/panels/tablet/query-package-install.sh
+@@ -0,0 +1,3 @@
++#!/bin/sh
++
++dpkg-query -W -f '${Status}\n' "${1}" 2>&1 |awk '/ok installed/{print 1;exit}{print 0}'
 diff --git a/po/ko.po b/po/ko.po
-index 7f7ff35..f683692 100644
+index 7f7ff35..15e4e72 100644
 --- a/po/ko.po
 +++ b/po/ko.po
-@@ -7016,15 +7016,13 @@ msgid "Tablet;"
+@@ -7009,6 +7009,18 @@ msgstr "자동 회전 사용하기"
+ msgid "Settings for tablet mode"
+ msgstr "태블릿 모드 설정"
+ 
++msgid "Manual Rotation"
++msgstr "수동 회전"
++
++msgid "90 degree - Portrait Right"
++msgstr "세로 오른쪽 (90도)"
++
++msgid "270 degree - Portrait Left"
++msgstr "세로 왼쪽 (270도)"
++
++msgid "180 degree - Landscape (flipped)"
++msgstr "가로 뒤집힘 (180도)"
++
+ # 태블릿 PC
+ #. Translators: Search terms to find the Date and Time panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+ #: panels/tablet/gnome-tablet-panel.desktop.in.in:15
+@@ -7016,15 +7028,13 @@ msgid "Tablet;"
  msgstr "Tablet;태블릿;"
  
  #: panels/tablet/org.gnome.controlcenter.tablet.policy.in.in:10
@@ -115,7 +501,7 @@ index ef7895d..fd0b120 100644
  
  /**
 diff --git a/shell/org.gnome.Settings.gschema.xml b/shell/org.gnome.Settings.gschema.xml
-index a0f6f89..88d282a 100644
+index a0f6f89..724a7b0 100644
 --- a/shell/org.gnome.Settings.gschema.xml
 +++ b/shell/org.gnome.Settings.gschema.xml
 @@ -21,7 +21,7 @@
