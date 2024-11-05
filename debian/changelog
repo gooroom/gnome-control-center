@@ -1,3 +1,11 @@
+gnome-control-center (1:43.6-2~deb12u1+grm4u4) bookworm; urgency=medium
+
+  [ cjheo ]
+  * [ddc6ecb6] Add manual rotation function for tablet mode
+  * [de6db970] WIFI 패널 미노출 버그 수정
+
+ -- Gooroom Autobuilder <jenkins@gooroom.kr>  Tue, 05 Nov 2024 18:07:16 +0900
+
 gnome-control-center (1:43.6-2~deb12u1+grm4u3) bookworm; urgency=medium
 
   [ boyeon.choi ]
